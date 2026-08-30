@@ -120,16 +120,18 @@ export interface Player {
   notes: ScoutingNotes;
   isYouthOrReserve: boolean; // false by construction: only senior competitions are crawled
 
-  // --- SofaScore enrichment (Phase 4) — no live provider connected yet, see
-  // src/lib/sofascore/. Every field below is null/"pending"/[] for every
-  // player until a real provider is wired up; SCOUTASTIC data above is
-  // never gated on any of this being present. ---
-  sofascorePlayerId: string | null;
+  // --- Ratings enrichment — historically named after SofaScore (the
+  // originally-intended provider); the field names stuck even though the
+  // active implementation is API-Football (see
+  // scripts/lib/apiFootballProvider.mjs, docs/SOFASCORE_PROVIDER.md).
+  // SCOUTASTIC data above is never gated on any of this being present. ---
+  sofascorePlayerId: string | null; // the configured provider's player id (not literally a SofaScore id)
   sofascoreMatchStatus: SofaScoreMatchStatus;
   sofascoreMatchConfidence: number | null; // 0-1, only meaningful once matched
+  ratingsTeamId: string | null; // provider's current-team id for this player — API-Football's fixtures lookup is team-centric, so this avoids re-searching on every refresh
   lastSofaScoreSyncAt: string | null; // ISO datetime
-  matches: MatchRating[]; // last 5 completed matches with SofaScore ratings — always [] until matched
-  isDebutant: boolean; // debut detection needs SofaScore — always false until Phase 4
+  matches: MatchRating[]; // last 5 completed matches with ratings — always [] until matched
+  isDebutant: boolean; // debut detection needs match-level data — always false until built
   debutDate: string | null;
   ratingAverage: number | null; // stored aggregate of `matches` — computed once at sync time, not on every read
   ratingHighest: number | null;

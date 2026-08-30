@@ -1,16 +1,25 @@
 /**
- * Centralized SofaScore data-access interface.
+ * Centralized ratings data-access interface (module name is a historical
+ * "SofaScore" label — see below).
  *
- * SofaScore has no legitimate public API — their own FAQ states: "due to
- * agreements with our data providers, we are unable to share the data
- * sources in the form of API endpoints" (confirmed 2026-08-30, see
+ * SofaScore itself has no legitimate public API — their own FAQ states:
+ * "due to agreements with our data providers, we are unable to share the
+ * data sources in the form of API endpoints" (confirmed 2026-08-30, see
  * docs/SOFASCORE_PROVIDER.md). Their only sanctioned integration route is
  * a media/corporate widget partnership (corporate.sofascore.com/widgets),
  * not a data feed suitable for this kind of matching/rating pipeline.
  * Direct (non-widget) requests to api.sofascore.com are also actively
  * blocked (403) from every network tested — residential, GitHub Actions,
- * and Anthropic's own infrastructure — so this deliberately does NOT
- * attempt to reach that host.
+ * and Anthropic's own infrastructure — confirmed directly, not assumed —
+ * so this deliberately does not attempt to reach that host, and does not
+ * attempt to bypass its bot protection (explicit product decision, not a
+ * technical limitation — see docs/SOFASCORE_PROVIDER.md).
+ *
+ * The active implementation is **API-Football** (api-sports.io) instead —
+ * a real, licensed API with a genuine `rating` field — see
+ * apiFootballProvider.mjs. This module/interface predates that choice and
+ * kept its original name; treat "SofaScore" in these filenames as a
+ * historical label for "the ratings provider slot", not a live claim.
  *
  * This module exists so the rest of the app never has to change once a
  * legitimate provider (a licensed data feed, a different real ratings
@@ -84,13 +93,17 @@ function createNullProvider() {
  * provider becomes available.
  * @returns {SofaScoreProvider}
  */
-export function getSofaScoreProvider(providerName = process.env.SOFASCORE_PROVIDER) {
+export async function getSofaScoreProvider(providerName = process.env.SOFASCORE_PROVIDER) {
   const name = (providerName || "null").toLowerCase();
   if (name === "null" || name === "none" || name === "") {
     return createNullProvider();
   }
+  if (name === "api-football") {
+    const { createApiFootballProvider } = await import("./apiFootballProvider.mjs");
+    return createApiFootballProvider();
+  }
   throw new Error(
-    `SOFASCORE_PROVIDER="${providerName}" is not implemented. Only "null" (no-op) exists today — ` +
-      `see docs/SOFASCORE_PROVIDER.md for how to add a real provider.`
+    `SOFASCORE_PROVIDER="${providerName}" is not implemented. Only "null" and "api-football" exist today — ` +
+      `see docs/SOFASCORE_PROVIDER.md for how to add another provider.`
   );
 }

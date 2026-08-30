@@ -29,26 +29,29 @@ runtime through Supabase — an unauthenticated request is rejected by
 Postgres Row Level Security itself (`db/rls_policies.sql`), regardless of
 what the frontend does or doesn't check.
 
-**What's UI-gated only, by deliberate scope decision:** the player
-database (`data/players.json` — SCOUTASTIC names, clubs, market values,
-contracts) is baked into static output at `next build` time, before any
-concept of "who's asking" exists. `RequireAuth` hides it behind a login
-screen for anyone using the app normally — verified directly: the
-*visible* pre-rendered HTML for every `(app)` route shows only the
-"Redirecting to login…" placeholder, not real content. But every page in
-`(app)/` whose data comes from a plain Server Component (Dashboard,
-Players, Reports, Debutants, Top Performers — i.e. every page except the
-notes/shortlists that go through `useAppStore`) still gets its full
-server-rendered output embedded in that same HTML response as a React
-Server Components "flight data" payload, used for hydration — present in
-the raw bytes regardless of what's visually rendered, and regardless of
-`RequireAuth`. Confirmed directly: `grep`-ing the built `out/index.html`
-finds the dashboard's real stat-card data serialized in exactly this way,
-even though the page visually shows the login redirect. Scouting
-notes/status are *not* affected — those are fetched client-side through
-`useAppStore` (Supabase), confirmed by grepping the built Reports page
-for note content and finding none. Closing the SCOUTASTIC-data gap for
-real means moving player data out of build-time Server Components into
+**What's UI-gated only, by deliberate scope decision — and precisely
+this small, not the whole player database:** `RequireAuth` hides
+everything behind a login screen for anyone using the app normally —
+verified directly, the *visible* pre-rendered HTML for every `(app)`
+route shows only the "Redirecting to login…" placeholder, never real
+content. But whether a given route's data is *also* present in the raw
+HTML bytes (unrendered, but fetchable by `curl`/"View Source") depends on
+whether that specific page is a Server Component or a Client Component —
+verified per-page, not assumed:
+
+| Route | Component type | Real data in raw HTML bytes? |
+|---|---|---|
+| Dashboard (`/`) | Server | **Yes** — aggregate stat-card counts (confirmed: grepped `out/index.html`, found "Total Players" and its real count) |
+| Player profile (`/players/[id]`) | Server | **Yes** — that one player's full SCOUTASTIC record (confirmed: grepped a real profile's HTML, found the player's actual name) |
+| Players list, Debutants, Top Performers, Shortlists, Reports, Settings | Client | **No** — confirmed: grepped the built Players list page for every real player name in the database and found zero matches; `RequireAuth`'s client-side gate genuinely prevents these from rendering at all during static generation, not just from being displayed |
+
+Scouting notes/status are unaffected regardless of route — always fetched
+client-side through `useAppStore` (Supabase), confirmed by grepping the
+built Reports page for note content and finding none. So the real gap is
+narrower than "the player database is exposed": it's the Dashboard's
+aggregate counts and each individual player's own profile page, not the
+searchable list of all 8,454 players. Closing even that narrower gap for
+real means moving those two routes off build-time Server Components onto
 an authenticated runtime fetch (a materially bigger change — this is the
 same tradeoff already decided in favor of the simpler approach; don't
 assume it's been done without checking).

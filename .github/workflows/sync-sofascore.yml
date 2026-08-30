@@ -1,15 +1,20 @@
 name: Sync SofaScore
 
-# No-op today: SofaScore has no legitimate public API (see
-# docs/SOFASCORE_PROVIDER.md) and SOFASCORE_PROVIDER isn't set, so
-# scripts/sync-sofascore.mjs exits immediately without contacting anything.
-# This workflow exists so enabling a real provider later is a two-step
-# change (add the provider implementation, set the secrets below) with no
-# workflow changes needed.
+# Ratings enrichment sync (workflow/file names are a historical
+# "SofaScore" label — the active provider is API-Football; see
+# scripts/lib/apiFootballProvider.mjs, docs/SOFASCORE_PROVIDER.md).
+#
+# No-op until SOFASCORE_PROVIDER is set to "api-football" and
+# API_FOOTBALL_KEY exists as a repository secret.
+#
+# Runs ONCE a day, deliberately — the free API-Football tier is capped at
+# 100 requests/day, and the script's own per-run budget (default 90,
+# API_FOOTBALL_MAX_REQUESTS_PER_RUN) assumes a single daily run. Running
+# this more often would blow through the daily limit.
 
 on:
   schedule:
-    - cron: "30 */6 * * *" # every 6 hours — cheap no-op until a provider exists
+    - cron: "15 4 * * *" # once daily, 04:15 UTC
   workflow_dispatch: {}
 
 permissions:
@@ -32,11 +37,11 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run SofaScore sync
+      - name: Run ratings sync
         env:
-          SOFASCORE_PROVIDER: ${{ secrets.SOFASCORE_PROVIDER }}
-          SOFASCORE_API_KEY: ${{ secrets.SOFASCORE_API_KEY }}
-          SOFASCORE_API_BASE_URL: ${{ secrets.SOFASCORE_API_BASE_URL }}
+          SOFASCORE_PROVIDER: ${{ vars.SOFASCORE_PROVIDER }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          API_FOOTBALL_BASE_URL: ${{ vars.API_FOOTBALL_BASE_URL }}
         run: node scripts/sync-sofascore.mjs
 
       - name: Commit updated player data (if anything changed)
@@ -49,7 +54,7 @@ jobs:
             echo "No changes — nothing to commit."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "Sync SofaScore enrichment data"
+            git commit -m "Sync ratings enrichment data"
             git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi

@@ -1,33 +1,37 @@
 #!/usr/bin/env node
 /**
- * SofaScore enrichment sync.
+ * Ratings enrichment sync (module/file names are a historical "SofaScore"
+ * label — the active provider is API-Football; see
+ * scripts/lib/apiFootballProvider.mjs and docs/SOFASCORE_PROVIDER.md for
+ * why, and what's confirmed vs. still unverified about it).
  *
- * No-op today: `getSofaScoreProvider()` only has a "null" implementation
- * (see scripts/lib/sofascoreProvider.mjs) because SofaScore has no
- * legitimate public API — this script exists so the rest of the
- * pipeline (batching, rate-limit protection, resumable progress, storage)
- * is ready the moment a real provider is added; nothing here needs to
- * change, only SOFASCORE_PROVIDER + the new provider implementation.
+ * No-op when SOFASCORE_PROVIDER is unset (default) — see
+ * scripts/lib/sofascoreProvider.mjs.
  *
- * Design, once a real provider exists:
+ * Scope: by explicit decision, this only ever processes African debutant
+ * candidates (isAfrican && isEasternEuropeanLeague && !isYouthOrReserve),
+ * not the full SCOUTASTIC player set — the free API-Football tier's
+ * 100 requests/day makes covering all 8,454 players impractical, and
+ * this scope directly powers the currently-empty African Debutants page.
+ * Pass --include-all to override (not recommended on the free tier).
+ *
+ * Design:
  *   - Never re-search a player whose sofascoreMatchStatus is already
  *     "matched"/"ambiguous"/"not_found" — those are terminal until a
  *     human or a stronger provider revisits them. Only "pending" players
  *     get findPlayer() calls.
  *   - Matched players get their ratings refreshed periodically (default:
  *     older than --refresh-after-days), not on every run.
- *   - Processes at most --batch-size players per run (default 300) so a
- *     full backlog of thousands of players is worked through across many
- *     scheduled runs rather than one huge slow/fragile job — see
- *     docs/SOFASCORE_PROVIDER.md for the request-volume math.
+ *   - A hard per-run request budget (enforced inside the provider, see
+ *     API_FOOTBALL_MAX_REQUESTS_PER_RUN) stops a run cleanly before it
+ *     could blow through a daily API limit, rather than after the fact.
  *   - --delay-ms between provider calls + the provider's own retry/backoff
- *     (mirroring scripts/lib/scoutasticClient.mjs's proven pattern) is
- *     the rate-limit protection; a real provider implementation is
- *     expected to honor `retries`/`onRetry` the same way.
+ *     is the rate-limit protection.
  *
  * Usage:
- *   node scripts/sync-sofascore.mjs                 # process a batch
- *   node scripts/sync-sofascore.mjs --batch-size 50 --dry-run
+ *   node scripts/sync-sofascore.mjs                    # process a batch
+ *   node scripts/sync-sofascore.mjs --batch-size 8 --dry-run
+ *   node scripts/sync-sofascore.mjs --inspect-player "Full Name"
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -40,13 +44,15 @@ const ROOT = path.join(__dirname, "..");
 const DATA_PATH = path.join(ROOT, "data", "players.json");
 
 function parseArgs(argv) {
-  const args = { batchSize: 300, delayMs: 400, refreshAfterDays: 3, dryRun: false };
+  const args = { batchSize: 8, delayMs: 500, refreshAfterDays: 14, dryRun: false, includeAll: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--batch-size") args.batchSize = Number(argv[++i]);
     else if (a === "--delay-ms") args.delayMs = Number(argv[++i]);
     else if (a === "--refresh-after-days") args.refreshAfterDays = Number(argv[++i]);
     else if (a === "--dry-run") args.dryRun = true;
+    else if (a === "--include-all") args.includeAll = true;
+    else if (a === "--inspect-player") args.inspectPlayer = argv[++i];
     else if (a === "--data-file") args.dataFile = argv[++i]; // testing only
   }
   return args;
@@ -61,36 +67,64 @@ function daysSince(isoDate) {
   return (Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24);
 }
 
+function inScope(player, args) {
+  if (args.includeAll) return true;
+  return player.isAfrican && player.isEasternEuropeanLeague && !player.isYouthOrReserve;
+}
+
 function selectBatch(players, args) {
-  const pending = players.filter((p) => p.sofascoreMatchStatus === "pending");
-  const staleMatches = players.filter(
+  const scoped = players.filter((p) => inScope(p, args));
+  const pending = scoped.filter((p) => p.sofascoreMatchStatus === "pending");
+  const staleMatches = scoped.filter(
     (p) => p.sofascoreMatchStatus === "matched" && daysSince(p.lastSofaScoreSyncAt) >= args.refreshAfterDays
   );
-  // Never-tried players first (grows coverage), then oldest-refreshed matches.
   staleMatches.sort((a, b) => daysSince(b.lastSofaScoreSyncAt) - daysSince(a.lastSofaScoreSyncAt));
-  return [...pending, ...staleMatches].slice(0, args.batchSize);
+  return { batch: [...pending, ...staleMatches].slice(0, args.batchSize), scopedTotal: scoped.length };
+}
+
+async function inspectPlayer(provider, name) {
+  console.log(`Searching for "${name}"...`);
+  const result = await provider.findPlayer({ name, dateOfBirth: null, nationality: null, club: null });
+  console.log("--- MATCH RESULT ---");
+  console.log(JSON.stringify(result, null, 2));
+  if (result.status === "matched") {
+    console.log("\n--- LAST FIVE RATINGS ---");
+    const ratings = await provider.getLastFiveRatings(result.sofascorePlayerId, result._teamId);
+    console.log(JSON.stringify(ratings, null, 2));
+  }
+  console.log(`\nRequests used: ${provider.getRequestCount?.() ?? "n/a"}`);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const dataPath = args.dataFile ? path.resolve(args.dataFile) : DATA_PATH;
 
-  const provider = getSofaScoreProvider();
+  const provider = await getSofaScoreProvider();
   if (!provider.isConfigured()) {
     console.log(
-      "No SofaScore provider configured (SOFASCORE_PROVIDER unset) — nothing to sync. " +
+      "No ratings provider configured (SOFASCORE_PROVIDER unset) — nothing to sync. " +
         "See docs/SOFASCORE_PROVIDER.md for the legitimate-access findings and how to add a real provider."
     );
     return;
   }
 
+  if (args.inspectPlayer) {
+    await inspectPlayer(provider, args.inspectPlayer);
+    return;
+  }
+
   const nowIso = new Date().toISOString();
   const data = JSON.parse(readFileSync(dataPath, "utf-8"));
-  const batch = selectBatch(data.players, args);
+  const { batch, scopedTotal } = selectBatch(data.players, args);
 
   console.log("SOFASCORE SYNC STARTED");
-  console.log(`Batch: ${batch.length} players (of ${data.players.length} total)`);
+  console.log(
+    `Batch: ${batch.length} players (of ${scopedTotal} in scope` +
+      `${args.includeAll ? "" : " — African debutant candidates only, pass --include-all to widen"}, ` +
+      `${data.players.length} total in database)`
+  );
 
+  let processed = 0;
   let matched = 0;
   let ambiguous = 0;
   let notFound = 0;
@@ -98,6 +132,7 @@ async function main() {
   let failed = 0;
 
   for (const player of batch) {
+    processed++;
     try {
       if (player.sofascoreMatchStatus === "pending") {
         const result = await provider.findPlayer({
@@ -109,6 +144,7 @@ async function main() {
         player.sofascoreMatchStatus = result.status;
         player.sofascoreMatchConfidence = result.confidence;
         player.sofascorePlayerId = result.status === "matched" ? result.sofascorePlayerId : null;
+        player.ratingsTeamId = result.status === "matched" ? (result._teamId ?? null) : null;
         player.lastSofaScoreSyncAt = nowIso;
 
         if (result.status === "matched") matched++;
@@ -117,7 +153,10 @@ async function main() {
       }
 
       if (player.sofascoreMatchStatus === "matched" && player.sofascorePlayerId) {
-        const { ratings, average, highest, lowest } = await provider.getLastFiveRatings(player.sofascorePlayerId);
+        const { ratings, average, highest, lowest } = await provider.getLastFiveRatings(
+          player.sofascorePlayerId,
+          player.ratingsTeamId
+        );
         player.matches = ratings;
         player.ratingAverage = average;
         player.ratingHighest = highest;
@@ -128,6 +167,10 @@ async function main() {
     } catch (err) {
       failed++;
       console.error(`  [fail] ${player.name} (${player.scoutasticPlayerId}): ${err}`);
+      if (String(err).includes("request budget exhausted")) {
+        console.error("  Request budget exhausted for this run — stopping early, resuming next run.");
+        break;
+      }
     }
     await sleep(args.delayMs);
   }
@@ -136,12 +179,13 @@ async function main() {
     writeFileSync(dataPath, JSON.stringify(data, null, 2) + "\n");
   }
 
-  console.log(`\nPlayers processed: ${batch.length}`);
+  console.log(`\nPlayers processed: ${processed}`);
   console.log(`Matched: ${matched}`);
   console.log(`Ambiguous: ${ambiguous}`);
   console.log(`Not found: ${notFound}`);
   console.log(`Ratings refreshed: ${ratingsRefreshed}`);
   console.log(`Failed: ${failed}`);
+  console.log(`Requests used: ${provider.getRequestCount?.() ?? "n/a"}`);
   console.log(`Sync completed: ${nowIso.slice(0, 16).replace("T", " ")}`);
   if (args.dryRun) console.log("(--dry-run: data file was NOT written)");
 }

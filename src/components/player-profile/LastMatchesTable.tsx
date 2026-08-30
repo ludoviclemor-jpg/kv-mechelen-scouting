@@ -18,9 +18,9 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
 }
 
 const UNAVAILABLE_REASON: Record<SofaScoreMatchStatus, string> = {
-  pending: "This player hasn't been checked against SofaScore yet.",
-  ambiguous: "Multiple possible SofaScore profiles were found — needs manual review before ratings can be shown.",
-  not_found: "No SofaScore profile could be confidently matched for this player.",
+  pending: "This player hasn't been checked against a ratings provider yet.",
+  ambiguous: "Multiple possible ratings profiles were found — needs manual review before ratings can be shown.",
+  not_found: "No ratings profile could be confidently matched for this player.",
   matched: "Matched, but no rated matches are available yet.",
 };
 
@@ -38,13 +38,13 @@ export function LastMatchesTable({
   return (
     <div className="border border-kvm-border bg-white">
       <h2 className="border-b border-kvm-border px-5 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">
-        SofaScore Performance
+        Match Performance
       </h2>
 
       {recent.length === 0 ? (
         <EmptyState
           icon={Radar}
-          title="SofaScore data unavailable"
+          title="Rating data unavailable"
           description={UNAVAILABLE_REASON[sofascoreMatchStatus]}
         />
       ) : (

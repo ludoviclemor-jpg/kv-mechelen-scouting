@@ -240,6 +240,7 @@ export function mapScoutasticPlayer(raw, context) {
     sofascorePlayerId: null,
     sofascoreMatchStatus: "pending",
     sofascoreMatchConfidence: null,
+    ratingsTeamId: null,
     lastSofaScoreSyncAt: null,
     matches: [],
     isDebutant: false,
