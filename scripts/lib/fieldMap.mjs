@@ -230,11 +230,23 @@ export function mapScoutasticPlayer(raw, context) {
     active: true,
 
     status: "not_assessed",
-    matches: [],
     notes: { strengths: "", weaknesses: "", recommendation: "", general: "" },
+    isYouthOrReserve: false,
+
+    // SofaScore enrichment defaults — this is the SCOUTASTIC mapper, it
+    // never sets these to anything but "no data yet". The sync script's
+    // upsert logic preserves real values here on existing players; see
+    // the PRESERVED_ON_UPDATE fields in sync-scoutastic.mjs.
+    sofascorePlayerId: null,
+    sofascoreMatchStatus: "pending",
+    sofascoreMatchConfidence: null,
+    lastSofaScoreSyncAt: null,
+    matches: [],
     isDebutant: false,
     debutDate: null,
-    isYouthOrReserve: false,
+    ratingAverage: null,
+    ratingHighest: null,
+    ratingLowest: null,
   };
 
   return { player, warnings };

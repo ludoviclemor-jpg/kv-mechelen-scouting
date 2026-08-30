@@ -13,7 +13,7 @@ const FIELDS: { key: keyof ScoutingNotes; label: string }[] = [
 ];
 
 export function ScoutingNotesCard({ player }: { player: Player }) {
-  const { setPlayerNotes } = useAppStore();
+  const { setPlayerNotes, isPersistent } = useAppStore();
   const effectiveNotes = useEffectiveNotes(player.id, player.notes);
   const [draft, setDraft] = useState<ScoutingNotes>(effectiveNotes);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -63,9 +63,13 @@ export function ScoutingNotesCard({ player }: { player: Player }) {
       </div>
 
       <div className="border-t border-kvm-border px-5 py-2 text-xs text-gray-400">
-        {savedAt
-          ? `Saved locally at ${savedAt} — database persistence arrives in Phase 3.`
-          : "Notes are stored in this session only until PostgreSQL persistence is connected (Phase 3)."}
+        {isPersistent
+          ? savedAt
+            ? `Saved at ${savedAt}.`
+            : "Saved to the database — visible to every scout."
+          : savedAt
+            ? `Saved locally at ${savedAt} — this browser only, database persistence isn't configured yet (see Settings).`
+            : "Not yet persisted — database isn't configured (see Settings). Notes will only last for this browser session."}
       </div>
     </div>
   );

@@ -1,0 +1,61 @@
+name: Sync SofaScore
+
+# No-op today: SofaScore has no legitimate public API (see
+# docs/SOFASCORE_PROVIDER.md) and SOFASCORE_PROVIDER isn't set, so
+# scripts/sync-sofascore.mjs exits immediately without contacting anything.
+# This workflow exists so enabling a real provider later is a two-step
+# change (add the provider implementation, set the secrets below) with no
+# workflow changes needed.
+
+on:
+  schedule:
+    - cron: "30 */6 * * *" # every 6 hours — cheap no-op until a provider exists
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: "sofascore-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run SofaScore sync
+        env:
+          SOFASCORE_PROVIDER: ${{ secrets.SOFASCORE_PROVIDER }}
+          SOFASCORE_API_KEY: ${{ secrets.SOFASCORE_API_KEY }}
+          SOFASCORE_API_BASE_URL: ${{ secrets.SOFASCORE_API_BASE_URL }}
+        run: node scripts/sync-sofascore.mjs
+
+      - name: Commit updated player data (if anything changed)
+        id: commit
+        run: |
+          git config user.name "sofascore-sync-bot"
+          git config user.email "sofascore-sync-bot@users.noreply.github.com"
+          git add data/players.json
+          if git diff --staged --quiet; then
+            echo "No changes — nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Sync SofaScore enrichment data"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger Pages deploy
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref ${{ github.ref_name }}

@@ -51,7 +51,7 @@ export default async function PlayerProfilePage(
       <PageHeader title={player.name} description="Player profile" />
       <div className="space-y-6 p-8">
         <PlayerHeader player={player} />
-        <LastMatchesTable matches={player.matches} />
+        <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} />
         <ScoutingNotesCard player={player} />
       </div>
     </>

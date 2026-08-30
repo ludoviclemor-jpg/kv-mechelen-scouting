@@ -47,6 +47,15 @@ export interface MatchRating {
   rating: number | null; // null = no SofaScore rating available for this match
 }
 
+/**
+ * "pending"   — never attempted (the default for every player right now)
+ * "matched"   — a confident SofaScore profile match was found
+ * "ambiguous" — multiple plausible candidates, none confidently chosen —
+ *               never auto-assigned, needs a human or a stronger provider
+ * "not_found" — a provider was queried and genuinely found no match
+ */
+export type SofaScoreMatchStatus = "pending" | "matched" | "ambiguous" | "not_found";
+
 export interface ScoutingNotes {
   strengths: string;
   weaknesses: string;
@@ -108,11 +117,23 @@ export interface Player {
   // --- local scouting workflow state (not from SCOUTASTIC) ---
   status: ScoutingStatus;
   addedDate: string; // ISO date, alias of createdAt for existing UI
-  matches: MatchRating[]; // SofaScore ratings — always [] until Phase 4
   notes: ScoutingNotes;
+  isYouthOrReserve: boolean; // false by construction: only senior competitions are crawled
+
+  // --- SofaScore enrichment (Phase 4) — no live provider connected yet, see
+  // src/lib/sofascore/. Every field below is null/"pending"/[] for every
+  // player until a real provider is wired up; SCOUTASTIC data above is
+  // never gated on any of this being present. ---
+  sofascorePlayerId: string | null;
+  sofascoreMatchStatus: SofaScoreMatchStatus;
+  sofascoreMatchConfidence: number | null; // 0-1, only meaningful once matched
+  lastSofaScoreSyncAt: string | null; // ISO datetime
+  matches: MatchRating[]; // last 5 completed matches with SofaScore ratings — always [] until matched
   isDebutant: boolean; // debut detection needs SofaScore — always false until Phase 4
   debutDate: string | null;
-  isYouthOrReserve: boolean; // false by construction: only senior competitions are crawled
+  ratingAverage: number | null; // stored aggregate of `matches` — computed once at sync time, not on every read
+  ratingHighest: number | null;
+  ratingLowest: number | null;
 }
 
 export interface Shortlist {

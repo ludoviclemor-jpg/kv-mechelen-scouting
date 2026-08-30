@@ -162,14 +162,23 @@ async function inspectPlayer(apiBase, apiKey, externalId, args) {
   }
 }
 
+// Fields SCOUTASTIC actually owns. Everything else on a Player record
+// (status/notes = local scouting state, sofascore* /matches/ratings* =
+// SofaScore enrichment) belongs to a different system and must survive a
+// SCOUTASTIC sync untouched.
+const SCOUTASTIC_FIELDS = [
+  "firstName", "lastName", "name", "photoUrl", "dateOfBirth", "nationality", "secondNationality",
+  "isAfrican", "position", "positionRaw", "secondaryPositions", "club", "previousClub",
+  "teams", "league", "leagueCountry", "competitionId", "isEasternEuropeanLeague",
+  "heightCm", "preferredFoot", "agent", "marketValueEUR", "contractExpiry",
+  "appearances", "minutes", "goals", "assists",
+];
+
+function pick(obj, keys) {
+  return Object.fromEntries(keys.map((k) => [k, obj[k]]));
+}
+
 function fieldsEqual(a, b) {
-  const SCOUTASTIC_FIELDS = [
-    "firstName", "lastName", "name", "photoUrl", "dateOfBirth", "nationality", "secondNationality",
-    "isAfrican", "position", "positionRaw", "secondaryPositions", "club", "previousClub",
-    "teams", "league", "leagueCountry", "competitionId", "isEasternEuropeanLeague",
-    "heightCm", "preferredFoot", "agent", "marketValueEUR", "contractExpiry",
-    "appearances", "minutes", "goals", "assists",
-  ];
   return SCOUTASTIC_FIELDS.every((f) => JSON.stringify(a[f]) === JSON.stringify(b[f]));
 }
 
@@ -251,14 +260,20 @@ async function runSync(apiBase, apiKey, competitions, args) {
             byId.set(mapped.scoutasticPlayerId, record);
             created++;
           } else if (!fieldsEqual(prior, mapped)) {
+            // Only SCOUTASTIC-owned fields (SCOUTASTIC_FIELDS, see
+            // fieldsEqual below) come from `mapped`. Local scouting state
+            // (status/notes) and SofaScore enrichment are owned by other
+            // systems (Postgres, a future SofaScore sync) — this sync must
+            // never reset them back to their just-mapped defaults.
             const record = {
               ...prior,
-              ...mapped,
+              ...pick(mapped, SCOUTASTIC_FIELDS),
               id: prior.id,
               createdAt: prior.createdAt,
               addedDate: prior.addedDate,
               updatedAt: nowIso,
               lastSyncedAt: nowIso,
+              active: true,
             };
             byId.set(mapped.scoutasticPlayerId, record);
             updated++;

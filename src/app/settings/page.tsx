@@ -1,8 +1,11 @@
+"use client";
+
 import { CircleAlert, CircleCheck, AlertTriangle, Database, RefreshCw, Radar } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SYNC_META } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/app-store";
 
 type ConnectionState = "connected" | "warning" | "not_connected";
 
@@ -70,6 +73,7 @@ function IntegrationCard({
 export default function SettingsPage() {
   const meta = SYNC_META;
   const summary = meta.lastSyncSummary;
+  const { isPersistent } = useAppStore();
 
   const scoutasticState: ConnectionState =
     meta.lastSyncStatus === "success"
@@ -175,15 +179,17 @@ export default function SettingsPage() {
             <IntegrationCard
               icon={Radar}
               name="SofaScore"
-              description="Live match ratings, minutes played and form data."
+              description="Match ratings. No legitimate public API exists — see docs/SOFASCORE_PROVIDER.md. Provider-agnostic architecture is built and ready; nothing is connected yet."
               state="not_connected"
-              phase="Phase 4"
+              badgeLabel="No provider configured"
+              phase="Phase 4 — architecture ready"
             />
             <IntegrationCard
               icon={Database}
               name="Database"
-              description="PostgreSQL persistence for shortlists, statuses and scouting notes."
-              state="not_connected"
+              description="Postgres (via Supabase) persistence for shortlists, statuses and scouting notes. Schema and client code are built — see db/schema.sql and docs/POSTGRES_PERSISTENCE.md."
+              state={isPersistent ? "connected" : "not_connected"}
+              badgeLabel={isPersistent ? "Connected" : "Not connected — using local-only fallback"}
               phase="Phase 3"
             />
           </div>
@@ -204,7 +210,7 @@ export default function SettingsPage() {
             </div>
             <div className="border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Sync workflow
+                Sync workflows
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
                 <CircleCheck size={15} /> Configured (GitHub Actions)
@@ -212,10 +218,16 @@ export default function SettingsPage() {
             </div>
             <div className="border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Database
+                Shortlists &amp; notes
               </div>
-              <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-gray-400">
-                <CircleAlert size={15} /> Not connected
+              <div
+                className={cn(
+                  "mt-1 flex items-center gap-1.5 text-sm font-semibold",
+                  isPersistent ? "text-emerald-700" : "text-gray-400"
+                )}
+              >
+                {isPersistent ? <CircleCheck size={15} /> : <CircleAlert size={15} />}
+                {isPersistent ? "Persisted (Postgres)" : "Local only — resets on reload"}
               </div>
             </div>
           </div>
