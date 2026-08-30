@@ -1,23 +1,20 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Renders the official KV Mechelen crest from `/public/branding/crest.svg`
- * once it's added. Until then, falls back to a monogram badge so layout
- * and branding work end-to-end without an unofficial logo asset.
- *
- * To go live: drop the official crest at `public/branding/crest.svg` and
- * set `CREST_AVAILABLE` to true.
+ * Renders the official KV Mechelen crest from `/public/branding/crest.png`.
+ * Falls back to a monogram badge if the asset is ever removed, so layout
+ * never silently breaks without an unofficial logo asset in its place.
  */
-const CREST_AVAILABLE = false;
+const CREST_AVAILABLE = true;
 
 export function ClubCrest({ className }: { className?: string }) {
   if (CREST_AVAILABLE) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- static export has no Image Optimization server
       <img
-        src="/branding/crest.svg"
+        src="/branding/crest.png"
         alt="KV Mechelen crest"
-        className={className}
+        className={cn("object-contain", className)}
       />
     );
   }
