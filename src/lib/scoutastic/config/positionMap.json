@@ -1,7 +1,9 @@
 {
-  "_comment": "Maps SCOUTASTIC's mainPosition raw codes to our Position union. Confirmed set of raw codes carried over from prior verified work; any code not listed here maps to 'OTHER' at sync time (never guessed) and gets logged so it can be added once confirmed.",
+  "_comment": "Maps SCOUTASTIC's mainPosition/secondaryPosition1/secondaryPosition2 raw codes to our Position union. Verified against real API responses (including real squad data for FK Bodø/Glimt, teamId=501, 2026-08-30) — both British and American spellings appear in real data. Any code not listed here maps to 'OTHER' at sync time (never guessed) and gets logged so it can be added once confirmed. 'substitute' is a real, expected value (a squad-role marker, not a formation position) and is intentionally mapped straight to OTHER without a warning — see normalizePosition() in fieldMap.mjs.",
   "goalkeeper": "GK",
   "centreback": "CB",
+  "centerback": "CB",
+  "libero": "CB",
   "centraldefense": "CB",
   "centraldefender": "CB",
   "leftback": "LB",
@@ -9,9 +11,13 @@
   "defensivemidfield": "DM",
   "centralmidfield": "CM",
   "attackingmidfield": "AM",
+  "leftmidfield": "LW",
+  "rightmidfield": "RW",
   "leftwing": "LW",
   "rightwing": "RW",
   "striker": "ST",
+  "secondstriker": "ST",
   "centreforward": "ST",
-  "centerforward": "ST"
+  "centerforward": "ST",
+  "substitute": "OTHER"
 }

@@ -152,6 +152,7 @@ async function inspectPlayer(apiBase, apiKey, externalId, args) {
     competitionCountry: null,
     isEasternEuropeanLeague: false,
     nowIso: new Date().toISOString(),
+    imageBaseUrl: args.imageBaseUrl,
   });
   console.log("\n--- MAPPED PLAYER ---");
   console.log(JSON.stringify(player, null, 2));
@@ -163,7 +164,7 @@ async function inspectPlayer(apiBase, apiKey, externalId, args) {
 
 function fieldsEqual(a, b) {
   const SCOUTASTIC_FIELDS = [
-    "firstName", "lastName", "name", "dateOfBirth", "nationality", "secondNationality",
+    "firstName", "lastName", "name", "photoUrl", "dateOfBirth", "nationality", "secondNationality",
     "isAfrican", "position", "positionRaw", "secondaryPositions", "club", "previousClub",
     "teams", "league", "leagueCountry", "competitionId", "isEasternEuropeanLeague",
     "heightCm", "preferredFoot", "agent", "marketValueEUR", "contractExpiry",
@@ -232,6 +233,7 @@ async function runSync(apiBase, apiKey, competitions, args) {
             competitionCountry: comp.country,
             isEasternEuropeanLeague: easternEuropeCountries.has(comp.country),
             nowIso,
+            imageBaseUrl: args.imageBaseUrl,
           });
           warnings.forEach((w) => console.error(`  [warn] ${mapped.name || mapped.scoutasticPlayerId}: ${w}`));
 
@@ -348,6 +350,9 @@ async function main() {
 
   const clubSubdomain = args.clubSubdomain || process.env.SCOUTASTIC_CLUB_SUBDOMAIN || "kvmechelen";
   const apiBase = process.env.SCOUTASTIC_API_BASE_URL || baseUrl(clubSubdomain);
+  // imageUrlV2 (the only publicly-fetchable photo field) is relative to
+  // the API's origin, not /api/v1 — e.g. https://kvmechelen.scoutastic.com
+  args.imageBaseUrl = new URL(apiBase).origin;
 
   if (args.inspectTeam) return inspectTeam(apiBase, apiKey, args.inspectTeam, args);
   if (args.inspectPlayer) return inspectPlayer(apiBase, apiKey, args.inspectPlayer, args);

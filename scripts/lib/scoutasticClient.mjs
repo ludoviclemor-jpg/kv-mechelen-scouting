@@ -2,14 +2,20 @@
  * Low-level SCOUTASTIC API client.
  *
  * Every detail here (base URL shape, auth header, endpoint paths, param
- * names) is carried over from a prior verification pass against the real
- * API — nothing here is guessed. See docs/SCOUTASTIC_SYNC.md for what's
+ * names, response shapes) is confirmed directly against the real API —
+ * nothing here is guessed. See docs/SCOUTASTIC_SYNC.md for what's
  * confirmed vs. still unverified.
  *
  * Confirmed endpoints:
- *   GET /player?externalId=...            -> one player, full detail
- *   GET /competitions/{id}/teams?...      -> { teamIds: [...] } (or a bare array)
- *   GET /players?teamId=...&...           -> that team's squad
+ *   GET /player?externalId=...        -> one player, full detail. The
+ *     player's own stable id is `transfermarktId` (there is no
+ *     `externalId` field on the player object itself — that's only the
+ *     query param name and a field on nested `teams[]` entries).
+ *   GET /competitions/{id}/teams?...  -> a full competition object; the
+ *     `teamIds` field is a flat array matching `teams[].externalId`.
+ *   GET /players?teamId=...&...       -> a Mongoose-paginate wrapper
+ *     (`{ docs, totalPages, page, hasNextPage, nextPage, ... }`), not a
+ *     bare array — fetchTeamPlayers() walks every page.
  *
  * Auth: `Authorization: <api_key>` header — the raw key, NOT "Bearer <key>".
  */
@@ -88,8 +94,8 @@ export async function fetchPlayer(apiBase, apiKey, externalId, { gender = "male"
       gender,
       marketValues: "true",
       performanceData: "false",
-      performanceSummary: "false",
-      performanceHistory: "false",
+      performanceSummary: "true", // confirmed available — powers appearances/minutes/goals/assists
+      performanceHistory: "false", // match-by-match detail — not consumed yet (Phase 4/SofaScore territory)
       debuts: "false",
       injuryData: "false",
       includeMissedMatches: "false",
@@ -99,6 +105,12 @@ export async function fetchPlayer(apiBase, apiKey, externalId, { gender = "male"
   );
 }
 
+/**
+ * Confirmed real shape: a full competition object (name, area, teams[],
+ * etc.), not a bare `{ teamIds }` — but it also carries a flat `teamIds`
+ * array that matches `teams[].externalId` exactly, which is what this
+ * returns.
+ */
 export async function fetchCompetitionTeams(apiBase, apiKey, competitionId, { gender = "male", retries, onRetry } = {}) {
   const result = await apiGet(`${apiBase}/competitions/${competitionId}/teams`, { gender }, apiKey, { retries, onRetry });
   if (!result.ok) return result;
@@ -110,33 +122,63 @@ export async function fetchCompetitionTeams(apiBase, apiKey, competitionId, { ge
   return { ok: true, data: teamIds };
 }
 
+/**
+ * Confirmed real shape: a Mongoose-paginate wrapper — `{ docs, totalPages,
+ * page, hasNextPage, nextPage, ... }`, not a bare array or `{ players }`.
+ * Squads have stayed under one page (`limit`) in practice, but this walks
+ * every page for real rather than assuming that always holds.
+ */
 export async function fetchTeamPlayers(apiBase, apiKey, teamId, { gender = "male", limit = 100, retries, onRetry } = {}) {
-  const result = await apiGet(
-    `${apiBase}/players`,
-    {
-      teamId,
-      gender,
-      marketValues: "true",
-      performanceData: "false",
-      performanceSummary: "false",
-      performanceHistory: "false",
-      debuts: "false",
-      injuryData: "false",
-      includeMissedMatches: "false",
-      limit,
-      fastMode: "false",
-    },
-    apiKey,
-    { retries, onRetry }
-  );
-  if (!result.ok) return result;
+  const allPlayers = [];
+  let page = 1;
 
-  const raw = result.data;
-  if (Array.isArray(raw)) return { ok: true, data: raw };
-  if (raw && typeof raw === "object") {
-    for (const key of ["players", "data", "items", "results"]) {
-      if (Array.isArray(raw[key])) return { ok: true, data: raw[key] };
+  while (true) {
+    const result = await apiGet(
+      `${apiBase}/players`,
+      {
+        teamId,
+        gender,
+        marketValues: "true",
+        performanceData: "false",
+        performanceSummary: "true", // confirmed available — powers appearances/minutes/goals/assists
+        performanceHistory: "false",
+        debuts: "false",
+        injuryData: "false",
+        includeMissedMatches: "false",
+        limit,
+        page,
+        fastMode: "false",
+      },
+      apiKey,
+      { retries, onRetry }
+    );
+    if (!result.ok) return allPlayers.length > 0 ? { ok: true, data: allPlayers, partial: true, error: result.error } : result;
+
+    const raw = result.data;
+    let pagePlayers = null;
+    if (Array.isArray(raw)) {
+      pagePlayers = raw;
+    } else if (raw && typeof raw === "object") {
+      for (const key of ["docs", "players", "data", "items", "results"]) {
+        if (Array.isArray(raw[key])) {
+          pagePlayers = raw[key];
+          break;
+        }
+      }
     }
+    if (pagePlayers === null) {
+      return {
+        ok: false,
+        error: `Unrecognized /players?teamId=${teamId} response shape: ${JSON.stringify(Object.keys(raw ?? {}))}`,
+        status: null,
+      };
+    }
+
+    allPlayers.push(...pagePlayers);
+
+    if (!raw?.hasNextPage || !raw?.nextPage) break;
+    page = raw.nextPage;
   }
-  return { ok: false, error: `Unrecognized /players?teamId=${teamId} response shape: ${JSON.stringify(Object.keys(raw ?? {}))}`, status: null };
+
+  return { ok: true, data: allPlayers };
 }
