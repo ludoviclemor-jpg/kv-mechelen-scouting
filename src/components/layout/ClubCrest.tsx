@@ -12,7 +12,7 @@ export function ClubCrest({ className }: { className?: string }) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- static export has no Image Optimization server
       <img
-        src="/branding/crest.png"
+        src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/crest.png`}
         alt="KV Mechelen crest"
         className={cn("object-contain", className)}
       />
