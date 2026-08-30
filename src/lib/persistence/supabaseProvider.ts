@@ -1,5 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Shortlist } from "@/lib/players-data";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
 import type { PersistenceProvider, PlayerScoutingState } from "./types";
 
 /**
@@ -9,6 +9,12 @@ import type { PersistenceProvider, PlayerScoutingState } from "./types";
  * NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are set at
  * build time.
  *
+ * As of the authentication work (docs/AUTHENTICATION.md), RLS grants
+ * read/write on these tables only to the `authenticated` role — every
+ * method here will simply fail (rejected by Postgres, not by this file)
+ * if called while signed out. AuthProvider/RequireAuth are what keep the
+ * UI from calling these while unauthenticated in the first place.
+ *
  * The anon key is *meant* to be public — Next.js inlines NEXT_PUBLIC_*
  * vars into the client bundle by design, and that's fine here: real
  * access control comes from the RLS policies enforced by Postgres itself,
@@ -17,15 +23,8 @@ import type { PersistenceProvider, PlayerScoutingState } from "./types";
  * browser.
  */
 export function createSupabaseProvider(): PersistenceProvider {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const configured = Boolean(url && anonKey);
-
-  let client: SupabaseClient | null = null;
-  function db(): SupabaseClient {
-    if (!client) client = createClient(url!, anonKey!);
-    return client;
-  }
+  const configured = isSupabaseConfigured();
+  const db = () => getSupabaseClient();
 
   return {
     isConfigured: () => configured,

@@ -1,11 +1,12 @@
 "use client";
 
-import { CircleAlert, CircleCheck, AlertTriangle, Database, RefreshCw, Radar } from "lucide-react";
+import { CircleAlert, CircleCheck, AlertTriangle, Database, RefreshCw, Radar, UserCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SYNC_META } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-store";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 type ConnectionState = "connected" | "warning" | "not_connected";
 
@@ -74,6 +75,7 @@ export default function SettingsPage() {
   const meta = SYNC_META;
   const summary = meta.lastSyncSummary;
   const { isPersistent } = useAppStore();
+  const { user, isConfigured: authConfigured } = useAuth();
 
   const scoutasticState: ConnectionState =
     meta.lastSyncStatus === "success"
@@ -101,6 +103,30 @@ export default function SettingsPage() {
       />
 
       <div className="space-y-6 p-8">
+        <section>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
+            Account
+          </h2>
+          <div className="flex items-center justify-between gap-4 border border-kvm-border bg-white p-5">
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
+                <UserCircle size={18} aria-hidden="true" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-kvm-ink">{user?.email ?? "Not signed in"}</h3>
+                <p className="mt-0.5 max-w-md text-xs text-gray-500">
+                  Signed in via Supabase Auth. Session persists across browser restarts until you
+                  sign out.
+                </p>
+              </div>
+            </div>
+            <ConnectionBadge
+              state={authConfigured && user ? "connected" : "not_connected"}
+              label={authConfigured && user ? "Authenticated" : "Not authenticated"}
+            />
+          </div>
+        </section>
+
         <section>
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Data Synchronization

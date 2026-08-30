@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AppStoreProvider } from "@/lib/app-store";
-import { AppShell } from "@/components/layout/AppShell";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 
 export const metadata: Metadata = {
   title: "KV Mechelen Scouting Hub",
@@ -13,9 +12,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <AppStoreProvider>
-          <AppShell>{children}</AppShell>
-        </AppStoreProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

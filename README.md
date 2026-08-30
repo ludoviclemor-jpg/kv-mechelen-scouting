@@ -6,21 +6,28 @@ Internal football scouting and recruitment dashboard for KV Mechelen.
 
 ## Status
 
-Phase 2 — real player data from SCOUTASTIC. No fictitious/demo players
-remain; the frontend reads only from `data/players.json`, synced by
-`scripts/sync-scoutastic.mjs` (locally or via GitHub Actions). See
-[docs/SCOUTASTIC_SYNC.md](docs/SCOUTASTIC_SYNC.md) for the full
-architecture, what's confirmed vs. still unverified against the real API,
-and how to run/trigger a sync.
+Real player data from SCOUTASTIC (8,454 players, 23 competitions) — no
+fictitious/demo data remains. Authentication and Postgres persistence
+architecture are built (client-side Supabase Auth + Row Level Security)
+but **not yet connected to a real Supabase project** — the app currently
+runs with local-only (in-memory) shortlists/notes and no login enforced
+in practice, both of which activate automatically once
+`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` are set. See:
+
+- [docs/SCOUTASTIC_SYNC.md](docs/SCOUTASTIC_SYNC.md) — player data sync
+- [docs/SOFASCORE_PROVIDER.md](docs/SOFASCORE_PROVIDER.md) — ratings (no live provider yet — no legitimate API exists, see the doc)
+- [docs/POSTGRES_PERSISTENCE.md](docs/POSTGRES_PERSISTENCE.md) — shortlists/notes persistence
+- [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) — login, sessions, and **what static hosting can and can't actually protect**
 
 Planned phases:
 
 1. **Frontend** — Next.js UI, static export, GitHub Pages deployment. ✅
-2. **SCOUTASTIC** — player, competition and club data. ✅ (this phase)
-3. **PostgreSQL** — persistence for shortlists, scouting status and notes.
-4. **SofaScore** — live match ratings, debut detection.
-5. **Daily synchronization** — automated via GitHub Actions cron. ✅ (built in Phase 2)
+2. **SCOUTASTIC** — player, competition and club data. ✅
+3. **PostgreSQL** — persistence for shortlists, scouting status and notes. Architecture built, not connected.
+4. **SofaScore** — live match ratings, debut detection. Architecture built; no legitimate data source found yet.
+5. **Daily synchronization** — automated via GitHub Actions cron. ✅
 6. **Production backend** — secure API layer connecting the above.
+7. **Authentication** — Supabase Auth, client-side, GitHub Pages-compatible. Architecture built, not connected.
 
 ## Stack
 
@@ -72,20 +79,35 @@ shipped to the browser.
 
 ```
 src/
-  app/                  routes (App Router)
+  app/
+    login/                standalone login route (no sidebar, not auth-gated)
+    (app)/                everything else — dashboard, players, debutants,
+                           top-performers, shortlists, reports, settings.
+                           Same URLs as before (route groups are invisible
+                           in the URL); this folder's layout.tsx is what
+                           applies RequireAuth + the sidebar.
   components/
-    layout/             Sidebar, PageHeader, AppShell, ClubCrest
-    ui/                 StatCard, RatingBadge, StatusBadge, SyncStatusBanner, ...
-    players/             PlayerCard, PlayerTable, DebutantTable, RecentlyAddedTable
-    player-profile/      PlayerHeader, LastMatchesTable, ScoutingNotesCard
-    shortlists/          ShortlistCard, ShortlistButton
+    auth/                 RequireAuth (the redirect-to-/login guard)
+    layout/                Sidebar, PageHeader, AppShell, ClubCrest
+    ui/                    StatCard, RatingBadge, StatusBadge, SyncStatusBanner, ...
+    players/               PlayerCard, PlayerTable, DebutantTable, RecentlyAddedTable
+    player-profile/        PlayerHeader, LastMatchesTable, ScoutingNotesCard
+    shortlists/             ShortlistCard, ShortlistButton
   lib/
-    players-data/        typed Player/Shortlist schema + selectors (reads data/players.json)
-    scoutastic/config/    competitions, position map, nationality lists (shared with scripts/)
-    app-store.tsx         in-memory shortlist/status/notes state (frontend-only until Phase 3)
+    players-data/          typed Player/Shortlist schema + selectors (reads data/players.json)
+    scoutastic/config/     competitions, position map, nationality lists (shared with scripts/)
+    sofascore/              (reserved for a future real SofaScore provider's shared config)
+    auth/AuthProvider.tsx   Supabase Auth session state, signIn/signOut
+    persistence/            PersistenceProvider (LocalOnlyProvider / SupabaseProvider)
+    supabaseClient.ts       one shared Supabase client (auth + persistence)
+    app-store.tsx           shortlist/status/notes state, backed by persistence/
 scripts/
-  sync-scoutastic.mjs     the SCOUTASTIC sync entrypoint (CLI + CI)
-  lib/                    API client + field mapper (see docs/SCOUTASTIC_SYNC.md)
+  sync-scoutastic.mjs      the SCOUTASTIC sync entrypoint (CLI + CI)
+  sync-sofascore.mjs        SofaScore enrichment sync — no-op until a provider exists
+  lib/                      API clients + field mappers + matching logic
 data/
-  players.json            synced player data, committed to the repo
+  players.json             synced player data, committed to the repo
+db/
+  schema.sql                Postgres schema (shortlists, notes/status)
+  rls_policies.sql           Row Level Security — authenticated-only
 ```

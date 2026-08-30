@@ -1,33 +1,47 @@
 -- Row Level Security policies — Supabase-shaped (uses Supabase's built-in
--- `anon` role). Run after schema.sql. See docs/POSTGRES_PERSISTENCE.md for
--- the important caveat about what "anon" means here: this app has no
--- login system, so these policies currently allow anyone who can reach
--- the site to read AND write shortlists/notes/status. That's a real
--- security tradeoff to weigh, not an oversight — see the doc.
+-- `authenticated` role, granted automatically to any request carrying a
+-- valid session JWT from a signed-in user). Run after schema.sql.
+--
+-- Deliberately grants NOTHING to `anon` — RLS denies by default when a
+-- table has it enabled and no policy matches the requesting role, so an
+-- unauthenticated request is rejected by Postgres itself, not by
+-- frontend code. See docs/AUTHENTICATION.md for what this does and does
+-- not protect (short version: this table's data — genuinely secure; the
+-- separately-synced player database in data/players.json — not covered
+-- by this file at all, since it isn't stored in Postgres).
+--
+-- Every authenticated user gets the same access (no per-user ownership
+-- model) — this is an internal club tool where any signed-in scout is
+-- trusted with all shortlists/notes, not a multi-tenant app.
 
 alter table shortlists enable row level security;
 alter table shortlist_players enable row level security;
 alter table player_scouting_state enable row level security;
 
-create policy "anon can read shortlists" on shortlists
-  for select to anon using (true);
-create policy "anon can write shortlists" on shortlists
-  for insert to anon with check (true);
-create policy "anon can update shortlists" on shortlists
-  for update to anon using (true) with check (true);
-create policy "anon can delete shortlists" on shortlists
-  for delete to anon using (true);
+create policy "authenticated can read shortlists" on shortlists
+  for select to authenticated using (true);
+create policy "authenticated can write shortlists" on shortlists
+  for insert to authenticated with check (true);
+create policy "authenticated can update shortlists" on shortlists
+  for update to authenticated using (true) with check (true);
+create policy "authenticated can delete shortlists" on shortlists
+  for delete to authenticated using (true);
 
-create policy "anon can read shortlist_players" on shortlist_players
-  for select to anon using (true);
-create policy "anon can write shortlist_players" on shortlist_players
-  for insert to anon with check (true);
-create policy "anon can delete shortlist_players" on shortlist_players
-  for delete to anon using (true);
+create policy "authenticated can read shortlist_players" on shortlist_players
+  for select to authenticated using (true);
+create policy "authenticated can write shortlist_players" on shortlist_players
+  for insert to authenticated with check (true);
+create policy "authenticated can delete shortlist_players" on shortlist_players
+  for delete to authenticated using (true);
 
-create policy "anon can read player_scouting_state" on player_scouting_state
-  for select to anon using (true);
-create policy "anon can write player_scouting_state" on player_scouting_state
-  for insert to anon with check (true);
-create policy "anon can update player_scouting_state" on player_scouting_state
-  for update to anon using (true) with check (true);
+create policy "authenticated can read player_scouting_state" on player_scouting_state
+  for select to authenticated using (true);
+create policy "authenticated can write player_scouting_state" on player_scouting_state
+  for insert to authenticated with check (true);
+create policy "authenticated can update player_scouting_state" on player_scouting_state
+  for update to authenticated using (true) with check (true);
+
+-- No policies for `anon` on any table above is intentional, not an
+-- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
+-- rejected. Verify this directly after setup — see
+-- docs/AUTHENTICATION.md's verification checklist.

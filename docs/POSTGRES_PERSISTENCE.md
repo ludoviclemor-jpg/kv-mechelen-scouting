@@ -31,34 +31,22 @@ Not configured → the app falls back to **local-only** persistence
 (in-memory, resets on reload) — exactly the original Phase 1/2 behavior.
 Nothing breaks either way; see `src/lib/persistence/`.
 
-## ⚠️ Security tradeoff — read before going live
+## Access control — resolved via authentication
 
-**This app has no login system.** The RLS policies in
-`db/rls_policies.sql` currently grant the public `anon` role full
-read/write on all three tables, because there's no authenticated user to
-scope access to. In practice: **anyone who can reach the site's URL — or
-who inspects the JS bundle and finds the anon key — can read and write
-shortlists, scouting status, and scouting notes directly against the
-database, bypassing the UI entirely.**
-
-For a club's internal scouting opinions, that's worth a deliberate
-decision, not a default. Options, roughly by effort:
-
-1. **Put the whole site behind an access gate** (e.g. Cloudflare Access,
-   or a similar edge auth layer in front of the GitHub Pages domain) —
-   the RLS policies can stay as-is if only trusted people can reach the
-   site at all.
-2. **Add real user authentication** (Supabase Auth is built in) and scope
-   RLS policies to `authenticated` users instead of `anon` — the more
-   correct long-term fix, more work.
-3. **Accept the current tradeoff for now** — reasonable if the URL isn't
-   publicized and the data isn't highly sensitive, but should be a
-   conscious choice.
-
-Nothing here was implemented to force one of these — it's a product
-decision, not an engineering one.
+`db/rls_policies.sql` now grants read/write on all three tables only to
+Supabase's `authenticated` role — `anon` gets nothing, so an
+unauthenticated request is rejected by Postgres itself. See
+`docs/AUTHENTICATION.md` for the full authentication architecture
+(client-side Supabase Auth, `/login`, session persistence) and — just as
+important — its documented limits: this protects Postgres-backed data
+unconditionally, but not the separately-synced player database, which is
+static-exported and therefore fetchable by direct URL regardless of
+login state.
 
 ## Setup (one-time)
+
+See `docs/AUTHENTICATION.md` too — user accounts need to exist before
+sign-in works at all; this section only covers the database side.
 
 1. Create a free Supabase project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run `db/schema.sql`, then `db/rls_policies.sql`.

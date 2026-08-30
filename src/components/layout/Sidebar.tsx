@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -10,10 +10,12 @@ import {
   ListChecks,
   FileText,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { ClubCrest } from "./ClubCrest";
 import { cn, formatDate } from "@/lib/utils";
 import { SYNC_META } from "@/lib/players-data";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -38,6 +40,13 @@ function isActive(pathname: string, href: string) {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/login");
+  }
 
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-kvm-border-dark bg-kvm-charcoal text-white">
@@ -78,6 +87,28 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
+
+      <div className="border-t border-kvm-border-dark px-5 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Signed in
+            </div>
+            <div className="truncate text-xs text-gray-200" title={user?.email ?? undefined}>
+              {user?.email ?? "—"}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex shrink-0 items-center gap-1 rounded-sm px-2 py-1.5 text-xs font-medium text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
+          >
+            <LogOut size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
 
       <div className="border-t border-kvm-border-dark px-5 py-4 text-xs text-gray-400">
         <div className="mb-1.5 font-semibold uppercase tracking-wide text-gray-500">
