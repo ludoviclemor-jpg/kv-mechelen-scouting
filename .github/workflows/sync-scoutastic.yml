@@ -1,0 +1,61 @@
+name: Sync SCOUTASTIC
+
+# Pulls real player data from SCOUTASTIC (competitions -> teams -> squads,
+# see docs/SCOUTASTIC_SYNC.md) and commits the result to data/players.json.
+# The API key never leaves this workflow — it's read from the
+# SCOUTASTIC_API_KEY repository secret and is never printed, logged, or
+# written to any file.
+
+on:
+  schedule:
+    - cron: "0 5 * * *" # 05:00 UTC daily — adjust to your preferred time
+  workflow_dispatch: {} # manual trigger from the Actions tab
+
+permissions:
+  contents: write # to commit the refreshed data/players.json
+  actions: write # to dispatch the Pages deploy workflow afterwards
+
+concurrency:
+  group: "scoutastic-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run SCOUTASTIC sync
+        env:
+          SCOUTASTIC_API_KEY: ${{ secrets.SCOUTASTIC_API_KEY }}
+        run: node scripts/sync-scoutastic.mjs
+
+      - name: Commit updated player data (if anything changed)
+        id: commit
+        run: |
+          git config user.name "scoutastic-sync-bot"
+          git config user.email "scoutastic-sync-bot@users.noreply.github.com"
+          git add data/players.json
+          if git diff --staged --quiet; then
+            echo "No changes in the dataset — nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Sync SCOUTASTIC player data"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A commit pushed with the default GITHUB_TOKEN does not itself
+      # trigger other workflows (GitHub's loop-prevention rule), so the
+      # Pages deploy has to be dispatched explicitly here.
+      - name: Trigger Pages deploy
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref ${{ github.ref_name }}

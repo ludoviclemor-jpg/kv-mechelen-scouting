@@ -1,0 +1,17 @@
+{
+  "_comment": "Maps SCOUTASTIC's mainPosition raw codes to our Position union. Confirmed set of raw codes carried over from prior verified work; any code not listed here maps to 'OTHER' at sync time (never guessed) and gets logged so it can be added once confirmed.",
+  "goalkeeper": "GK",
+  "centreback": "CB",
+  "centraldefense": "CB",
+  "centraldefender": "CB",
+  "leftback": "LB",
+  "rightback": "RB",
+  "defensivemidfield": "DM",
+  "centralmidfield": "CM",
+  "attackingmidfield": "AM",
+  "leftwing": "LW",
+  "rightwing": "RW",
+  "striker": "ST",
+  "centreforward": "ST",
+  "centerforward": "ST"
+}

@@ -12,9 +12,9 @@ import {
   getAllPlayers,
   SCOUTING_STATUSES,
   STATUS_LABELS,
-  POSITION_LABELS,
+  positionLabel,
   type Player,
-} from "@/lib/demo-data";
+} from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 
 const ALL_PLAYERS = getAllPlayers();
@@ -33,7 +33,7 @@ function ReportRow({ player }: { player: Player }) {
           {player.name}
         </Link>
         <div className="text-xs text-gray-400">
-          {POSITION_LABELS[player.position]} · {player.club}
+          {positionLabel(player.position)} · {player.club ?? "Unknown club"}
         </div>
       </td>
       <td>

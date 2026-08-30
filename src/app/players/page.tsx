@@ -11,7 +11,7 @@ import {
   type PlayerSortKey,
   type SortDirection,
 } from "@/components/players/PlayerTable";
-import { getAllPlayers, POSITIONS, POSITION_LABELS } from "@/lib/demo-data";
+import { getAllPlayers, POSITIONS, POSITION_LABELS } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { Users } from "lucide-react";
 
@@ -43,7 +43,9 @@ const CONTRACT_BANDS = [
   { value: "2029+", label: "2029 or later" },
 ];
 
-function matchesAgeBand(age: number, band: string) {
+function matchesAgeBand(age: number | null, band: string) {
+  if (band === "all") return true;
+  if (age === null) return false;
   switch (band) {
     case "u21":
       return age < 21;
@@ -60,7 +62,9 @@ function matchesAgeBand(age: number, band: string) {
   }
 }
 
-function matchesValueBand(value: number, band: string) {
+function matchesValueBand(value: number | null, band: string) {
+  if (band === "all") return true;
+  if (value === null) return false;
   switch (band) {
     case "u1":
       return value < 1_000_000;
@@ -75,7 +79,9 @@ function matchesValueBand(value: number, band: string) {
   }
 }
 
-function matchesContractBand(expiryIso: string, band: string) {
+function matchesContractBand(expiryIso: string | null, band: string) {
+  if (band === "all") return true;
+  if (expiryIso === null) return false;
   const year = new Date(expiryIso).getFullYear();
   switch (band) {
     case "2026":
@@ -91,8 +97,18 @@ function matchesContractBand(expiryIso: string, band: string) {
   }
 }
 
-function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+function uniqueSorted(values: (string | null)[]) {
+  return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
+/** Nulls always sort to the end, regardless of direction. */
+function compareNullable<T>(a: T | null, b: T | null, compare: (a: T, b: T) => number): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return compare(a, b);
 }
 
 export default function PlayersPage() {
@@ -136,33 +152,43 @@ export default function PlayersPage() {
   const sorted = useMemo(() => {
     const copy = [...filtered];
     copy.sort((a, b) => {
+      // Nulls (unknown values) always sort last, independent of direction.
+      let nullPinned: number | null = null;
       let cmp = 0;
       switch (sortKey) {
         case "name":
           cmp = a.name.localeCompare(b.name);
           break;
         case "age":
-          cmp = calculateAge(a.dateOfBirth) - calculateAge(b.dateOfBirth);
+          nullPinned = compareNullable(calculateAge(a.dateOfBirth), calculateAge(b.dateOfBirth), () => 0);
+          cmp = (calculateAge(a.dateOfBirth) ?? 0) - (calculateAge(b.dateOfBirth) ?? 0);
           break;
         case "position":
-          cmp = a.position.localeCompare(b.position);
+          nullPinned = compareNullable(a.position, b.position, () => 0);
+          cmp = (a.position ?? "").localeCompare(b.position ?? "");
           break;
         case "nationality":
-          cmp = a.nationality.localeCompare(b.nationality);
+          nullPinned = compareNullable(a.nationality, b.nationality, () => 0);
+          cmp = (a.nationality ?? "").localeCompare(b.nationality ?? "");
           break;
         case "club":
-          cmp = a.club.localeCompare(b.club);
+          nullPinned = compareNullable(a.club, b.club, () => 0);
+          cmp = (a.club ?? "").localeCompare(b.club ?? "");
           break;
         case "league":
-          cmp = a.league.localeCompare(b.league);
+          nullPinned = compareNullable(a.league, b.league, () => 0);
+          cmp = (a.league ?? "").localeCompare(b.league ?? "");
           break;
         case "marketValueEUR":
-          cmp = a.marketValueEUR - b.marketValueEUR;
+          nullPinned = compareNullable(a.marketValueEUR, b.marketValueEUR, () => 0);
+          cmp = (a.marketValueEUR ?? 0) - (b.marketValueEUR ?? 0);
           break;
         case "contractExpiry":
-          cmp = a.contractExpiry.localeCompare(b.contractExpiry);
+          nullPinned = compareNullable(a.contractExpiry, b.contractExpiry, () => 0);
+          cmp = (a.contractExpiry ?? "").localeCompare(b.contractExpiry ?? "");
           break;
       }
+      if (nullPinned !== null && nullPinned !== 0) return nullPinned;
       return sortDirection === "asc" ? cmp : -cmp;
     });
     return copy;

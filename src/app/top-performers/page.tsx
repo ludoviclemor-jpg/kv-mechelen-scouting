@@ -12,7 +12,7 @@ import {
   MINIMUM_RATED_MATCHES,
   POSITIONS,
   POSITION_LABELS,
-} from "@/lib/demo-data";
+} from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 
@@ -27,7 +27,9 @@ const AGE_BANDS = [
   { value: "28+", label: "28+" },
 ];
 
-function matchesAgeBand(age: number, band: string) {
+function matchesAgeBand(age: number | null, band: string) {
+  if (band === "all") return true;
+  if (age === null) return false;
   switch (band) {
     case "u23":
       return age < 23;
@@ -40,8 +42,10 @@ function matchesAgeBand(age: number, band: string) {
   }
 }
 
-function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+function uniqueSorted(values: (string | null)[]) {
+  return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 export default function TopPerformersPage() {
@@ -76,7 +80,7 @@ export default function TopPerformersPage() {
         const statsB = computeMatchStats(b.matches);
         if (sortBy === "last5") return (statsB.average ?? 0) - (statsA.average ?? 0);
         if (sortBy === "latest") return (statsB.latest ?? 0) - (statsA.latest ?? 0);
-        return calculateAge(a.dateOfBirth) - calculateAge(b.dateOfBirth);
+        return (calculateAge(a.dateOfBirth) ?? 0) - (calculateAge(b.dateOfBirth) ?? 0);
       });
   }, [rated, position, league, nationality, ageBand, sortBy]);
 

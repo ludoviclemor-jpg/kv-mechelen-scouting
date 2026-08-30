@@ -1,6 +1,6 @@
 "use client";
 
-import { STATUS_LABELS, type ScoutingStatus } from "@/lib/demo-data";
+import { STATUS_LABELS, type ScoutingStatus } from "@/lib/players-data";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<ScoutingStatus, string> = {

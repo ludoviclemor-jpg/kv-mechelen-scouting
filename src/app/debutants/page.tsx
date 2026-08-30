@@ -9,7 +9,7 @@ import {
   getAfricanDebutants,
   POSITIONS,
   POSITION_LABELS,
-} from "@/lib/demo-data";
+} from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { Globe2 } from "lucide-react";
 
@@ -22,7 +22,9 @@ const AGE_BANDS = [
   { value: "23+", label: "23+" },
 ];
 
-function matchesAgeBand(age: number, band: string) {
+function matchesAgeBand(age: number | null, band: string) {
+  if (band === "all") return true;
+  if (age === null) return false; // unknown age never matches a specific band
   switch (band) {
     case "u20":
       return age < 20;
@@ -35,8 +37,10 @@ function matchesAgeBand(age: number, band: string) {
   }
 }
 
-function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+function uniqueSorted(values: (string | null)[]) {
+  return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 export default function DebutantsPage() {

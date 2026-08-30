@@ -12,7 +12,8 @@ import {
   Settings,
 } from "lucide-react";
 import { ClubCrest } from "./ClubCrest";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import { SYNC_META } from "@/lib/players-data";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -24,13 +25,11 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-/**
- * DEMO — sync metadata will come from the Phase 5 daily-sync service.
- */
-const DEMO_SYNC_STATUS = {
-  lastSync: "30 Aug 2026, 06:00",
-  state: "ok" as "ok" | "warning" | "error",
-};
+function syncState(): "ok" | "warning" | "error" {
+  if (SYNC_META.lastSyncStatus === "success") return "ok";
+  if (SYNC_META.lastSyncStatus === "partial") return "warning";
+  return "error"; // "failed" or "never_run"
+}
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -88,16 +87,16 @@ export function Sidebar() {
           <span
             className={cn(
               "h-2 w-2 shrink-0 rounded-full",
-              DEMO_SYNC_STATUS.state === "ok" && "bg-green-500",
-              DEMO_SYNC_STATUS.state === "warning" && "bg-kvm-yellow",
-              DEMO_SYNC_STATUS.state === "error" && "bg-kvm-red"
+              syncState() === "ok" && "bg-green-500",
+              syncState() === "warning" && "bg-kvm-yellow",
+              syncState() === "error" && "bg-kvm-red"
             )}
             aria-hidden="true"
           />
-          {DEMO_SYNC_STATUS.lastSync}
+          {SYNC_META.lastSyncedAt ? formatDate(SYNC_META.lastSyncedAt.slice(0, 10)) : "Never synced"}
         </div>
         <div className="mt-1 text-[11px] text-gray-500">
-          Automatic sync not yet connected
+          {SYNC_META.activePlayersCount} players · source: SCOUTASTIC
         </div>
       </div>
     </aside>

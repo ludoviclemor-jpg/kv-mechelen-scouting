@@ -9,17 +9,17 @@ import {
   type ReactNode,
 } from "react";
 import {
-  DEMO_SHORTLISTS,
+  DEFAULT_SHORTLISTS,
   type ScoutingNotes,
   type ScoutingStatus,
   type Shortlist,
-} from "@/lib/demo-data";
+} from "@/lib/players-data";
 
 /**
  * In-memory scouting workspace state: shortlists, status overrides and
- * notes overrides layered on top of the read-only demo data.
+ * notes overrides layered on top of the read-only synced player data.
  *
- * Frontend-only by design (per Phase 1 scope) — state resets on reload.
+ * Frontend-only by design (per Phase 1/2 scope) — state resets on reload.
  * Phase 3 (PostgreSQL) replaces this provider's internals with real
  * reads/writes; the hook API (`useAppStore`) is what components should
  * keep depending on.
@@ -51,7 +51,7 @@ function slugId(name: string) {
 }
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
-  const [shortlists, setShortlists] = useState<Shortlist[]>(DEMO_SHORTLISTS);
+  const [shortlists, setShortlists] = useState<Shortlist[]>(DEFAULT_SHORTLISTS);
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, ScoutingStatus>
   >({});

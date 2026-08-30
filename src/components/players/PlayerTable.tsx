@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import type { Player } from "@/lib/demo-data";
-import { POSITION_LABELS } from "@/lib/demo-data";
+import type { Player } from "@/lib/players-data";
+import { positionLabel } from "@/lib/players-data";
 import { calculateAge, contractStatus, formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useEffectiveStatus } from "@/lib/app-store";
@@ -51,11 +51,11 @@ function Row({ player }: { player: Player }) {
           {player.name}
         </Link>
       </td>
-      <td className="tabular-nums">{calculateAge(player.dateOfBirth)}</td>
-      <td>{POSITION_LABELS[player.position]}</td>
-      <td>{player.nationality}</td>
-      <td>{player.club}</td>
-      <td className="text-gray-500">{player.league}</td>
+      <td className="tabular-nums">{calculateAge(player.dateOfBirth) ?? "—"}</td>
+      <td>{positionLabel(player.position)}</td>
+      <td>{player.nationality ?? "Unknown"}</td>
+      <td>{player.club ?? "Unknown"}</td>
+      <td className="text-gray-500">{player.league ?? "Unknown"}</td>
       <td className="tabular-nums">{formatCurrency(player.marketValueEUR)}</td>
       <td
         className={cn("tabular-nums", contract.urgent && "font-semibold text-kvm-red")}

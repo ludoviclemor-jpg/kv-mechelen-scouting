@@ -8,7 +8,9 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(...inputs);
 }
 
-export function formatCurrency(valueEUR: number): string {
+/** "Unknown" for null — SCOUTASTIC doesn't return this field for every player, never invented. */
+export function formatCurrency(valueEUR: number | null): string {
+  if (valueEUR === null) return "Unknown";
   if (valueEUR >= 1_000_000) {
     return `€${(valueEUR / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   }
@@ -18,7 +20,8 @@ export function formatCurrency(valueEUR: number): string {
   return `€${valueEUR}`;
 }
 
-export function formatDate(iso: string): string {
+export function formatDate(iso: string | null): string {
+  if (iso === null) return "Unknown";
   const date = new Date(iso);
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -27,7 +30,8 @@ export function formatDate(iso: string): string {
   });
 }
 
-export function formatDateShort(iso: string): string {
+export function formatDateShort(iso: string | null): string {
+  if (iso === null) return "Unknown";
   const date = new Date(iso);
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -35,7 +39,9 @@ export function formatDateShort(iso: string): string {
   });
 }
 
-export function calculateAge(dateOfBirth: string): number {
+/** Returns null when the date of birth isn't known — never guess an age. */
+export function calculateAge(dateOfBirth: string | null): number | null {
+  if (dateOfBirth === null) return null;
   const dob = new Date(dateOfBirth);
   const now = new Date();
   let age = now.getFullYear() - dob.getFullYear();
@@ -46,10 +52,11 @@ export function calculateAge(dateOfBirth: string): number {
   return age;
 }
 
-export function contractStatus(expiryIso: string): {
+export function contractStatus(expiryIso: string | null): {
   label: string;
   urgent: boolean;
 } {
+  if (expiryIso === null) return { label: "Unknown", urgent: false };
   const expiry = new Date(expiryIso);
   const now = new Date();
   const monthsLeft =

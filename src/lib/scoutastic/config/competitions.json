@@ -1,0 +1,56 @@
+{
+  "_comment": "Competition codes for the SCOUTASTIC competition -> teams -> squad crawl. 'competitionId' is the SCOUTASTIC/TransferMarkt competition code (GET /api/v1/competitions/{competitionId}/teams). Ported from a prior verification pass — only NO1 (Norway tier 1) has been confirmed to actually resolve against the real API. Every other competitionId is an unverified best-effort draft and MUST be checked with `node scripts/sync-scoutastic.mjs --list-competitions` before being trusted. A competition that fails resolution is skipped and logged, never silently guessed at.",
+
+  "competitions": [
+    { "country": "Sweden", "tier": 1, "competitionId": "SE1", "seasonStart": "2026-03-01", "verified": false },
+    { "country": "Sweden", "tier": 2, "competitionId": "SE2", "seasonStart": "2026-03-01", "verified": false },
+
+    { "country": "Croatia", "tier": 1, "competitionId": "KR1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Croatia", "tier": 2, "competitionId": "KR2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Denmark", "tier": 1, "competitionId": "DK1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Denmark", "tier": 2, "competitionId": "DK2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Norway", "tier": 1, "competitionId": "NO1", "seasonStart": "2026-03-01", "verified": true, "note": "Confirmed against the real API." },
+    { "country": "Norway", "tier": 2, "competitionId": "NO2", "seasonStart": "2026-03-01", "verified": false },
+
+    { "country": "Switzerland", "tier": 1, "competitionId": "C1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Switzerland", "tier": 2, "competitionId": "C2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Poland", "tier": 1, "competitionId": "PL1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Poland", "tier": 2, "competitionId": "PL2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Serbia", "tier": 1, "competitionId": "SER1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Serbia", "tier": 2, "competitionId": "SER2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Lithuania", "tier": 1, "competitionId": "LI1", "seasonStart": "2026-03-01", "verified": false },
+    { "country": "Lithuania", "tier": 2, "competitionId": "LI2", "seasonStart": "2026-03-01", "verified": false },
+
+    { "country": "Estonia", "tier": 1, "competitionId": "ES1E", "seasonStart": "2026-03-01", "verified": false, "note": "Lower confidence — 'ES1' is Spain's code on TransferMarkt, so Estonia must use something else; verify." },
+    { "country": "Estonia", "tier": 2, "competitionId": "ES2E", "seasonStart": "2026-03-01", "verified": false, "note": "Same caveat as tier 1 — placeholder, verify." },
+
+    { "country": "Latvia", "tier": 1, "competitionId": "LE1", "seasonStart": "2026-03-01", "verified": false },
+    { "country": "Latvia", "tier": 2, "competitionId": "LE2", "seasonStart": "2026-03-01", "verified": false },
+
+    { "country": "Bulgaria", "tier": 1, "competitionId": "BU1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Bulgaria", "tier": 2, "competitionId": "BU2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Hungary", "tier": 1, "competitionId": "UNG1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Hungary", "tier": 2, "competitionId": "UNG2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Albania", "tier": 1, "competitionId": "AL1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Albania", "tier": 2, "competitionId": "AL2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "North Macedonia", "tier": 1, "competitionId": "MAZ1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "North Macedonia", "tier": 2, "competitionId": "MAZ2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Moldova", "tier": 1, "competitionId": "MD1", "seasonStart": "2026-07-15", "verified": false, "note": "Lower confidence code, and Moldova's calendar format has changed in the past — verify both competitionId and seasonStart." },
+    { "country": "Moldova", "tier": 2, "competitionId": "MD2", "seasonStart": "2026-07-15", "verified": false },
+
+    { "country": "Bosnia-Herzegovina", "tier": 1, "competitionId": "BOS1", "seasonStart": "2026-07-15", "verified": false },
+    { "country": "Bosnia-Herzegovina", "tier": 2, "competitionId": "BOS2", "seasonStart": "2026-07-15", "verified": false, "note": "Bosnia's 2nd tier is split by entity (FBiH / RS) as two separate competitions on TransferMarkt — this placeholder only covers one half." },
+
+    { "country": "Finland", "tier": 1, "competitionId": "FI1", "seasonStart": "2026-03-01", "verified": false },
+    { "country": "Finland", "tier": 2, "competitionId": "FI2", "seasonStart": "2026-03-01", "verified": false }
+  ]
+}

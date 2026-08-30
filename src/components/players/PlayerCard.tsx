@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { computeMatchStats, POSITION_LABELS } from "@/lib/demo-data";
-import type { Player } from "@/lib/demo-data";
+import { computeMatchStats, positionLabel } from "@/lib/players-data";
+import type { Player } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { RatingBadge, StarRating } from "@/components/ui/RatingBadge";
 import { RatingTrendSparkline } from "@/components/ui/RatingTrend";
-import { ratingTrendSeries } from "@/lib/demo-data";
+import { ratingTrendSeries } from "@/lib/players-data";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
 
 export function PlayerCard({ player }: { player: Player }) {
@@ -24,7 +24,7 @@ export function PlayerCard({ player }: { player: Player }) {
             <div>
               <div className="text-sm font-bold text-kvm-ink">{player.name}</div>
               <div className="text-xs text-gray-500">
-                {calculateAge(player.dateOfBirth)} yrs · {POSITION_LABELS[player.position]}
+                {calculateAge(player.dateOfBirth) ?? "—"} yrs · {positionLabel(player.position)}
               </div>
             </div>
           </Link>
@@ -33,15 +33,15 @@ export function PlayerCard({ player }: { player: Player }) {
         <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-500">
           <div>
             <dt className="sr-only">Club</dt>
-            <dd className="truncate font-medium text-kvm-ink">{player.club}</dd>
+            <dd className="truncate font-medium text-kvm-ink">{player.club ?? "Unknown club"}</dd>
           </div>
           <div>
             <dt className="sr-only">Nationality</dt>
-            <dd className="truncate">{player.nationality}</dd>
+            <dd className="truncate">{player.nationality ?? "Unknown"}</dd>
           </div>
           <div className="col-span-2">
             <dt className="sr-only">League</dt>
-            <dd className="truncate">{player.league}</dd>
+            <dd className="truncate">{player.league ?? "Unknown"}</dd>
           </div>
         </dl>
       </div>

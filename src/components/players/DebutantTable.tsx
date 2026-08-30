@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { Player } from "@/lib/demo-data";
-import { computeMatchStats } from "@/lib/demo-data";
+import type { Player } from "@/lib/players-data";
+import { computeMatchStats } from "@/lib/players-data";
 import { formatDate, calculateAge } from "@/lib/utils";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -46,7 +46,7 @@ export function DebutantTable({ players }: { players: Player[] }) {
                   </Link>
                 </td>
                 <td>{player.nationality}</td>
-                <td className="tabular-nums">{calculateAge(player.dateOfBirth)}</td>
+                <td className="tabular-nums">{calculateAge(player.dateOfBirth) ?? "—"}</td>
                 <td>{player.club}</td>
                 <td className="text-gray-500">{player.league}</td>
                 <td className="text-gray-500">

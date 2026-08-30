@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Player, ScoutingNotes } from "@/lib/demo-data";
+import type { Player, ScoutingNotes } from "@/lib/players-data";
 import { useAppStore, useEffectiveNotes } from "@/lib/app-store";
 import { Save } from "lucide-react";
 

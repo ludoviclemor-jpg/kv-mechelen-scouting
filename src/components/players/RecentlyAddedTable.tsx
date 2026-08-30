@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { Player } from "@/lib/demo-data";
-import { POSITION_LABELS } from "@/lib/demo-data";
+import type { Player } from "@/lib/players-data";
+import { positionLabel } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useEffectiveStatus } from "@/lib/app-store";
+import { Users } from "lucide-react";
 
 function Row({ player }: { player: Player }) {
   const status = useEffectiveStatus(player.id, player.status);
@@ -19,11 +21,11 @@ function Row({ player }: { player: Player }) {
           {player.name}
         </Link>
       </td>
-      <td>{POSITION_LABELS[player.position]}</td>
-      <td>{player.club}</td>
-      <td className="text-gray-500">{player.league}</td>
-      <td>{player.nationality}</td>
-      <td className="tabular-nums">{calculateAge(player.dateOfBirth)}</td>
+      <td>{positionLabel(player.position)}</td>
+      <td>{player.club ?? "Unknown"}</td>
+      <td className="text-gray-500">{player.league ?? "Unknown"}</td>
+      <td>{player.nationality ?? "Unknown"}</td>
+      <td className="tabular-nums">{calculateAge(player.dateOfBirth) ?? "—"}</td>
       <td>
         <StatusBadge status={status} />
       </td>
@@ -32,6 +34,16 @@ function Row({ player }: { player: Player }) {
 }
 
 export function RecentlyAddedTable({ players }: { players: Player[] }) {
+  if (players.length === 0) {
+    return (
+      <EmptyState
+        icon={Users}
+        title="No players yet"
+        description="Run the SCOUTASTIC sync to populate the player database."
+      />
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="data-table">

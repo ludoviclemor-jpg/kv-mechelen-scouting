@@ -1,5 +1,5 @@
-import type { MatchRating } from "@/lib/demo-data";
-import { computeMatchStats, ratingTrendSeries } from "@/lib/demo-data";
+import type { MatchRating } from "@/lib/players-data";
+import { computeMatchStats, ratingTrendSeries } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { RatingTrendChart } from "@/components/ui/RatingTrend";

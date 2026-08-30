@@ -6,17 +6,20 @@ Internal football scouting and recruitment dashboard for KV Mechelen.
 
 ## Status
 
-Phase 1 — frontend architecture and UI, backed by a demo data layer.
-Everything currently on screen is placeholder scouting data used to
-validate the interface end-to-end.
+Phase 2 — real player data from SCOUTASTIC. No fictitious/demo players
+remain; the frontend reads only from `data/players.json`, synced by
+`scripts/sync-scoutastic.mjs` (locally or via GitHub Actions). See
+[docs/SCOUTASTIC_SYNC.md](docs/SCOUTASTIC_SYNC.md) for the full
+architecture, what's confirmed vs. still unverified against the real API,
+and how to run/trigger a sync.
 
 Planned phases:
 
-1. **Frontend** (this repo, current) — Next.js UI, static export, GitHub Pages deployment.
-2. **SCOUTASTIC** — player, competition and club data.
+1. **Frontend** — Next.js UI, static export, GitHub Pages deployment. ✅
+2. **SCOUTASTIC** — player, competition and club data. ✅ (this phase)
 3. **PostgreSQL** — persistence for shortlists, scouting status and notes.
-4. **SofaScore** — live match ratings.
-5. **Daily synchronization** — automated data refresh.
+4. **SofaScore** — live match ratings, debut detection.
+5. **Daily synchronization** — automated via GitHub Actions cron. ✅ (built in Phase 2)
 6. **Production backend** — secure API layer connecting the above.
 
 ## Stack
@@ -25,6 +28,7 @@ Planned phases:
 - Tailwind CSS v4
 - Recharts (rating trend charts)
 - lucide-react (icons)
+- Plain Node.js (`scripts/`) for the SCOUTASTIC sync — no extra runtime/deps
 
 ## Development
 
@@ -47,7 +51,22 @@ static site to `out/`. Locally, `npm run build` runs without the base path
 so `out/` can be previewed at the domain root.
 
 Deployment is automated via `.github/workflows/deploy.yml` on every push
-to `main`.
+to `main`, and is also triggered directly by a successful SCOUTASTIC sync
+(`.github/workflows/sync-scoutastic.yml`).
+
+## Syncing real player data
+
+```bash
+SCOUTASTIC_API_KEY=... node scripts/sync-scoutastic.mjs --list-competitions
+SCOUTASTIC_API_KEY=... node scripts/sync-scoutastic.mjs
+```
+
+Full details, including what's verified against the real API vs. still a
+draft: [docs/SCOUTASTIC_SYNC.md](docs/SCOUTASTIC_SYNC.md). The key is read
+only from the `SCOUTASTIC_API_KEY` environment variable — locally that
+means your own shell, in production a GitHub Actions repository secret.
+It is never committed, never written to a file, never printed, and never
+shipped to the browser.
 
 ## Project structure
 
@@ -56,14 +75,17 @@ src/
   app/                  routes (App Router)
   components/
     layout/             Sidebar, PageHeader, AppShell, ClubCrest
-    ui/                 StatCard, RatingBadge, StatusBadge, DataTable atoms, ...
-    players/            PlayerCard, PlayerTable, DebutantTable, RecentlyAddedTable
+    ui/                 StatCard, RatingBadge, StatusBadge, SyncStatusBanner, ...
+    players/             PlayerCard, PlayerTable, DebutantTable, RecentlyAddedTable
     player-profile/      PlayerHeader, LastMatchesTable, ScoutingNotesCard
-    shortlists/         ShortlistCard, ShortlistButton
+    shortlists/          ShortlistCard, ShortlistButton
   lib/
-    demo-data/          typed demo dataset + selectors (the seam future APIs plug into)
-    app-store.tsx       in-memory shortlist/status/notes state (frontend-only until Phase 3)
+    players-data/        typed Player/Shortlist schema + selectors (reads data/players.json)
+    scoutastic/config/    competitions, position map, nationality lists (shared with scripts/)
+    app-store.tsx         in-memory shortlist/status/notes state (frontend-only until Phase 3)
+scripts/
+  sync-scoutastic.mjs     the SCOUTASTIC sync entrypoint (CLI + CI)
+  lib/                    API client + field mapper (see docs/SCOUTASTIC_SYNC.md)
+data/
+  players.json            synced player data, committed to the repo
 ```
-
-See `src/lib/demo-data/players.ts` for the data-layer contract that
-SCOUTASTIC, SofaScore and PostgreSQL will fill in later phases.

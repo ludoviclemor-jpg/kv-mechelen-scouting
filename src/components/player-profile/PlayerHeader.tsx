@@ -1,12 +1,16 @@
 "use client";
 
-import type { Player } from "@/lib/demo-data";
-import { POSITION_LABELS } from "@/lib/demo-data";
+import type { Player } from "@/lib/players-data";
+import { positionLabel } from "@/lib/players-data";
 import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { StatusSelect } from "@/components/ui/StatusBadge";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
 import { useAppStore, useEffectiveStatus } from "@/lib/app-store";
+
+function unk(value: string | number | null): string {
+  return value === null ? "Unknown" : String(value);
+}
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -31,7 +35,7 @@ export function PlayerHeader({ player }: { player: Player }) {
           <div>
             <h1 className="text-xl font-bold text-kvm-ink">{player.name}</h1>
             <p className="text-sm text-gray-500">
-              {POSITION_LABELS[player.position]} · {player.club} · {player.league}
+              {positionLabel(player.position)} · {player.club ?? "Unknown club"} · {player.league ?? "Unknown league"}
             </p>
           </div>
         </div>
@@ -43,16 +47,18 @@ export function PlayerHeader({ player }: { player: Player }) {
       </div>
 
       <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-kvm-border pt-5 sm:grid-cols-4 lg:grid-cols-6">
-        <Field label="Age" value={`${calculateAge(player.dateOfBirth)} yrs`} />
+        <Field label="Age" value={player.dateOfBirth ? `${calculateAge(player.dateOfBirth)} yrs` : "Unknown"} />
         <Field label="Date of birth" value={formatDate(player.dateOfBirth)} />
-        <Field label="Nationality" value={player.nationality} />
-        <Field label="Position" value={POSITION_LABELS[player.position]} />
-        <Field label="Club" value={player.club} />
-        <Field label="League" value={player.league} />
-        <Field label="Height" value={`${player.heightCm} cm`} />
-        <Field label="Preferred foot" value={player.preferredFoot} />
+        <Field label="Nationality" value={unk(player.nationality)} />
+        <Field label="Position" value={positionLabel(player.position)} />
+        <Field label="Club" value={unk(player.club)} />
+        <Field label="League" value={unk(player.league)} />
+        <Field label="Height" value={player.heightCm !== null ? `${player.heightCm} cm` : "Unknown"} />
+        <Field label="Preferred foot" value={unk(player.preferredFoot)} />
         <Field label="Market value" value={formatCurrency(player.marketValueEUR)} />
         <Field label="Contract expiry" value={formatDate(player.contractExpiry)} />
+        <Field label="Agent" value={unk(player.agent)} />
+        <Field label="Nationality (2nd)" value={unk(player.secondNationality)} />
       </dl>
     </div>
   );

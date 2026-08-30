@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
-import type { Shortlist } from "@/lib/demo-data";
+import type { Shortlist } from "@/lib/players-data";
 import { cn } from "@/lib/utils";
 
 export function ShortlistCard({

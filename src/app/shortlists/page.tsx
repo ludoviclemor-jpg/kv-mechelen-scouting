@@ -9,7 +9,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { useAppStore } from "@/lib/app-store";
-import { getAllPlayers, computeMatchStats, POSITION_LABELS } from "@/lib/demo-data";
+import { getAllPlayers, computeMatchStats, positionLabel } from "@/lib/players-data";
 import { ListChecks } from "lucide-react";
 
 const ALL_PLAYERS = getAllPlayers();
@@ -44,7 +44,7 @@ export default function ShortlistsPage() {
 
     return [...players].sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "position") return a.position.localeCompare(b.position);
+      if (sortBy === "position") return (a.position ?? "").localeCompare(b.position ?? "");
       const ratingA = computeMatchStats(a.matches).average ?? 0;
       const ratingB = computeMatchStats(b.matches).average ?? 0;
       return ratingB - ratingA;
@@ -201,7 +201,7 @@ export default function ShortlistsPage() {
                                 {p.name}
                               </Link>
                             </td>
-                            <td>{POSITION_LABELS[p.position]}</td>
+                            <td>{positionLabel(p.position)}</td>
                             <td>{p.club}</td>
                             <td className="text-gray-500">{p.league}</td>
                             <td>

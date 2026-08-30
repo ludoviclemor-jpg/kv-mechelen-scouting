@@ -1,7 +1,9 @@
-import { Users, UserPlus, Globe2, Eye, ListChecks } from "lucide-react";
+import { Users, UserPlus, Globe2, Eye, ListChecks, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
@@ -10,10 +12,10 @@ import {
   getTopPerformers,
   getAfricanDebutants,
   getRecentlyAdded,
-} from "@/lib/demo-data";
+} from "@/lib/players-data";
 
-// Reference date is fixed for deterministic static export output.
-const REFERENCE_DATE = "2026-08-30";
+// Captured once at build time — refreshed on every sync-triggered rebuild.
+const REFERENCE_DATE = new Date().toISOString().slice(0, 10);
 
 export default function DashboardPage() {
   const overview = getScoutingOverview(REFERENCE_DATE);
@@ -29,6 +31,8 @@ export default function DashboardPage() {
       />
 
       <div className="space-y-6 p-8">
+        <SyncStatusBanner />
+
         <section
           aria-labelledby="overview-heading"
           className="grid grid-cols-2 gap-3 lg:grid-cols-5"
@@ -50,11 +54,19 @@ export default function DashboardPage() {
 
         <section className="border border-kvm-border bg-white pb-4">
           <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
-          <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-5">
-            {topPerformers.map((player) => (
-              <PlayerCard key={player.id} player={player} />
-            ))}
-          </div>
+          {topPerformers.length === 0 ? (
+            <EmptyState
+              icon={TrendingUp}
+              title="No top performers yet"
+              description="Players need at least 3 SofaScore-rated matches to appear here — coming in Phase 4."
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-5">
+              {topPerformers.map((player) => (
+                <PlayerCard key={player.id} player={player} />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="border border-kvm-border bg-white pb-2">

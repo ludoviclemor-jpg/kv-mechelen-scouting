@@ -1,23 +1,24 @@
-import { CircleAlert, CircleCheck, Database, RefreshCw, Radar } from "lucide-react";
+import { CircleAlert, CircleCheck, AlertTriangle, Database, RefreshCw, Radar } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SYNC_META } from "@/lib/players-data";
+import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-type ConnectionState = "connected" | "not_connected";
+type ConnectionState = "connected" | "warning" | "not_connected";
 
-function ConnectionBadge({ state }: { state: ConnectionState }) {
-  const connected = state === "connected";
-  const Icon = connected ? CircleCheck : CircleAlert;
+function ConnectionBadge({ state, label }: { state: ConnectionState; label?: string }) {
+  const Icon = state === "connected" ? CircleCheck : state === "warning" ? AlertTriangle : CircleAlert;
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold",
-        connected
-          ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-300"
-          : "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-300"
+        state === "connected" && "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-300",
+        state === "warning" && "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300",
+        state === "not_connected" && "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-300"
       )}
     >
       <Icon size={13} aria-hidden="true" />
-      {connected ? "Connected" : "Not connected"}
+      {label ?? (state === "connected" ? "Connected" : state === "warning" ? "Needs attention" : "Not connected")}
     </span>
   );
 }
@@ -28,12 +29,14 @@ function IntegrationCard({
   description,
   state,
   phase,
+  badgeLabel,
 }: {
   icon: typeof Database;
   name: string;
   description: string;
   state: ConnectionState;
   phase: string;
+  badgeLabel?: string;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border border-kvm-border bg-white p-5">
@@ -50,11 +53,11 @@ function IntegrationCard({
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
-        <ConnectionBadge state={state} />
+        <ConnectionBadge state={state} label={badgeLabel} />
         <button
           type="button"
           disabled
-          title="Configured from the backend once available — no credentials are stored in the frontend"
+          title="Configured via the SCOUTASTIC_API_KEY GitHub Actions secret — no credentials are stored in the frontend"
           className="rounded-sm border border-kvm-border px-2.5 py-1 text-xs font-medium text-gray-400 disabled:cursor-not-allowed"
         >
           Configure
@@ -65,6 +68,27 @@ function IntegrationCard({
 }
 
 export default function SettingsPage() {
+  const meta = SYNC_META;
+  const summary = meta.lastSyncSummary;
+
+  const scoutasticState: ConnectionState =
+    meta.lastSyncStatus === "success"
+      ? "connected"
+      : meta.lastSyncStatus === "partial"
+        ? "warning"
+        : meta.lastSyncStatus === "failed"
+          ? "warning"
+          : "not_connected";
+
+  const syncBadgeLabel =
+    meta.lastSyncStatus === "never_run"
+      ? "Never run"
+      : meta.lastSyncStatus === "success"
+        ? "Last sync OK"
+        : meta.lastSyncStatus === "partial"
+          ? "Partial sync"
+          : "Last sync failed";
+
   return (
     <>
       <PageHeader
@@ -77,23 +101,61 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Data Synchronization
           </h2>
-          <div className="flex items-center justify-between gap-4 border border-kvm-border bg-white p-5">
-            <div className="flex gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
-                <RefreshCw size={18} aria-hidden="true" />
+          <div className="border border-kvm-border bg-white p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
+                  <RefreshCw size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-kvm-ink">SCOUTASTIC sync</h3>
+                  <p className="mt-0.5 max-w-md text-xs text-gray-500">
+                    Player records are synced from SCOUTASTIC on a schedule via GitHub
+                    Actions (the API key lives only as a repository secret, never in
+                    this frontend). Trigger it manually from the Actions tab
+                    (&quot;Sync SCOUTASTIC&quot; → Run workflow), or locally with{" "}
+                    <code className="rounded-sm bg-gray-100 px-1 py-0.5 text-[11px]">
+                      SCOUTASTIC_API_KEY=… node scripts/sync-scoutastic.mjs
+                    </code>
+                    .
+                  </p>
+                </div>
+              </div>
+              <ConnectionBadge state={scoutasticState} label={syncBadgeLabel} />
+            </div>
+
+            <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-kvm-border pt-4 sm:grid-cols-4">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  Last sync
+                </dt>
+                <dd className="mt-0.5 text-sm font-medium text-kvm-ink">
+                  {meta.lastSyncedAt ? formatDate(meta.lastSyncedAt.slice(0, 10)) : "Never"}
+                </dd>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-kvm-ink">Automatic daily sync</h3>
-                <p className="mt-0.5 max-w-md text-xs text-gray-500">
-                  Once SCOUTASTIC and SofaScore are connected, player records and
-                  ratings will refresh automatically once per day.
-                </p>
-                <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                  Phase 5 — Daily Synchronization
-                </p>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  Active players
+                </dt>
+                <dd className="mt-0.5 text-sm font-medium text-kvm-ink">{meta.activePlayersCount}</dd>
               </div>
-            </div>
-            <ConnectionBadge state="not_connected" />
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  Competitions synced
+                </dt>
+                <dd className="mt-0.5 text-sm font-medium text-kvm-ink">
+                  {summary ? `${summary.competitionsSucceeded} / ${summary.competitionsAttempted}` : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  Players failed
+                </dt>
+                <dd className={cn("mt-0.5 text-sm font-medium", summary && summary.playersFailed > 0 ? "text-kvm-red" : "text-kvm-ink")}>
+                  {summary ? summary.playersFailed : "—"}
+                </dd>
+              </div>
+            </dl>
           </div>
         </section>
 
@@ -106,8 +168,9 @@ export default function SettingsPage() {
               icon={Radar}
               name="SCOUTASTIC"
               description="Player profiles, competitions and club/league metadata."
-              state="not_connected"
-              phase="Phase 2"
+              state={scoutasticState}
+              badgeLabel={syncBadgeLabel}
+              phase="Phase 2 — live"
             />
             <IntegrationCard
               icon={Radar}
@@ -141,10 +204,10 @@ export default function SettingsPage() {
             </div>
             <div className="border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Backend API
+                Sync workflow
               </div>
-              <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-gray-400">
-                <CircleAlert size={15} /> Not deployed
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
+                <CircleCheck size={15} /> Configured (GitHub Actions)
               </div>
             </div>
             <div className="border border-kvm-border bg-white p-4">
