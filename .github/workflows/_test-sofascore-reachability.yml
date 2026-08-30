@@ -1,0 +1,22 @@
+name: TEMP - test SofaScore reachability
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test SofaScore API reachability
+        run: |
+          echo "Runner egress IP:"
+          curl -s https://api.ipify.org
+          echo ""
+          echo "--- search endpoint ---"
+          curl -s -o /tmp/body.json -w "HTTP %{http_code}\n" "https://api.sofascore.com/api/v1/search/all?q=Prestianni" \
+            -H "accept: application/json, text/plain, */*" \
+            -H "user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36" \
+            -H "origin: https://www.sofascore.com" \
+            -H "referer: https://www.sofascore.com/"
+          echo "--- body ---"
+          cat /tmp/body.json
