@@ -23,9 +23,13 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PlayerHeader({ player }: { player: Player }) {
+export function PlayerHeader({ player, competitionName }: { player: Player; competitionName?: string | null }) {
   const { setPlayerStatus } = useAppStore();
   const status = useEffectiveStatus(player.id, player.status);
+  // Official SCOUTASTIC competition name when it's been resolved; `league`
+  // (the competition's country, see docs/COMPETITIONS.md) is only a
+  // fallback for the subtitle line while that lookup is still in flight.
+  const competitionLabel = competitionName ?? player.league ?? "Unknown competition";
 
   return (
     <div className="border border-kvm-border bg-white p-6">
@@ -35,7 +39,7 @@ export function PlayerHeader({ player }: { player: Player }) {
           <div>
             <h1 className="text-xl font-bold text-kvm-ink">{player.name}</h1>
             <p className="text-sm text-gray-500">
-              {positionLabel(player.position)} · {player.club ?? "Unknown club"} · {player.league ?? "Unknown league"}
+              {positionLabel(player.position)} · {player.club ?? "Unknown club"} · {competitionLabel}
             </p>
           </div>
         </div>
@@ -52,7 +56,7 @@ export function PlayerHeader({ player }: { player: Player }) {
         <Field label="Nationality" value={unk(player.nationality)} />
         <Field label="Position" value={positionLabel(player.position)} />
         <Field label="Club" value={unk(player.club)} />
-        <Field label="League" value={unk(player.league)} />
+        <Field label="Competition" value={competitionName ?? unk(player.league)} />
         <Field label="Height" value={player.heightCm !== null ? `${player.heightCm} cm` : "Unknown"} />
         <Field label="Preferred foot" value={unk(player.preferredFoot)} />
         <Field label="Market value" value={formatCurrency(player.marketValueEUR)} />
