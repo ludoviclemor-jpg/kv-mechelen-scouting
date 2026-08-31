@@ -40,12 +40,12 @@ const VALUE_BAND_LABELS: Record<string, string> = Object.fromEntries(VALUE_BANDS
 // fetchProfessionalCompetitionIds' own comment) at a conservative tier
 // cutoff; "All levels" keeps the full crawled pool, cup contexts included.
 const TIER_OPTIONS = [
-  { value: "3", label: "Professional (top 3 tiers)" },
-  { value: "2", label: "Top 2 tiers only" },
-  { value: "1", label: "Top tier only" },
+  { value: "2", label: "Top 2 divisions (default)" },
+  { value: "1", label: "Top division only" },
+  { value: "3", label: "Top 3 divisions" },
   { value: "all", label: "All levels (incl. cups/amateur)" },
 ];
-const DEFAULT_TIER = "3";
+const DEFAULT_TIER = "2"; // top 2 divisions per country by default — confirmed live no lower tier leaks through this filter (docs/LOAN_WATCH.md)
 
 export default function LoanWatchPage() {
   const [maxMinutes, setMaxMinutes] = useState(String(LOAN_WATCH_DEFAULT_MAX_MINUTES));
@@ -125,7 +125,7 @@ export default function LoanWatchPage() {
     <>
       <PageHeader
         title="Loan Watch"
-        description="Players with limited game time this season — a real signal for a possible loan move. Built entirely from real minutes/appearances data; SCOUTASTIC has no transfer-rumour data, so nothing here is based on speculation. Defaults to the top 3 tiers only (Level filter) to exclude amateur/cup-context noise — widen it if you want the full crawled pool."
+        description="Players with limited game time this season — a real signal for a possible loan move. Built entirely from real minutes/appearances data; SCOUTASTIC has no transfer-rumour data, so nothing here is based on speculation. Defaults to the top 2 divisions per country (Level filter) to exclude amateur/cup-context noise — widen it if you want the full crawled pool."
       />
 
       <FilterBar activeCount={chips.length}>

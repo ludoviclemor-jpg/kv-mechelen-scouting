@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
-  const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 3 }), []); // top-3-tiers default, same as the /loan-watch page — see fetchProfessionalCompetitionIds' own comment for why
+  const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 2 }), []); // top-2-divisions default, same as the /loan-watch page — see fetchProfessionalCompetitionIds' own comment for why
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);

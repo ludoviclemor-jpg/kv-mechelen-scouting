@@ -1,9 +1,9 @@
 "use client";
 
-import { Globe2, Bookmark } from "lucide-react";
+import { Globe2, Bookmark, Clock } from "lucide-react";
 import type { MatchLineupPlayer } from "@/lib/matches-data";
 import type { Player } from "@/lib/players-data";
-import { birthYear, cn } from "@/lib/utils";
+import { birthYear, contractStatus, cn } from "@/lib/utils";
 
 /**
  * One player marker on the pitch: shirt number, name, birth year, and the
@@ -29,6 +29,10 @@ export function PlayerPitchChip({
 }) {
   const name = player?.name ?? ([lineupPlayer.firstName, lineupPlayer.lastName].filter(Boolean).join(" ") || "Unknown");
   const year = birthYear(player?.dateOfBirth ?? null);
+  // "Running out of contract or 1 year left" — same urgent cutoff (<=12
+  // months) already used for the Players table's contract column, see
+  // contractStatus() in src/lib/utils.ts.
+  const contractUrgent = player ? contractStatus(player.contractExpiry).urgent : false;
 
   return (
     <button
@@ -36,7 +40,13 @@ export function PlayerPitchChip({
       onClick={onClick}
       className="group flex w-[92px] flex-col items-center gap-1 rounded-sm px-1 py-1 text-center transition-colors hover:bg-white/15 sm:w-[104px]"
     >
-      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-kvm-ink shadow-sm ring-1 ring-black/10 sm:h-9 sm:w-9">
+      <span
+        className={cn(
+          "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-kvm-ink shadow-sm ring-1 ring-black/10 sm:h-9 sm:w-9",
+          contractUrgent && "ring-2 ring-kvm-red ring-offset-1 ring-offset-kvm-pitch"
+        )}
+        title={contractUrgent ? `Contract expires ${contractStatus(player!.contractExpiry).label}` : undefined}
+      >
         {lineupPlayer.shirtNumber ?? "–"}
         {player?.isAfrican ? (
           <Globe2
@@ -50,6 +60,13 @@ export function PlayerPitchChip({
             size={11}
             className="absolute -bottom-1 -right-1 rounded-full bg-kvm-red p-[1px] text-white"
             aria-label="Shortlisted"
+          />
+        ) : null}
+        {contractUrgent ? (
+          <Clock
+            size={11}
+            className="absolute -left-1 -top-1 rounded-full bg-kvm-red p-[1px] text-white"
+            aria-label="Contract expiring within a year"
           />
         ) : null}
       </span>

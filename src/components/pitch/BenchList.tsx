@@ -1,9 +1,10 @@
 "use client";
 
+import { Clock } from "lucide-react";
 import type { Match, MatchLineupPlayer } from "@/lib/matches-data";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
-import { birthYear, cn } from "@/lib/utils";
+import { birthYear, contractStatus, cn } from "@/lib/utils";
 
 type MatchEvents = Match["events"];
 
@@ -41,6 +42,8 @@ export function BenchList({
     const name = player?.name ?? ([p.firstName, p.lastName].filter(Boolean).join(" ") || "Unknown");
     const rating = matchRatings.get(p.id) ?? null;
     const inMinute = subInMinute(p.id);
+    // Same urgent cutoff (<=12 months) as the pitch chips/Players table — see contractStatus() in src/lib/utils.ts.
+    const contractUrgent = player ? contractStatus(player.contractExpiry).urgent : false;
 
     return (
       <button
@@ -49,8 +52,17 @@ export function BenchList({
         className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left hover:bg-gray-50"
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">
+          <span
+            className={cn(
+              "relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500",
+              contractUrgent && "ring-2 ring-kvm-red"
+            )}
+            title={contractUrgent ? `Contract expires ${contractStatus(player!.contractExpiry).label}` : undefined}
+          >
             {p.shirtNumber ?? "–"}
+            {contractUrgent ? (
+              <Clock size={10} className="absolute -left-1 -top-1 rounded-full bg-kvm-red p-[1px] text-white" aria-label="Contract expiring within a year" />
+            ) : null}
           </span>
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-kvm-ink">{name}</div>

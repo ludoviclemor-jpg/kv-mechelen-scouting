@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays, MapPin, Users, Flag } from "lucide-react";
+import { CalendarDays, MapPin, Users, Flag, Globe2, Bookmark } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -135,24 +135,42 @@ function MatchContent() {
 
       <div className="grid grid-cols-1 gap-6 p-8 xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">
-          <PitchFormation
-            teamName={match.homeTeamName}
-            tactic={match.homeTeamTactic}
-            players={match.homeTeamPlayers}
-            playersById={playersById}
-            shortlistedIds={shortlistedIds}
-            matchRatings={matchRatings}
-            onPlayerClick={(lp) => setSelected({ team: "home", lineupPlayer: lp })}
-          />
-          <PitchFormation
-            teamName={match.awayTeamName}
-            tactic={match.awayTeamTactic}
-            players={match.awayTeamPlayers}
-            playersById={playersById}
-            shortlistedIds={shortlistedIds}
-            matchRatings={matchRatings}
-            onPlayerClick={(lp) => setSelected({ team: "away", lineupPlayer: lp })}
-          />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+            <span className="flex items-center gap-1">
+              <span className="relative inline-flex h-3 w-3 items-center justify-center rounded-full bg-white ring-2 ring-kvm-red" />
+              Contract expiring within a year
+            </span>
+            <span className="flex items-center gap-1">
+              <Globe2 size={12} className="rounded-full bg-kvm-yellow p-[1px] text-kvm-ink" aria-hidden="true" />
+              African nationality
+            </span>
+            <span className="flex items-center gap-1">
+              <Bookmark size={12} className="rounded-full bg-kvm-red p-[1px] text-white" aria-hidden="true" />
+              Shortlisted
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <PitchFormation
+              teamName={match.homeTeamName}
+              tactic={match.homeTeamTactic}
+              players={match.homeTeamPlayers}
+              playersById={playersById}
+              shortlistedIds={shortlistedIds}
+              matchRatings={matchRatings}
+              onPlayerClick={(lp) => setSelected({ team: "home", lineupPlayer: lp })}
+            />
+            <PitchFormation
+              teamName={match.awayTeamName}
+              tactic={match.awayTeamTactic}
+              players={match.awayTeamPlayers}
+              playersById={playersById}
+              shortlistedIds={shortlistedIds}
+              matchRatings={matchRatings}
+              onPlayerClick={(lp) => setSelected({ team: "away", lineupPlayer: lp })}
+            />
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <BenchList
               teamName={match.homeTeamName}
