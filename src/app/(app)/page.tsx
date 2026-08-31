@@ -13,17 +13,26 @@ import { PlayerCard } from "@/components/players/PlayerCard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
+import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import {
   fetchScoutingOverview,
   fetchTopPerformers,
   fetchAfricanDebutants,
   fetchRecentlyAdded,
+  fetchPriorityPlayers,
   useAsync,
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
 import { fetchFirstCallUps } from "@/lib/callups-data";
 
+/**
+ * Dashboard grid — with the sidebar gone (Phase 1), there's real
+ * horizontal room to give the highest-signal widgets (today's matches,
+ * first call-ups, top performers) more space and let the lower-priority
+ * ones (debutants/recently-added/competitions) share a row, instead of
+ * stacking six full-width sections top to bottom (item 21/22).
+ */
 export default function DashboardPage() {
   // Captured once per page load — a fresh value every render would
   // retrigger every fetch below on each render.
@@ -33,6 +42,7 @@ export default function DashboardPage() {
   const topPerformers = useAsync(() => fetchTopPerformers(5), []);
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
+  const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
@@ -75,89 +85,102 @@ export default function DashboardPage() {
               <StatCard label="Shortlists" value={overview.data!.shortlists} icon={ListChecks} />
             </section>
 
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="Today's Matches" viewAllHref="/explore" />
-              <TodaysMatches />
-            </section>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Today's Matches" viewAllHref="/explore" />
+                <TodaysMatches />
+              </section>
 
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
-              <div className="pt-3">
-                <CallUpTable callUps={callUps.data ?? []} />
-              </div>
-            </section>
-
-            <section className="border border-kvm-border bg-white pb-4">
-              <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
-              {topPerformers.data!.length === 0 ? (
-                <EmptyState
-                  icon={TrendingUp}
-                  title="No top performers yet"
-                  description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
-                />
-              ) : (
-                <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-5">
-                  {topPerformers.data!.map((player) => (
-                    <PlayerCard key={player.id} player={player} />
-                  ))}
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
+                <div className="pt-3">
+                  <CallUpTable callUps={callUps.data ?? []} />
                 </div>
-              )}
-            </section>
+              </section>
+            </div>
 
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="African Debutants" viewAllHref="/debutants" />
-              <div className="pt-3">
-                <DebutantTable players={debutants.data!} />
-              </div>
-            </section>
-
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="Recently Added Players" viewAllHref="/players" />
-              <div className="pt-3">
-                <RecentlyAddedTable players={recentlyAdded.data!} />
-              </div>
-            </section>
-
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="European Competitions" viewAllHref="/competitions" />
-              {competitionsSummary.error ? (
-                <div className="p-5 text-xs text-gray-400">Competition data unavailable.</div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
-                    <StatCard
-                      label="Competitions"
-                      value={competitionsSummary.data?.totalEuropean ?? "—"}
-                      icon={Trophy}
-                    />
-                    <StatCard label="Countries" value={competitionsSummary.data?.countriesCovered ?? "—"} icon={MapPin} />
-                    <StatCard label="Active" value={competitionsSummary.data?.activeEuropean ?? "—"} icon={Globe2} />
-                    <StatCard
-                      label="Players Covered"
-                      value={competitionsSummary.data?.playersInEuropeanCompetitions ?? "—"}
-                      icon={Users}
-                    />
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <section className="border border-kvm-border bg-white pb-4 xl:col-span-2">
+                <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
+                {topPerformers.data!.length === 0 ? (
+                  <EmptyState
+                    icon={TrendingUp}
+                    title="No top performers yet"
+                    description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
+                    {topPerformers.data!.map((player) => (
+                      <PlayerCard key={player.id} player={player} />
+                    ))}
                   </div>
-                  {recentCompetitions.data && recentCompetitions.data.length > 0 ? (
-                    <ul className="divide-y divide-kvm-border border-t border-kvm-border">
-                      {recentCompetitions.data.map((c) => (
-                        <li key={c.id}>
-                          <Link
-                            href={`/competition?id=${c.id}`}
-                            className="flex items-center justify-between px-5 py-2.5 text-sm hover:bg-gray-50"
-                          >
-                            <span className="truncate font-medium text-kvm-ink">
-                              {c.name} <span className="font-normal text-gray-400">· {c.area}</span>
-                            </span>
-                            <ArrowRight size={13} className="shrink-0 text-gray-300" aria-hidden="true" />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </>
-              )}
-            </section>
+                )}
+              </section>
+
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Priority Players" viewAllHref="/shortlists" />
+                <div className="pt-1">
+                  <PriorityPlayersList players={priorityPlayers.data ?? []} />
+                </div>
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="African Debutants" viewAllHref="/debutants" />
+                <div className="pt-3">
+                  <DebutantTable players={debutants.data!} />
+                </div>
+              </section>
+
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Recently Added Players" viewAllHref="/players" />
+                <div className="pt-3">
+                  <RecentlyAddedTable players={recentlyAdded.data!} />
+                </div>
+              </section>
+
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="European Competitions" viewAllHref="/competitions" />
+                {competitionsSummary.error ? (
+                  <div className="p-5 text-xs text-gray-400">Competition data unavailable.</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 p-5">
+                      <StatCard
+                        label="Competitions"
+                        value={competitionsSummary.data?.totalEuropean ?? "—"}
+                        icon={Trophy}
+                      />
+                      <StatCard label="Countries" value={competitionsSummary.data?.countriesCovered ?? "—"} icon={MapPin} />
+                      <StatCard label="Active" value={competitionsSummary.data?.activeEuropean ?? "—"} icon={Globe2} />
+                      <StatCard
+                        label="Players Covered"
+                        value={competitionsSummary.data?.playersInEuropeanCompetitions ?? "—"}
+                        icon={Users}
+                      />
+                    </div>
+                    {recentCompetitions.data && recentCompetitions.data.length > 0 ? (
+                      <ul className="divide-y divide-kvm-border border-t border-kvm-border">
+                        {recentCompetitions.data.slice(0, 3).map((c) => (
+                          <li key={c.id}>
+                            <Link
+                              href={`/competition?id=${c.id}`}
+                              className="flex items-center justify-between px-5 py-2.5 text-sm hover:bg-gray-50"
+                            >
+                              <span className="truncate font-medium text-kvm-ink">
+                                {c.name} <span className="font-normal text-gray-400">· {c.area}</span>
+                              </span>
+                              <ArrowRight size={13} className="shrink-0 text-gray-300" aria-hidden="true" />
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                )}
+              </section>
+            </div>
           </>
         )}
       </div>

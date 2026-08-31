@@ -462,6 +462,33 @@ export async function fetchRecentlyAdded(limit = 8): Promise<Player[]> {
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
 
+/**
+ * Priority-status players for the dashboard's "Shortlist / Priority
+ * Players" widget (item 21). Status is read from `player_scouting_state`
+ * (the persisted store — see fetchScoutingOverview below for the same
+ * pattern) rather than the local app-store override layer, since this
+ * runs outside any component that could apply that override; most
+ * recently marked priority first.
+ */
+export async function fetchPriorityPlayers(limit = 6): Promise<Player[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const db = getSupabaseClient();
+  const { data: stateRows, error: stateError } = await db
+    .from("player_scouting_state")
+    .select("scoutastic_player_id")
+    .eq("status", "priority")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (stateError) throw stateError;
+  if (!stateRows || stateRows.length === 0) return [];
+
+  const ids = stateRows.map((r) => `sc-${r.scoutastic_player_id}`);
+  const players = await fetchPlayersByIds(ids);
+  // Preserve the priority-recency order — fetchPlayersByIds doesn't guarantee row order for an `.in()` query.
+  const byId = new Map(players.map((p) => [p.id, p]));
+  return ids.map((id) => byId.get(id)).filter((p): p is Player => p !== undefined);
+}
+
 export interface ScoutingOverview {
   totalPlayers: number;
   newPlayers: number;

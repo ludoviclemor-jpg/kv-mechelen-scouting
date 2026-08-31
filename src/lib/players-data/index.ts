@@ -28,6 +28,7 @@ export {
   fetchTopPerformers,
   fetchAfricanDebutants,
   fetchRecentlyAdded,
+  fetchPriorityPlayers,
   fetchScoutingOverview,
   fetchSyncMeta,
   type PlayerSortKey,
