@@ -23,38 +23,45 @@ the site actually works, not a gap in this implementation:
   Access in front of the GitHub Pages domain) or moving off static hosting
   entirely.
 
-**What's genuinely, unconditionally protected:** shortlists and scouting
-notes/status, because they live in Postgres and are only ever fetched at
-runtime through Supabase — an unauthenticated request is rejected by
-Postgres Row Level Security itself (`db/rls_policies.sql`), regardless of
-what the frontend does or doesn't check.
+**Update (player-data architecture rework, 2026-08):** the gap described
+below — the Dashboard and Player Profile pages leaking real data into the
+raw static HTML — is now **closed**, as a side effect of a bigger change,
+not a fix aimed at this document. Once the player catalog moved to
+Postgres (`db/schema.sql`, see `docs/SCOUTASTIC_SYNC.md`), every route
+that reads player data had to become a Client Component regardless —
+there's no server at request time on GitHub Pages, and a build-time
+Server Component fetch would just bake in a stale snapshot from whenever
+the site was last built, not live data. So Dashboard (`/`) and Player
+Profile (`/player?id=...`) are `"use client"` now, exactly like every
+other route, and `players`/`sync_meta` carry the same `authenticated`-only
+RLS policy as shortlists/notes (`db/rls_policies.sql`). The table below is
+kept for history; every row is now "No".
 
-**What's UI-gated only, by deliberate scope decision — and precisely
-this small, not the whole player database:** `RequireAuth` hides
-everything behind a login screen for anyone using the app normally —
-verified directly, the *visible* pre-rendered HTML for every `(app)`
-route shows only the "Redirecting to login…" placeholder, never real
-content. But whether a given route's data is *also* present in the raw
-HTML bytes (unrendered, but fetchable by `curl`/"View Source") depends on
-whether that specific page is a Server Component or a Client Component —
-verified per-page, not assumed:
+**What's genuinely, unconditionally protected:** the entire player
+database, plus shortlists and scouting notes/status — all of it lives in
+Postgres and is only ever fetched at runtime through Supabase, so an
+unauthenticated request is rejected by Postgres Row Level Security itself
+(`db/rls_policies.sql`), regardless of what the frontend does or doesn't
+check. There is no committed player data file anymore for a `curl`/View
+Source request to find.
 
-| Route | Component type | Real data in raw HTML bytes? |
+**Historical gap (closed — see above):** `RequireAuth` hides everything
+behind a login screen for anyone using the app normally — verified
+directly, the *visible* pre-rendered HTML for every `(app)` route shows
+only the "Redirecting to login…" placeholder, never real content. Before
+the Postgres rework, whether a given route's data was *also* present in
+the raw HTML bytes (unrendered, but fetchable by `curl`/"View Source")
+depended on whether that page was a Server or Client Component:
+
+| Route | Component type (as of 2026-08) | Real data in raw HTML bytes? |
 |---|---|---|
-| Dashboard (`/`) | Server | **Yes** — aggregate stat-card counts (confirmed: grepped `out/index.html`, found "Total Players" and its real count) |
-| Player profile (`/players/[id]`) | Server | **Yes** — that one player's full SCOUTASTIC record (confirmed: grepped a real profile's HTML, found the player's actual name) |
-| Players list, Debutants, Top Performers, Shortlists, Reports, Settings | Client | **No** — confirmed: grepped the built Players list page for every real player name in the database and found zero matches; `RequireAuth`'s client-side gate genuinely prevents these from rendering at all during static generation, not just from being displayed |
+| Dashboard (`/`) | Client | **No** |
+| Player profile (`/player?id=...`) | Client | **No** |
+| Players list, Debutants, Top Performers, Shortlists, Reports, Settings | Client | **No** |
 
 Scouting notes/status are unaffected regardless of route — always fetched
 client-side through `useAppStore` (Supabase), confirmed by grepping the
-built Reports page for note content and finding none. So the real gap is
-narrower than "the player database is exposed": it's the Dashboard's
-aggregate counts and each individual player's own profile page, not the
-searchable list of all 8,454 players. Closing even that narrower gap for
-real means moving those two routes off build-time Server Components onto
-an authenticated runtime fetch (a materially bigger change — this is the
-same tradeoff already decided in favor of the simpler approach; don't
-assume it's been done without checking).
+built Reports page for note content and finding none.
 
 ## Architecture
 
@@ -140,6 +147,17 @@ never through the app itself.
       — Postgres denies by default with RLS on and no matching policy,
       so this is enough to reason about correctness even without a live
       database to test against.
-- [ ] Live sign-in / sign-out against a real Supabase project — **cannot
-      be verified yet**, no project is connected (by explicit
-      instruction). Re-run this check once one is.
+- [x] Live sign-in / sign-out against a real Supabase project — verified
+      working end-to-end by the user against the connected project
+      (login, logout, refresh-persistence, direct-URL-redirect all
+      confirmed).
+
+**2026-08-30/31 (player-data architecture rework):** the checklist above
+predates both the real Supabase connection and the move of `players` into
+Postgres — its page-count and "RSC payload still has real data" entries
+are now stale (see the Update note near the top of this file) and its
+`npm run lint`/`npm run build` runs are from before this rework's changes.
+This session's sandboxed shell had no Node.js available, so those two
+commands could not be re-run here — **run `npm run lint` and
+`npm run build` locally before deploying** and treat this checklist as
+unverified for everything touched by the rework until then.

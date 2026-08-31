@@ -5,18 +5,17 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
-  getAllPlayers,
+  fetchTopPerformers,
+  useAsync,
   computeMatchStats,
-  meetsMinimumMatches,
   MINIMUM_RATED_MATCHES,
   POSITIONS,
   POSITION_LABELS,
 } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
-
-const ALL_PLAYERS = getAllPlayers();
 
 type SortOption = "last5" | "latest" | "age";
 
@@ -55,19 +54,19 @@ export default function TopPerformersPage() {
   const [ageBand, setAgeBand] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("last5");
 
-  const leagues = useMemo(() => uniqueSorted(ALL_PLAYERS.map((p) => p.league)), []);
-  const nationalities = useMemo(
-    () => uniqueSorted(ALL_PLAYERS.map((p) => p.nationality)),
-    []
-  );
+  // Ratings only ever get populated for the API-Football-scoped subset
+  // (see docs/SOFASCORE_PROVIDER.md) — inherently small, fetched once and
+  // filtered/sorted client-side, unlike the full Players list.
+  const { data: rated, loading, error } = useAsync(() => fetchTopPerformers(), []);
 
-  const rated = useMemo(
-    () => ALL_PLAYERS.filter((p) => meetsMinimumMatches(p.matches)),
-    []
+  const leagues = useMemo(() => uniqueSorted((rated ?? []).map((p) => p.league)), [rated]);
+  const nationalities = useMemo(
+    () => uniqueSorted((rated ?? []).map((p) => p.nationality)),
+    [rated]
   );
 
   const filtered = useMemo(() => {
-    return rated
+    return (rated ?? [])
       .filter((p) => {
         if (position !== "all" && p.position !== position) return false;
         if (league !== "all" && p.league !== league) return false;
@@ -88,7 +87,7 @@ export default function TopPerformersPage() {
     <>
       <PageHeader
         title="Top Performers"
-        description={`Players with at least ${MINIMUM_RATED_MATCHES} rated matches, ranked by recent SofaScore form.`}
+        description={`Players with at least ${MINIMUM_RATED_MATCHES} rated matches, ranked by recent form.`}
       />
 
       <FilterBar>
@@ -130,7 +129,15 @@ export default function TopPerformersPage() {
       </FilterBar>
 
       <div className="p-8">
-        {filtered.length === 0 ? (
+        {error ? (
+          <div className="border border-kvm-border bg-white">
+            <ErrorState message={error.message} />
+          </div>
+        ) : loading ? (
+          <div className="border border-kvm-border bg-white">
+            <LoadingState label="Loading top performers…" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="border border-kvm-border bg-white">
             <EmptyState
               icon={TrendingUp}

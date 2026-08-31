@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { ClubCrest } from "./ClubCrest";
 import { cn, formatDate } from "@/lib/utils";
-import { SYNC_META } from "@/lib/players-data";
+import { fetchSyncMeta, useAsync } from "@/lib/players-data";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 const NAV_ITEMS = [
@@ -27,9 +27,9 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-function syncState(): "ok" | "warning" | "error" {
-  if (SYNC_META.lastSyncStatus === "success") return "ok";
-  if (SYNC_META.lastSyncStatus === "partial") return "warning";
+function syncState(status: string | undefined): "ok" | "warning" | "error" {
+  if (status === "success") return "ok";
+  if (status === "partial") return "warning";
   return "error"; // "failed" or "never_run"
 }
 
@@ -42,6 +42,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { data: syncMeta } = useAsync(() => fetchSyncMeta(), []);
 
   async function handleSignOut() {
     await signOut();
@@ -118,16 +119,16 @@ export function Sidebar() {
           <span
             className={cn(
               "h-2 w-2 shrink-0 rounded-full",
-              syncState() === "ok" && "bg-green-500",
-              syncState() === "warning" && "bg-kvm-yellow",
-              syncState() === "error" && "bg-kvm-red"
+              syncState(syncMeta?.lastSyncStatus) === "ok" && "bg-green-500",
+              syncState(syncMeta?.lastSyncStatus) === "warning" && "bg-kvm-yellow",
+              syncState(syncMeta?.lastSyncStatus) === "error" && "bg-kvm-red"
             )}
             aria-hidden="true"
           />
-          {SYNC_META.lastSyncedAt ? formatDate(SYNC_META.lastSyncedAt.slice(0, 10)) : "Never synced"}
+          {syncMeta?.lastSyncedAt ? formatDate(syncMeta.lastSyncedAt.slice(0, 10)) : "Never synced"}
         </div>
         <div className="mt-1 text-[11px] text-gray-500">
-          {SYNC_META.activePlayersCount} players · source: SCOUTASTIC
+          {syncMeta?.activePlayersCount ?? "—"} players · source: SCOUTASTIC
         </div>
       </div>
     </aside>

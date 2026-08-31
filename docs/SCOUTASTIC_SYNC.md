@@ -4,25 +4,57 @@ How real player data gets from SCOUTASTIC into this dashboard, and what's
 actually confirmed against the live API (as of 2026-08-30) vs. still
 unverified.
 
-## Architecture
+## Architecture rework in progress (2026-08-31)
+
+Everything below this note describes the **Phase 2 architecture**
+(competitions.json's ~34 curated competitions → `data/players.json`,
+8,454 players). That's being replaced — SCOUTASTIC's real `GET
+/competitions` endpoint (no id — confirmed to exist, returns **all
+2,439 competitions** in its database, not just the curated list) makes
+"every competition" a real, explicit request (`"Truly everything — rework
+the architecture first"`), and at that scale (~725 active senior
+competitions worldwide once filtered, ~15,989 teams, an estimated
+400,000–480,000 players) neither a committed JSON file nor one static
+HTML page per player survives — see `db/schema.sql`'s header.
+
+**Done so far:** the Postgres side — `players`, `sync_meta`,
+`scoutastic_competitions`, `scoutastic_teams` (the crawl queue/cache, see
+below), the `player_*` filter views, all in `db/schema.sql` /
+`db/rls_policies.sql`; and the entire frontend now reads player data from
+Postgres at runtime instead of a build-time `data/players.json` import
+(`src/lib/players-data/remote.ts`, see `docs/POSTGRES_PERSISTENCE.md`).
+
+**Not done yet:** `scripts/sync-scoutastic.mjs` itself is still the old
+Phase 2 script (curated competitions → `data/players.json`) — it has not
+been rewritten to (a) discover competitions via `GET /competitions`
+instead of the curated list, (b) crawl in a batched/resumable way against
+`scoutastic_teams` as a work queue (mirroring `scripts/sync-sofascore.mjs`'s
+proven pattern — a full crawl at this scale is many requests, likely
+spread across many scheduled runs, not one), or (c) write to Postgres
+(via a `service_role` key — GitHub Actions secret only, never committed)
+instead of `data/players.json`. Until that's done, the architecture below
+is provisioned but has nothing populating it yet — the frontend will show
+an empty player database against a freshly-migrated Supabase project
+until either the old sync is pointed at Postgres or the new one is built.
+
+## Architecture (Phase 2 — being replaced, see above)
 
 ```
 SCOUTASTIC API
       ↓ (SCOUTASTIC_API_KEY — GitHub Actions repository secret, server-side only)
 scripts/sync-scoutastic.mjs   (.github/workflows/sync-scoutastic.yml)
       ↓ upserts
-data/players.json             (committed to the repo)
+data/players.json             (committed to the repo — Phase 2 only; superseded by Postgres, see above)
       ↓ read at build time
 Next.js static export → GitHub Pages
 ```
 
 There is no live backend server. The frontend never talks to SCOUTASTIC
-and never sees the API key — it only ever reads the already-synced
-`data/players.json`, which is baked into the static HTML at build time.
-A successful sync commits new data and explicitly triggers the Pages
-deploy workflow (a commit made with the default `GITHUB_TOKEN` doesn't
-auto-trigger other workflows, so `sync-scoutastic.yml` dispatches
-`deploy.yml` itself once it has pushed a change).
+and never sees the API key. In the target architecture, the sync script
+upserts into Postgres (via a service_role key, never exposed to the
+browser) and the frontend reads it at runtime through Supabase's REST API
+under RLS — the same pattern already used for shortlists/notes, see
+`docs/POSTGRES_PERSISTENCE.md`.
 
 ## What's confirmed against the real API
 

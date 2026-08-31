@@ -17,7 +17,7 @@ export function PlayerCard({ player }: { player: Player }) {
       <div>
         <div className="flex items-start justify-between gap-2">
           <Link
-            href={`/players/${player.id}`}
+            href={`/player?id=${player.id}`}
             className="flex items-center gap-3 hover:underline"
           >
             <PlayerAvatar name={player.name} photoUrl={player.photoUrl} />

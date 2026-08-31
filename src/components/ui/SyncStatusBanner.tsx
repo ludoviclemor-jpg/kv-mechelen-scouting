@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { CircleAlert, AlertTriangle } from "lucide-react";
-import { SYNC_META } from "@/lib/players-data";
+import { fetchSyncMeta, useAsync } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 
 /**
  * Surfaces the real SCOUTASTIC sync state — the closest thing to a "live
  * backend unavailable" error this static-export architecture has, since
  * player data is synced by GitHub Actions rather than fetched at runtime.
- * Renders nothing once a sync has succeeded cleanly.
+ * Renders nothing once a sync has succeeded cleanly (or while still loading —
+ * this banner is a secondary signal, not worth its own loading state).
  */
 export function SyncStatusBanner() {
-  const meta = SYNC_META;
+  const { data: meta } = useAsync(() => fetchSyncMeta(), []);
+  if (!meta) return null;
 
   if (meta.lastSyncStatus === "never_run") {
     return (

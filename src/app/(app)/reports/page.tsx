@@ -6,18 +6,18 @@ import { FileText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { useEffectiveStatus, useEffectiveNotes } from "@/lib/app-store";
+import { useAppStore, useEffectiveStatus, useEffectiveNotes } from "@/lib/app-store";
 import {
-  getAllPlayers,
+  fetchPlayersByIds,
+  useAsync,
   SCOUTING_STATUSES,
   STATUS_LABELS,
   positionLabel,
   type Player,
 } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
-
-const ALL_PLAYERS = getAllPlayers();
 
 function ReportRow({ player }: { player: Player }) {
   const status = useEffectiveStatus(player.id, player.status);
@@ -27,7 +27,7 @@ function ReportRow({ player }: { player: Player }) {
     <tr>
       <td>
         <Link
-          href={`/players/${player.id}`}
+          href={`/player?id=${player.id}`}
           className="font-semibold text-kvm-ink hover:text-kvm-red hover:underline"
         >
           {player.name}
@@ -47,17 +47,27 @@ function ReportRow({ player }: { player: Player }) {
 
 export default function ReportsPage() {
   const [status, setStatus] = useState("all");
+  // A "report" only exists for a player a scout has actually assessed — the
+  // set of ids with a real row in `player_scouting_state` (already loaded
+  // in bulk by AppStoreProvider — see src/lib/app-store.tsx). This stays
+  // bounded to however many players have actually been looked at, not the
+  // full SCOUTASTIC catalog, so it's safe to resolve every one of them.
+  const { statusOverrides, isLoading: statusLoading } = useAppStore();
+  const assessedIds = useMemo(() => Object.keys(statusOverrides), [statusOverrides]);
+
+  const { data: players, loading, error } = useAsync(() => fetchPlayersByIds(assessedIds), [assessedIds]);
 
   const filtered = useMemo(() => {
-    if (status === "all") return ALL_PLAYERS;
-    return ALL_PLAYERS.filter((p) => p.status === status);
-  }, [status]);
+    const all = players ?? [];
+    if (status === "all") return all;
+    return all.filter((p) => (statusOverrides[p.id] ?? p.status) === status);
+  }, [players, status, statusOverrides]);
 
   return (
     <>
       <PageHeader
         title="Scouting Reports"
-        description="Recommendation summary compiled from each player's scouting notes."
+        description="Recommendation summary compiled from each assessed player's scouting notes."
       />
 
       <FilterBar>
@@ -73,11 +83,19 @@ export default function ReportsPage() {
       </FilterBar>
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {filtered.length === 0 ? (
+        {error ? (
+          <ErrorState message={error.message} />
+        ) : statusLoading || loading ? (
+          <LoadingState label="Loading reports…" />
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="No reports match this filter"
-            description="Adjust the status filter above."
+            title={assessedIds.length === 0 ? "No players assessed yet" : "No reports match this filter"}
+            description={
+              assessedIds.length === 0
+                ? "Set a scouting status on a player's profile to see it here."
+                : "Adjust the status filter above."
+            }
           />
         ) : (
           <div className="overflow-x-auto">

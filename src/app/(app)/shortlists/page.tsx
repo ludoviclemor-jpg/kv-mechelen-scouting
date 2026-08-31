@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, X, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -8,14 +8,22 @@ import { ShortlistCard } from "@/components/shortlists/ShortlistCard";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RatingBadge } from "@/components/ui/RatingBadge";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { useAppStore } from "@/lib/app-store";
-import { getAllPlayers, computeMatchStats, positionLabel } from "@/lib/players-data";
+import { fetchPlayersByIds, searchPlayers, useAsync, computeMatchStats, positionLabel } from "@/lib/players-data";
 import { ListChecks } from "lucide-react";
 
-const ALL_PLAYERS = getAllPlayers();
-const PLAYERS_BY_ID = new Map(ALL_PLAYERS.map((p) => [p.id, p]));
-
 type SortOption = "name" | "rating" | "position";
+
+/** 300ms — matches the Players page search debounce. */
+function useDebounced<T>(value: T, delayMs = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
 
 export default function ShortlistsPage() {
   const {
@@ -36,12 +44,15 @@ export default function ShortlistsPage() {
 
   const selected = shortlists.find((s) => s.id === selectedId) ?? shortlists[0] ?? null;
 
-  const selectedPlayers = useMemo(() => {
-    if (!selected) return [];
-    const players = selected.playerIds
-      .map((id) => PLAYERS_BY_ID.get(id))
-      .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  // Bounded by shortlist membership (a handful of players per list), never
+  // the full catalog — same reasoning as the Reports page.
+  const { data: rawSelectedPlayers, loading: playersLoading, error: playersError } = useAsync(
+    () => (selected ? fetchPlayersByIds(selected.playerIds) : Promise.resolve([])),
+    [selected?.id, selected?.playerIds.join(",")]
+  );
 
+  const selectedPlayers = useMemo(() => {
+    const players = rawSelectedPlayers ?? [];
     return [...players].sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "position") return (a.position ?? "").localeCompare(b.position ?? "");
@@ -49,17 +60,16 @@ export default function ShortlistsPage() {
       const ratingB = computeMatchStats(b.matches).average ?? 0;
       return ratingB - ratingA;
     });
-  }, [selected, sortBy]);
+  }, [rawSelectedPlayers, sortBy]);
 
-  const addCandidates = useMemo(() => {
-    if (!selected) return [];
-    const query = addQuery.trim().toLowerCase();
-    return ALL_PLAYERS.filter((p) => {
-      if (selected.playerIds.includes(p.id)) return false;
-      if (!query) return false;
-      return `${p.name} ${p.club}`.toLowerCase().includes(query);
-    }).slice(0, 6);
-  }, [selected, addQuery]);
+  const debouncedAddQuery = useDebounced(addQuery);
+  const { data: addCandidates } = useAsync(
+    () =>
+      selected && debouncedAddQuery.trim()
+        ? searchPlayers(debouncedAddQuery, { excludeIds: selected.playerIds, limit: 6 })
+        : Promise.resolve([]),
+    [selected?.id, debouncedAddQuery]
+  );
 
   function handleCreate() {
     const trimmed = newName.trim();
@@ -72,7 +82,7 @@ export default function ShortlistsPage() {
     <>
       <PageHeader
         title="Shortlists"
-        description="Build and manage recruitment shortlists. Persisted to PostgreSQL in Phase 3 — for now, changes last for this session."
+        description="Build and manage recruitment shortlists."
       />
 
       <div className="flex gap-6 p-8">
@@ -147,9 +157,9 @@ export default function ShortlistsPage() {
                   onChange={setAddQuery}
                   placeholder="Add a player to this shortlist..."
                 />
-                {addCandidates.length > 0 ? (
+                {(addCandidates?.length ?? 0) > 0 ? (
                   <div className="mt-2 divide-y divide-kvm-border rounded-sm border border-kvm-border">
-                    {addCandidates.map((p) => (
+                    {addCandidates!.map((p) => (
                       <button
                         key={p.id}
                         type="button"
@@ -169,7 +179,11 @@ export default function ShortlistsPage() {
                 ) : null}
               </div>
 
-              {selectedPlayers.length === 0 ? (
+              {playersError ? (
+                <ErrorState message={playersError.message} />
+              ) : playersLoading ? (
+                <LoadingState label="Loading players…" />
+              ) : selectedPlayers.length === 0 ? (
                 <EmptyState
                   icon={ListChecks}
                   title="No players in this shortlist yet"
@@ -195,7 +209,7 @@ export default function ShortlistsPage() {
                           <tr key={p.id}>
                             <td>
                               <Link
-                                href={`/players/${p.id}`}
+                                href={`/player?id=${p.id}`}
                                 className="font-semibold text-kvm-ink hover:text-kvm-red hover:underline"
                               >
                                 {p.name}

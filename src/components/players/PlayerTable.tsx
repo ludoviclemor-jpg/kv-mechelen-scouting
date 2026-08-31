@@ -45,7 +45,7 @@ function Row({ player }: { player: Player }) {
     <tr>
       <td>
         <Link
-          href={`/players/${player.id}`}
+          href={`/player?id=${player.id}`}
           className="font-semibold text-kvm-ink hover:text-kvm-red hover:underline"
         >
           {player.name}

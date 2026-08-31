@@ -39,7 +39,7 @@ export function DebutantTable({ players }: { players: Player[] }) {
               <tr key={player.id}>
                 <td>
                   <Link
-                    href={`/players/${player.id}`}
+                    href={`/player?id=${player.id}`}
                     className="font-semibold text-kvm-ink hover:text-kvm-red hover:underline"
                   >
                     {player.name}

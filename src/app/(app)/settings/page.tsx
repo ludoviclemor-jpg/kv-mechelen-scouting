@@ -2,7 +2,7 @@
 
 import { CircleAlert, CircleCheck, AlertTriangle, Database, RefreshCw, Radar, UserCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { SYNC_META } from "@/lib/players-data";
+import { fetchSyncMeta, useAsync } from "@/lib/players-data";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-store";
@@ -71,8 +71,18 @@ function IntegrationCard({
   );
 }
 
+const LOADING_SYNC_META = {
+  source: "SCOUTASTIC" as const,
+  lastSyncedAt: null,
+  lastSyncStatus: "never_run" as const,
+  lastSyncSummary: null,
+  playersCount: 0,
+  activePlayersCount: 0,
+};
+
 export default function SettingsPage() {
-  const meta = SYNC_META;
+  const { data: syncMeta } = useAsync(() => fetchSyncMeta(), []);
+  const meta = syncMeta ?? LOADING_SYNC_META;
   const summary = meta.lastSyncSummary;
   const { isPersistent } = useAppStore();
   const { user, isConfigured: authConfigured } = useAuth();

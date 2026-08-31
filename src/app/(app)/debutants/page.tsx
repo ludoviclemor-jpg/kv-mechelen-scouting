@@ -5,15 +5,15 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
-  getAfricanDebutants,
+  fetchAfricanDebutants,
+  useAsync,
   POSITIONS,
   POSITION_LABELS,
 } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { Globe2 } from "lucide-react";
-
-const ALL_DEBUTANTS = getAfricanDebutants();
 
 const AGE_BANDS = [
   { value: "all", label: "All ages" },
@@ -52,27 +52,35 @@ export default function DebutantsPage() {
     "newest"
   );
 
+  // The full pool of African-debutant candidates — inherently small (this
+  // season's debuts, one nationality group, one league region), so unlike
+  // the Players list this doesn't need server-side filtering: fetched once,
+  // filtered/sorted in the browser exactly as it always has been.
+  const { data: allDebutants, loading, error } = useAsync(() => fetchAfricanDebutants(), []);
+
   const countries = useMemo(
-    () => uniqueSorted(ALL_DEBUTANTS.map((p) => p.nationality)),
-    []
+    () => uniqueSorted((allDebutants ?? []).map((p) => p.nationality)),
+    [allDebutants]
   );
   const leagues = useMemo(
-    () => uniqueSorted(ALL_DEBUTANTS.map((p) => p.league)),
-    []
+    () => uniqueSorted((allDebutants ?? []).map((p) => p.league)),
+    [allDebutants]
   );
 
   const filtered = useMemo(() => {
-    return ALL_DEBUTANTS.filter((p) => {
-      if (country !== "all" && p.nationality !== country) return false;
-      if (league !== "all" && p.league !== league) return false;
-      if (position !== "all" && p.position !== position) return false;
-      if (!matchesAgeBand(calculateAge(p.dateOfBirth), ageBand)) return false;
-      return true;
-    }).sort((a, b) => {
-      const cmp = (a.debutDate ?? "").localeCompare(b.debutDate ?? "");
-      return sortByDebutDate === "newest" ? -cmp : cmp;
-    });
-  }, [country, league, position, ageBand, sortByDebutDate]);
+    return (allDebutants ?? [])
+      .filter((p) => {
+        if (country !== "all" && p.nationality !== country) return false;
+        if (league !== "all" && p.league !== league) return false;
+        if (position !== "all" && p.position !== position) return false;
+        if (!matchesAgeBand(calculateAge(p.dateOfBirth), ageBand)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const cmp = (a.debutDate ?? "").localeCompare(b.debutDate ?? "");
+        return sortByDebutDate === "newest" ? -cmp : cmp;
+      });
+  }, [allDebutants, country, league, position, ageBand, sortByDebutDate]);
 
   return (
     <>
@@ -116,7 +124,11 @@ export default function DebutantsPage() {
       </FilterBar>
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {filtered.length === 0 ? (
+        {error ? (
+          <ErrorState message={error.message} />
+        ) : loading ? (
+          <LoadingState label="Loading debutants…" />
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={Globe2}
             title="No debutants match these filters"

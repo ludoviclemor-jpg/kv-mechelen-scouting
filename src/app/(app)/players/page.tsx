@@ -1,22 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
   PlayerTable,
   type PlayerSortKey,
   type SortDirection,
 } from "@/components/players/PlayerTable";
-import { getAllPlayers, POSITIONS, POSITION_LABELS } from "@/lib/players-data";
-import { calculateAge } from "@/lib/utils";
+import {
+  fetchPlayersPage,
+  fetchFilterOptions,
+  POSITIONS,
+  POSITION_LABELS,
+  useAsync,
+} from "@/lib/players-data";
 import { Users } from "lucide-react";
 
-const ALL_PLAYERS = getAllPlayers();
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 const AGE_BANDS = [
   { value: "all", label: "All ages" },
@@ -43,72 +48,14 @@ const CONTRACT_BANDS = [
   { value: "2029+", label: "2029 or later" },
 ];
 
-function matchesAgeBand(age: number | null, band: string) {
-  if (band === "all") return true;
-  if (age === null) return false;
-  switch (band) {
-    case "u21":
-      return age < 21;
-    case "21-23":
-      return age >= 21 && age <= 23;
-    case "24-26":
-      return age >= 24 && age <= 26;
-    case "27-29":
-      return age >= 27 && age <= 29;
-    case "30+":
-      return age >= 30;
-    default:
-      return true;
-  }
-}
-
-function matchesValueBand(value: number | null, band: string) {
-  if (band === "all") return true;
-  if (value === null) return false;
-  switch (band) {
-    case "u1":
-      return value < 1_000_000;
-    case "1-3":
-      return value >= 1_000_000 && value < 3_000_000;
-    case "3-6":
-      return value >= 3_000_000 && value < 6_000_000;
-    case "6+":
-      return value >= 6_000_000;
-    default:
-      return true;
-  }
-}
-
-function matchesContractBand(expiryIso: string | null, band: string) {
-  if (band === "all") return true;
-  if (expiryIso === null) return false;
-  const year = new Date(expiryIso).getFullYear();
-  switch (band) {
-    case "2026":
-      return year === 2026;
-    case "2027":
-      return year === 2027;
-    case "2028":
-      return year === 2028;
-    case "2029+":
-      return year >= 2029;
-    default:
-      return true;
-  }
-}
-
-function uniqueSorted(values: (string | null)[]) {
-  return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
-    a.localeCompare(b)
-  );
-}
-
-/** Nulls always sort to the end, regardless of direction. */
-function compareNullable<T>(a: T | null, b: T | null, compare: (a: T, b: T) => number): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return compare(a, b);
+/** 300ms — enough to not fire a query per keystroke, not so much it feels laggy. */
+function useDebounced<T>(value: T, delayMs = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 export default function PlayersPage() {
@@ -124,81 +71,27 @@ export default function PlayersPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
 
-  const nationalities = useMemo(
-    () => uniqueSorted(ALL_PLAYERS.map((p) => p.nationality)),
-    []
-  );
-  const leagues = useMemo(() => uniqueSorted(ALL_PLAYERS.map((p) => p.league)), []);
-  const clubs = useMemo(() => uniqueSorted(ALL_PLAYERS.map((p) => p.club)), []);
+  const debouncedSearch = useDebounced(search);
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return ALL_PLAYERS.filter((p) => {
-      if (query) {
-        const haystack = `${p.name} ${p.club} ${p.nationality}`.toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
-      if (position !== "all" && p.position !== position) return false;
-      if (nationality !== "all" && p.nationality !== nationality) return false;
-      if (league !== "all" && p.league !== league) return false;
-      if (club !== "all" && p.club !== club) return false;
-      if (!matchesAgeBand(calculateAge(p.dateOfBirth), ageBand)) return false;
-      if (!matchesValueBand(p.marketValueEUR, valueBand)) return false;
-      if (!matchesContractBand(p.contractExpiry, contractBand)) return false;
-      return true;
-    });
-  }, [search, position, nationality, league, club, ageBand, valueBand, contractBand]);
+  const filterOptions = useAsync(() => fetchFilterOptions(), []);
 
-  const sorted = useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a, b) => {
-      // Nulls (unknown values) always sort last, independent of direction.
-      let nullPinned: number | null = null;
-      let cmp = 0;
-      switch (sortKey) {
-        case "name":
-          cmp = a.name.localeCompare(b.name);
-          break;
-        case "age":
-          nullPinned = compareNullable(calculateAge(a.dateOfBirth), calculateAge(b.dateOfBirth), () => 0);
-          cmp = (calculateAge(a.dateOfBirth) ?? 0) - (calculateAge(b.dateOfBirth) ?? 0);
-          break;
-        case "position":
-          nullPinned = compareNullable(a.position, b.position, () => 0);
-          cmp = (a.position ?? "").localeCompare(b.position ?? "");
-          break;
-        case "nationality":
-          nullPinned = compareNullable(a.nationality, b.nationality, () => 0);
-          cmp = (a.nationality ?? "").localeCompare(b.nationality ?? "");
-          break;
-        case "club":
-          nullPinned = compareNullable(a.club, b.club, () => 0);
-          cmp = (a.club ?? "").localeCompare(b.club ?? "");
-          break;
-        case "league":
-          nullPinned = compareNullable(a.league, b.league, () => 0);
-          cmp = (a.league ?? "").localeCompare(b.league ?? "");
-          break;
-        case "marketValueEUR":
-          nullPinned = compareNullable(a.marketValueEUR, b.marketValueEUR, () => 0);
-          cmp = (a.marketValueEUR ?? 0) - (b.marketValueEUR ?? 0);
-          break;
-        case "contractExpiry":
-          nullPinned = compareNullable(a.contractExpiry, b.contractExpiry, () => 0);
-          cmp = (a.contractExpiry ?? "").localeCompare(b.contractExpiry ?? "");
-          break;
-      }
-      if (nullPinned !== null && nullPinned !== 0) return nullPinned;
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [filtered, sortKey, sortDirection]);
-
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const pageItems = sorted.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+  const result = useAsync(
+    () =>
+      fetchPlayersPage({
+        search: debouncedSearch,
+        position,
+        nationality,
+        league,
+        club,
+        ageBand,
+        valueBand,
+        contractBand,
+        sortKey,
+        sortDirection,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+    [debouncedSearch, position, nationality, league, club, ageBand, valueBand, contractBand, sortKey, sortDirection, page]
   );
 
   function handleSort(key: PlayerSortKey) {
@@ -218,11 +111,14 @@ export default function PlayersPage() {
     };
   }
 
+  const total = result.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <>
       <PageHeader
         title="Player Database"
-        description={`${sorted.length} of ${ALL_PLAYERS.length} players`}
+        description={result.data ? `${total.toLocaleString()} players` : undefined}
       />
 
       <div className="flex items-center justify-between gap-4 border-b border-kvm-border bg-white px-8 py-3">
@@ -255,7 +151,7 @@ export default function PlayersPage() {
           onChange={resetPage(setNationality)}
           options={[
             { value: "all", label: "All nationalities" },
-            ...nationalities.map((n) => ({ value: n, label: n })),
+            ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n })),
           ]}
         />
         <FilterSelect
@@ -264,7 +160,7 @@ export default function PlayersPage() {
           onChange={resetPage(setLeague)}
           options={[
             { value: "all", label: "All leagues" },
-            ...leagues.map((l) => ({ value: l, label: l })),
+            ...(filterOptions.data?.leagues ?? []).map((l) => ({ value: l, label: l })),
           ]}
         />
         <FilterSelect
@@ -273,7 +169,7 @@ export default function PlayersPage() {
           onChange={resetPage(setClub)}
           options={[
             { value: "all", label: "All clubs" },
-            ...clubs.map((c) => ({ value: c, label: c })),
+            ...(filterOptions.data?.clubs ?? []).map((c) => ({ value: c, label: c })),
           ]}
         />
         <FilterSelect
@@ -291,7 +187,11 @@ export default function PlayersPage() {
       </FilterBar>
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {pageItems.length === 0 ? (
+        {result.error ? (
+          <ErrorState message={result.error.message} />
+        ) : result.loading && !result.data ? (
+          <LoadingState label="Loading players…" />
+        ) : (result.data?.players.length ?? 0) === 0 ? (
           <EmptyState
             icon={Users}
             title="No players match these filters"
@@ -300,16 +200,16 @@ export default function PlayersPage() {
         ) : (
           <>
             <PlayerTable
-              players={pageItems}
+              players={result.data!.players}
               sortKey={sortKey}
               sortDirection={sortDirection}
               onSort={handleSort}
             />
             <Pagination
-              page={currentPage}
+              page={page}
               pageCount={pageCount}
               onChange={setPage}
-              totalItems={sorted.length}
+              totalItems={total}
               pageSize={PAGE_SIZE}
             />
           </>
