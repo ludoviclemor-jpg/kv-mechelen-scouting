@@ -92,13 +92,29 @@ last-5 average, not an approximation. Wiring up a real provider later
 means populating this one map from a real per-match rating lookup — no
 component changes needed.
 
-## Not yet built (scoped out of this pass, not hidden)
+## Not yet built (scoped out deliberately, not hidden)
 
-- Advanced Explore filters (club, age, African-only, shortlisted-only) —
-  the current pass ships date navigation + country/competition grouping;
-  cascading filters across the whole app (Players, Debutants, Top
-  Performers, Competitions, Explore) are explicitly a separate, later
-  phase per the user's own sequencing decision.
+The Explore list page now has real, cascading Country → Competition
+filters plus Status/Kick-off-time/Club filters — all cheap, computed
+client-side on the day's already-fetched `MatchSummary[]` (no lineup
+data involved).
+
+**African players / Shortlisted players filters at the list level are
+deliberately not built** — not an oversight. `MatchSummary` intentionally
+excludes lineup data (see "Performance" above); filtering by something
+lineup-dependent would mean either bulk-fetching every match's full
+lineup on page load (hundreds of matches × ~40 players — the exact thing
+item 22's "do not load every match's detailed statistics immediately"
+rules out) or precomputing flags on `matches` at sync time. The latter is
+real path forward for "African players featured" (a static-ish fact,
+computable during `sync-matches.mjs` by cross-referencing lineup player
+ids against `players.is_african`) but not for "Shortlisted" — shortlists
+are per-scout, live, user-editable state, which can't be baked into a
+sync script's output at all. Match-detail-page filtering already works
+correctly (`ScoutingHighlights`) since a single match's lineup is cheap;
+it's only the list-level version across many matches that has this
+tradeoff.
+
 - Per-chip shortlist/African accents on the pitch use the already-synced
   `players` table — a lineup player who hasn't been crawled yet won't
   show these accents even if they would otherwise qualify.
