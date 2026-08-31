@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
+import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -63,6 +63,9 @@ export default function ReportsPage() {
     return all.filter((p) => (statusOverrides[p.id] ?? p.status) === status);
   }, [players, status, statusOverrides]);
 
+  const chips: ActiveFilterChip[] =
+    status !== "all" ? [{ key: "status", label: "Status", value: STATUS_LABELS[status as keyof typeof STATUS_LABELS], onClear: () => setStatus("all") }] : [];
+
   return (
     <>
       <PageHeader
@@ -70,7 +73,7 @@ export default function ReportsPage() {
         description="Recommendation summary compiled from each assessed player's scouting notes."
       />
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Status"
           value={status}
@@ -81,6 +84,8 @@ export default function ReportsPage() {
           ]}
         />
       </FilterBar>
+
+      <ActiveFilterChips chips={chips} onClearAll={() => setStatus("all")} />
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
         {error ? (

@@ -208,7 +208,7 @@ function CompetitionContent() {
         <SearchBar value={search} onChange={resetPage(setSearch)} placeholder="Search player or club..." />
       </div>
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Position"
           value={position}

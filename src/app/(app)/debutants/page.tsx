@@ -84,7 +84,7 @@ export default function DebutantsPage() {
         description="Senior first-team debuts by African players across Eastern European leagues (youth &amp; reserve teams excluded)."
       />
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Country"
           value={country}

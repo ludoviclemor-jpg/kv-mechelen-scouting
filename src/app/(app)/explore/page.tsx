@@ -115,7 +115,7 @@ export default function ExplorePage() {
         <SearchBar value={clubSearch} onChange={setClubSearch} placeholder="Search club..." />
       </div>
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Country"
           value={country}

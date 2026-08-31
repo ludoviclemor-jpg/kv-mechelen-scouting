@@ -1,18 +1,67 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { X, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function FilterBar({ children }: { children: ReactNode }) {
+/**
+ * Desktop: the same inline row of filter controls as always (`lg:flex`).
+ * Below `lg`, that row is hidden and replaced by a "Filters (N)" button
+ * that opens the same controls in a slide-up drawer instead — a page's
+ * worth of dropdowns doesn't fit a phone screen well. `children` renders
+ * twice in the DOM (once per layout) since both need the exact same
+ * controlled inputs; only one copy is ever visible/interactive at a
+ * given screen width (the other is `display: none`), so this doesn't
+ * cause any state-sync issue in practice.
+ */
+export function FilterBar({ children, activeCount = 0 }: { children: ReactNode; activeCount?: number }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
-    <div
-      role="group"
-      aria-label="Filters"
-      className="flex flex-wrap items-center gap-2 border-b border-kvm-border bg-white px-8 py-3"
-    >
-      {children}
-    </div>
+    <>
+      <div className="flex items-center justify-between border-b border-kvm-border bg-white px-8 py-2.5 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="flex items-center gap-1.5 rounded-sm border border-kvm-border px-2.5 py-1.5 text-sm font-medium text-kvm-ink"
+        >
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+        </button>
+      </div>
+
+      <div
+        role="group"
+        aria-label="Filters"
+        className="hidden flex-wrap items-center gap-2 border-b border-kvm-border bg-white px-8 py-3 lg:flex"
+      >
+        {children}
+      </div>
+
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button type="button" aria-label="Close filters" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-black/30" />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-lg border-t border-kvm-border bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-kvm-border px-5 py-3">
+              <h2 className="text-sm font-bold text-kvm-ink">Filters</h2>
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close" className="text-gray-400 hover:text-kvm-ink">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 p-5">{children}</div>
+            <div className="border-t border-kvm-border p-4">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="w-full rounded-sm bg-kvm-red py-2 text-sm font-semibold text-white"
+              >
+                Show results
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

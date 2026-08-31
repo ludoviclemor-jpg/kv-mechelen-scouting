@@ -189,7 +189,7 @@ function PlayersPageContent() {
         />
       </div>
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Position"
           value={position}

@@ -86,7 +86,7 @@ export default function TopPerformersPage() {
         description={`Players with at least ${MINIMUM_RATED_MATCHES} rated matches, ranked by recent form.`}
       />
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Sort by"
           value={sortBy}

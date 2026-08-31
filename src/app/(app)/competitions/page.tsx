@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Trophy, Globe2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
+import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -57,6 +57,16 @@ export default function CompetitionsPage() {
 
   const grouped = useMemo(() => groupByCountry(result.data ?? []), [result.data]);
 
+  const chips: ActiveFilterChip[] = [];
+  if (area !== "all") chips.push({ key: "area", label: "Country", value: area, onClear: () => setArea("all") });
+  if (levelDefinition !== "all") chips.push({ key: "level", label: "Type", value: levelDefinition, onClear: () => setLevelDefinition("all") });
+  if (!activeOnly) chips.push({ key: "active", label: "Status", value: "Include inactive", onClear: () => setActiveOnly(true) });
+  function clearAll() {
+    setArea("all");
+    setLevelDefinition("all");
+    setActiveOnly(true);
+  }
+
   return (
     <>
       <PageHeader
@@ -68,7 +78,7 @@ export default function CompetitionsPage() {
         <SearchBar value={search} onChange={setSearch} placeholder="Search competition or country..." />
       </div>
 
-      <FilterBar>
+      <FilterBar activeCount={chips.length}>
         <FilterSelect
           label="Country"
           value={area}
@@ -91,6 +101,8 @@ export default function CompetitionsPage() {
           ]}
         />
       </FilterBar>
+
+      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
       <div className="p-8">
         {result.error ? (
