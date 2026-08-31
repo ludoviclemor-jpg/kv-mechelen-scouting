@@ -209,6 +209,51 @@ create table if not exists sync_meta (
   active_players_count integer not null default 0
 );
 
+-- Match data for the Explore feature (docs/EXPLORE.md). GET /matches
+-- (SCOUTASTIC, confirmed real 2026-08-31) returns a genuinely complete
+-- match sheet — formation, full lineup with pitch position order,
+-- events timeline, venue, referee — see docs/EXPLORE.md for the
+-- confirmed field-by-field shape. `date`/`matchId` aren't real filters on
+-- that endpoint (silently ignored, confirmed the hard way) — only
+-- `competitionId` + `season` actually filter — so "browse by day" is
+-- only possible by syncing matches into Postgres and querying here,
+-- same reasoning as the player crawl.
+--
+-- Scoped to each competition's *current* season only (not full
+-- historical archives back to the 1970s-1990s SCOUTASTIC also has) —
+-- Explore is about browsing recent/upcoming matches, not deep history.
+create table if not exists matches (
+  id text primary key, -- SCOUTASTIC's transfermarktId, same convention as players/competitions
+  competition_id text references scoutastic_competitions(competition_id) on delete cascade,
+  season text,
+  matchday integer,
+  date timestamptz,
+  status text, -- e.g. 'played', 'open' — confirmed real values, not treated as an exhaustive enum (a new one showing up shouldn't fail a sync)
+  score text,
+  score_home integer,
+  score_away integer,
+  home_team_id text,
+  away_team_id text,
+  home_team_name text,
+  away_team_name text,
+  home_team_tactic text, -- e.g. "4-2-3-1" — confirmed real, not always present
+  away_team_tactic text,
+  venue_name text,
+  venue_city text,
+  venue_area text,
+  referee_name text,
+  home_team_players jsonb not null default '[]', -- full lineup: {id,firstName,lastName,mainPosition,lineUpIdx,inLineup,minutesPlayed,goals,assists,captain,shirtNumber}
+  away_team_players jsonb not null default '[]',
+  events jsonb not null default '[]', -- goals/cards/subs, each with gameMinute
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  last_scoutastic_sync_at timestamptz
+);
+
+create index if not exists idx_matches_date on matches(date);
+create index if not exists idx_matches_competition on matches(competition_id);
+create index if not exists idx_matches_status on matches(status);
+
 -- Bounded distinct-value lookups for the Players page filter dropdowns.
 -- Selecting `distinct nationality` etc. straight from `players` stays
 -- cheap even at hundreds of thousands of rows because the *output* is
@@ -294,4 +339,9 @@ create trigger trg_players_updated_at
 drop trigger if exists trg_scoutastic_competitions_updated_at on scoutastic_competitions;
 create trigger trg_scoutastic_competitions_updated_at
   before update on scoutastic_competitions
+  for each row execute function set_updated_at();
+
+drop trigger if exists trg_matches_updated_at on matches;
+create trigger trg_matches_updated_at
+  before update on matches
   for each row execute function set_updated_at();

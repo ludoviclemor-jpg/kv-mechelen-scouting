@@ -82,11 +82,12 @@ the existing `shortlists`/`player_scouting_state` data.
 - `db/schema.sql` — `players`, `sync_meta`, `scoutastic_competitions` +
   `competition_teams` (the Competitions feature's data, see
   `docs/COMPETITIONS.md`), `scoutastic_teams` (crawl-queue cache, see
-  `docs/SCOUTASTIC_SYNC.md`), `shortlists`, `shortlist_players`,
-  `player_scouting_state`, plus the `player_nationalities`/`player_leagues`/
-  `player_clubs`/`competition_countries` views that back the Players and
-  Competitions pages' filter dropdowns. Standard Postgres, works on any
-  host.
+  `docs/SCOUTASTIC_SYNC.md`), `matches` (the Explore feature's full match
+  sheets — lineups, formations, events — see `docs/EXPLORE.md`),
+  `shortlists`, `shortlist_players`, `player_scouting_state`, plus the
+  `player_nationalities`/`player_leagues`/`player_clubs`/`competition_countries`
+  views that back the Players and Competitions pages' filter dropdowns.
+  Standard Postgres, works on any host.
 - `db/rls_policies.sql` — Supabase-shaped policies (see the caveat above).
 - `src/lib/persistence/` — `PersistenceProvider` interface,
   `LocalOnlyProvider` (today's default for shortlists/notes when Supabase

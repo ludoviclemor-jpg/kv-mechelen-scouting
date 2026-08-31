@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   trailingSlash: true,
+  // Next.js 16 auto-generates AGENTS.md/CLAUDE.md on dev/build by default —
+  // not something we authored, don't want it appearing as repo clutter.
+  agentRules: false,
   images: {
     // GitHub Pages has no image optimization server; serve assets as-is.
     unoptimized: true,

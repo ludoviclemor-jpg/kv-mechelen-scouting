@@ -52,6 +52,12 @@ export function calculateAge(dateOfBirth: string | null): number | null {
   return age;
 }
 
+/** Just the birth year, for compact labels (pitch view, match sheets) — never the full date of birth. */
+export function birthYear(dateOfBirth: string | null): number | null {
+  if (dateOfBirth === null) return null;
+  return new Date(dateOfBirth).getFullYear();
+}
+
 export function contractStatus(expiryIso: string | null): {
   label: string;
   urgent: boolean;

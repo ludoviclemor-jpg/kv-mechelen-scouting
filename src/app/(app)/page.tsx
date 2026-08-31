@@ -12,6 +12,7 @@ import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
+import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import {
   fetchScoutingOverview,
   fetchTopPerformers,
@@ -69,6 +70,11 @@ export default function DashboardPage() {
               />
               <StatCard label="Players Monitored" value={overview.data!.playersMonitored} icon={Eye} />
               <StatCard label="Shortlists" value={overview.data!.shortlists} icon={ListChecks} />
+            </section>
+
+            <section className="border border-kvm-border bg-white pb-2">
+              <SectionHeader title="Today's Matches" viewAllHref="/explore" />
+              <TodaysMatches />
             </section>
 
             <section className="border border-kvm-border bg-white pb-4">

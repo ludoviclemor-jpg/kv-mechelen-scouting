@@ -164,6 +164,44 @@ export async function fetchAllCompetitions(apiBase, apiKey, { limit = 100, retri
 }
 
 /**
+ * GET /matches — confirmed real (2026-08-31), a genuinely complete match
+ * sheet per row: formation (`homeTeamTactic`/`awayTeamTactic`, e.g.
+ * "4-2-3-1"), full lineups (`homeTeamPlayers`/`awayTeamPlayers`, each
+ * with `lineUpIdx` for pitch position order, `inLineup` for starter vs.
+ * bench, `minutesPlayed`, `goals`, `assists`, `captain`), a full events
+ * timeline (goals/cards/subs with `gameMinute`), venue, referee, score,
+ * status. Same Mongoose-paginate wrapper as fetchAllCompetitions.
+ *
+ * Important, confirmed the hard way: `date` and `matchId` are **not**
+ * real filters on this endpoint — passing them returns the same
+ * unfiltered ~1.17M-row total regardless (silently ignored, no error).
+ * `competitionId` and `season` **are** real, working filters — this is
+ * the only combination confirmed to actually narrow results. See
+ * docs/EXPLORE.md.
+ */
+export async function fetchCompetitionMatches(apiBase, apiKey, competitionId, season, { limit = 1000, retries, onRetry } = {}) {
+  const all = [];
+  let page = 1;
+
+  while (true) {
+    const result = await apiGet(`${apiBase}/matches`, { competitionId, season, limit, page }, apiKey, { retries, onRetry });
+    if (!result.ok) return all.length > 0 ? { ok: true, data: all, partial: true, error: result.error } : result;
+
+    const raw = result.data;
+    const pageDocs = Array.isArray(raw?.docs) ? raw.docs : null;
+    if (pageDocs === null) {
+      return { ok: false, error: `Unrecognized /matches response shape: ${JSON.stringify(Object.keys(raw ?? {}))}`, status: null };
+    }
+    all.push(...pageDocs);
+
+    if (!raw.hasNextPage || !raw.nextPage) break;
+    page = raw.nextPage;
+  }
+
+  return { ok: true, data: all };
+}
+
+/**
  * Confirmed real shape: a Mongoose-paginate wrapper — `{ docs, totalPages,
  * page, hasNextPage, nextPage, ... }`, not a bare array or `{ players }`.
  * Squads have stayed under one page (`limit`) in practice, but this walks

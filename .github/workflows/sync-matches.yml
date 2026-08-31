@@ -1,0 +1,46 @@
+name: Sync SCOUTASTIC Matches
+
+# Powers the Explore feature (docs/EXPLORE.md) — syncs each in-scope
+# competition's current-season matches (full match sheet: lineups,
+# formations, events) into Postgres. Like the competitions sync, this
+# never touches the git repo — match data lives only in Supabase, read
+# by the frontend at runtime.
+#
+# Depends on scripts/sync-competitions.mjs having already run at least
+# once (reads scoutastic_competitions for the competition list and each
+# one's current_season) — scheduled after both existing daily syncs.
+#
+# Needs SUPABASE_SERVICE_ROLE_KEY + SCOUTASTIC_API_KEY (secrets) and
+# NEXT_PUBLIC_SUPABASE_URL (variable) — same credentials already used by
+# the other sync workflows.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily — after player sync (05:00) and competition sync (05:30)
+  workflow_dispatch: {}
+
+concurrency:
+  group: "scoutastic-matches-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run match sync
+        env:
+          SCOUTASTIC_API_KEY: ${{ secrets.SCOUTASTIC_API_KEY }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-matches.mjs

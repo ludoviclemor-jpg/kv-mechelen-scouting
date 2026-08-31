@@ -29,6 +29,7 @@ alter table sync_meta enable row level security;
 alter table scoutastic_competitions enable row level security;
 alter table competition_teams enable row level security;
 alter table scoutastic_teams enable row level security;
+alter table matches enable row level security;
 alter table shortlists enable row level security;
 alter table shortlist_players enable row level security;
 alter table player_scouting_state enable row level security;
@@ -55,6 +56,11 @@ create policy "authenticated can read competition_teams" on competition_teams
 -- frontend directly — RLS is still enabled (no table should be left
 -- unrestricted), just with no policy at all, which denies every role
 -- including authenticated. Only the sync script (service_role) touches it.
+
+drop policy if exists "authenticated can read matches" on matches;
+create policy "authenticated can read matches" on matches
+  for select to authenticated using (true);
+-- Also written only by the sync script's service_role key.
 
 -- player_nationalities / player_leagues / player_clubs are plain views
 -- (security_invoker = true, see schema.sql) — they carry no policies of
