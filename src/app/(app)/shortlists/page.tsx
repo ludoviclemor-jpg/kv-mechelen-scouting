@@ -6,14 +6,18 @@ import { Plus, X, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ShortlistCard } from "@/components/shortlists/ShortlistCard";
 import { SearchBar } from "@/components/ui/SearchBar";
+import { AgeFilter } from "@/components/ui/AgeFilter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { useAppStore } from "@/lib/app-store";
 import { fetchPlayersByIds, searchPlayers, useAsync, computeMatchStats, positionLabel } from "@/lib/players-data";
+import { matchesAgeRange, type AgeRange } from "@/lib/agePresets";
+import { calculateAge } from "@/lib/utils";
 import { ListChecks } from "lucide-react";
 
 type SortOption = "name" | "rating" | "position";
+const ALL_AGES: AgeRange = { min: null, max: null };
 
 /** 300ms — matches the Players page search debounce. */
 function useDebounced<T>(value: T, delayMs = 300): T {
@@ -41,6 +45,7 @@ export default function ShortlistsPage() {
   const [newName, setNewName] = useState("");
   const [addQuery, setAddQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
 
   const selected = shortlists.find((s) => s.id === selectedId) ?? shortlists[0] ?? null;
 
@@ -52,7 +57,7 @@ export default function ShortlistsPage() {
   );
 
   const selectedPlayers = useMemo(() => {
-    const players = rawSelectedPlayers ?? [];
+    const players = (rawSelectedPlayers ?? []).filter((p) => matchesAgeRange(calculateAge(p.dateOfBirth), ageRange));
     return [...players].sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "position") return (a.position ?? "").localeCompare(b.position ?? "");
@@ -60,7 +65,7 @@ export default function ShortlistsPage() {
       const ratingB = computeMatchStats(b.matches).average ?? 0;
       return ratingB - ratingA;
     });
-  }, [rawSelectedPlayers, sortBy]);
+  }, [rawSelectedPlayers, sortBy, ageRange]);
 
   const debouncedAddQuery = useDebounced(addQuery);
   const { data: addCandidates } = useAsync(
@@ -137,18 +142,21 @@ export default function ShortlistsPage() {
                   <h2 className="text-sm font-bold text-kvm-ink">{selected.name}</h2>
                   <p className="text-xs text-gray-500">{selected.description}</p>
                 </div>
-                <label className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <ArrowUpDown size={13} aria-hidden="true" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="rounded-sm border border-kvm-border bg-white px-2 py-1 text-xs"
-                  >
-                    <option value="name">Sort: Name</option>
-                    <option value="rating">Sort: Last 5 average</option>
-                    <option value="position">Sort: Position</option>
-                  </select>
-                </label>
+                <div className="flex items-center gap-2">
+                  <AgeFilter range={ageRange} onChange={setAgeRange} />
+                  <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <ArrowUpDown size={13} aria-hidden="true" />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortOption)}
+                      className="rounded-sm border border-kvm-border bg-white px-2 py-1 text-xs"
+                    >
+                      <option value="name">Sort: Name</option>
+                      <option value="rating">Sort: Last 5 average</option>
+                      <option value="position">Sort: Position</option>
+                    </select>
+                  </label>
+                </div>
               </div>
 
               <div className="border-b border-kvm-border px-5 py-3">

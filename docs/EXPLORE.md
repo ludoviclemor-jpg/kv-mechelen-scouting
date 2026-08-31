@@ -115,6 +115,18 @@ correctly (`ScoutingHighlights`) since a single match's lineup is cheap;
 it's only the list-level version across many matches that has this
 tradeoff.
 
+**Same tradeoff applies to age filtering, so it's also not built at the
+list level.** `AgeFilter` (`src/components/ui/AgeFilter.tsx`) needs a
+player's `date_of_birth`, which — like `is_african`/shortlist status —
+only exists on lineup players, not on `MatchSummary`. "Any lineup player
+in this age range" would need the same bulk-lineup-fetch or
+sync-time-precompute tradeoff as African/Shortlisted above. Precomputing
+would mean storing a `lineup_age_min`/`lineup_age_max` per match at sync
+time (computed the same way as the African-players idea: cross-reference
+lineup player ids against `players.date_of_birth`) — a real, static-ish
+fact, so this is the more promising of the two paths if this becomes a
+priority, same as "African players featured."
+
 - Per-chip shortlist/African accents on the pitch use the already-synced
   `players` table — a lineup player who hasn't been crawled yet won't
   show these accents even if they would otherwise qualify.
