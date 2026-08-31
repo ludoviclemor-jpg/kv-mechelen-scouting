@@ -15,7 +15,6 @@ import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
 import { LoanWatchList } from "@/components/players/LoanWatchList";
-import { AiTipsWidget } from "@/components/dashboard/AiTipsWidget";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import {
   fetchScoutingOverview,
@@ -28,7 +27,6 @@ import {
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
 import { fetchFirstCallUps } from "@/lib/callups-data";
-import { fetchLatestAiTips } from "@/lib/ai-tips-data";
 
 /**
  * Dashboard grid — with the sidebar gone (Phase 1), there's real
@@ -51,7 +49,6 @@ export default function DashboardPage() {
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
-  const aiTips = useAsync(() => fetchLatestAiTips(), []);
 
   const loading = overview.loading || topPerformers.loading || debutants.loading || recentlyAdded.loading;
   const error = overview.error ?? topPerformers.error ?? debutants.error ?? recentlyAdded.error;
@@ -89,11 +86,6 @@ export default function DashboardPage() {
               />
               <StatCard label="Players Monitored" value={overview.data!.playersMonitored} icon={Eye} />
               <StatCard label="Shortlists" value={overview.data!.shortlists} icon={ListChecks} />
-            </section>
-
-            <section className="border border-kvm-border bg-white pb-2">
-              <SectionHeader title="AI Scouting Tips" />
-              <AiTipsWidget digest={aiTips.data ?? null} />
             </section>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
