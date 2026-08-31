@@ -115,6 +115,14 @@ create index if not exists idx_players_position on players(position);
 create index if not exists idx_players_nationality on players(nationality);
 create index if not exists idx_players_league on players(league);
 create index if not exists idx_players_club on players(club);
+-- player_clubs_in_competition() (cascading Country -> Competition ->
+-- Club filter, used by Players/Loan Watch/Debutants/Top Performers/
+-- Explore) filters WHERE competition_id = ... — confirmed live: with no
+-- index on this column at all, that's a full sequential scan across the
+-- whole players table (177k+ rows), which reproduced as a consistent
+-- outright statement timeout ("Couldn't load data" on Loan Watch,
+-- 2026-08-31), not just slowness.
+create index if not exists idx_players_competition_id on players(competition_id);
 create index if not exists idx_players_status on players(sofascore_match_status);
 create index if not exists idx_players_market_value on players(market_value_eur);
 -- The Players page's *default* view (no filters, sorted by market value
