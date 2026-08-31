@@ -15,6 +15,7 @@ import {
   POSITIONS,
   POSITION_LABELS,
   LOAN_WATCH_DEFAULT_MAX_MINUTES,
+  LOAN_WATCH_LEAGUE_GROUPS,
 } from "@/lib/players-data";
 import { ageRangeLabel, type AgeRange } from "@/lib/agePresets";
 
@@ -47,14 +48,30 @@ const TIER_OPTIONS = [
 ];
 const DEFAULT_TIER = "2"; // top 2 divisions per country by default — confirmed live no lower tier leaks through this filter (docs/LOAN_WATCH.md)
 
+// Real country names, confirmed live against players.league — see
+// LOAN_WATCH_LEAGUE_GROUPS' own comment in players-data/remote.ts for
+// why Luxembourg/Finland/Iceland are deliberately excluded.
+const LEAGUE_GROUP_OPTIONS = [
+  { value: "all", label: "All regions" },
+  { value: "top5", label: `Top 5 (${LOAN_WATCH_LEAGUE_GROUPS.top5.join(", ")})` },
+  { value: "benelux", label: `Benelux (${LOAN_WATCH_LEAGUE_GROUPS.benelux.join(", ")})` },
+  { value: "scandinavia", label: `Scandinavia (${LOAN_WATCH_LEAGUE_GROUPS.scandinavia.join(", ")})` },
+  { value: "others", label: "Others (everywhere else)" },
+];
+
 export default function LoanWatchPage() {
   const [maxMinutes, setMaxMinutes] = useState(String(LOAN_WATCH_DEFAULT_MAX_MINUTES));
   const [tier, setTier] = useState(DEFAULT_TIER);
   const [position, setPosition] = useState("all");
   const [nationality, setNationality] = useState("all");
+  const [leagueGroup, setLeagueGroup] = useState("all");
   // Cascading: country -> competition -> club, same convention as the
   // Players page — changing a parent clears its children so the UI can
-  // never show options that don't actually apply anymore.
+  // never show options that don't actually apply anymore. League Group
+  // and Country both filter the same underlying column at different
+  // granularities, so picking one clears the other rather than letting
+  // them silently conflict (e.g. Country=France + Group=Scandinavia
+  // would just return nothing, with no indication why).
   const [country, setCountry] = useState("all");
   const [competitionId, setCompetitionId] = useState("all");
   const [club, setClub] = useState("all");
@@ -76,17 +93,26 @@ export default function LoanWatchPage() {
         position,
         nationality,
         league: country,
+        leagueGroup,
         competitionId,
         club,
         ageRange,
         valueBand,
         maxTierLevel: tier === "all" ? null : Number(tier),
       }),
-    [maxMinutes, position, nationality, country, competitionId, club, ageRange, valueBand, tier]
+    [maxMinutes, position, nationality, country, leagueGroup, competitionId, club, ageRange, valueBand, tier]
   );
 
   function handleCountryChange(value: string) {
     setCountry(value);
+    setCompetitionId("all");
+    setClub("all");
+    setLeagueGroup("all");
+  }
+
+  function handleLeagueGroupChange(value: string) {
+    setLeagueGroup(value);
+    setCountry("all");
     setCompetitionId("all");
     setClub("all");
   }
@@ -106,6 +132,7 @@ export default function LoanWatchPage() {
   if (tier !== DEFAULT_TIER) chips.push({ key: "tier", label: "Level", value: TIER_OPTIONS.find((o) => o.value === tier)?.label ?? tier, onClear: () => setTier(DEFAULT_TIER) });
   if (position !== "all") chips.push({ key: "position", label: "Position", value: POSITION_LABELS[position as keyof typeof POSITION_LABELS], onClear: () => setPosition("all") });
   if (nationality !== "all") chips.push({ key: "nationality", label: "Nationality", value: nationality, onClear: () => setNationality("all") });
+  if (leagueGroup !== "all") chips.push({ key: "leagueGroup", label: "Region", value: LEAGUE_GROUP_OPTIONS.find((o) => o.value === leagueGroup)?.label ?? leagueGroup, onClear: () => handleLeagueGroupChange("all") });
   if (country !== "all") chips.push({ key: "country", label: "Country", value: country, onClear: () => handleCountryChange("all") });
   if (competitionId !== "all") chips.push({ key: "competition", label: "Competition", value: competitionName, onClear: () => handleCompetitionChange("all") });
   if (club !== "all") chips.push({ key: "club", label: "Club", value: club, onClear: () => setClub("all") });
@@ -116,6 +143,7 @@ export default function LoanWatchPage() {
     setTier(DEFAULT_TIER);
     setPosition("all");
     setNationality("all");
+    setLeagueGroup("all");
     handleCountryChange("all");
     setAgeRange(ALL_AGES);
     setValueBand("all");
@@ -143,6 +171,7 @@ export default function LoanWatchPage() {
           onChange={setNationality}
           options={[{ value: "all", label: "All nationalities" }, ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n }))]}
         />
+        <FilterSelect label="Region" value={leagueGroup} onChange={handleLeagueGroupChange} options={LEAGUE_GROUP_OPTIONS} />
         <FilterSelect
           label="Country"
           value={country}

@@ -31,6 +31,7 @@ export {
   fetchPriorityPlayers,
   fetchLoanWatchCandidates,
   LOAN_WATCH_DEFAULT_MAX_MINUTES,
+  LOAN_WATCH_LEAGUE_GROUPS,
   fetchScoutingOverview,
   fetchSyncMeta,
   type PlayerSortKey,

@@ -526,6 +526,22 @@ async function fetchProfessionalCompetitionIds(maxLevel: number): Promise<string
 }
 
 /**
+ * Loan Watch's "League Group" filter — real country names confirmed
+ * live against `players.league` (see docs/LOAN_WATCH.md), not guessed.
+ * "Benelux" is Belgium + Netherlands only (Luxembourg's clubs are
+ * genuinely amateur-tier in SCOUTASTIC's data, not part of what a scout
+ * means by this grouping); "Scandinavia" is the strict sense (Norway,
+ * Sweden, Denmark) — Finland/Iceland are Nordic but not Scandinavian,
+ * so deliberately left out rather than assumed included.
+ */
+export const LOAN_WATCH_LEAGUE_GROUPS: Record<string, string[]> = {
+  top5: ["England", "Spain", "Germany", "Italy", "France"],
+  benelux: ["Belgium", "Netherlands"],
+  scandinavia: ["Norway", "Sweden", "Denmark"],
+};
+const ALL_GROUPED_COUNTRIES = Object.values(LOAN_WATCH_LEAGUE_GROUPS).flat();
+
+/**
  * "Limited Game Time" — the real, data-backed half of "possible loan
  * candidates" (see docs/LOAN_WATCH.md for why this exists and what it
  * deliberately does NOT claim to detect).
@@ -555,6 +571,8 @@ export interface LoanWatchQueryParams {
   valueBand?: string;
   /** 1 = top division only, 2 = top two tiers, etc. `null`/omitted = no tier restriction. See fetchProfessionalCompetitionIds. */
   maxTierLevel?: number | null;
+  /** "top5" | "benelux" | "scandinavia" | "others" | "all"/omitted. See LOAN_WATCH_LEAGUE_GROUPS. Independent of `league` — both can be set at once, same as any other two filters. */
+  leagueGroup?: string;
   limit?: number;
 }
 
@@ -581,6 +599,14 @@ export async function fetchLoanWatchCandidates(options: LoanWatchQueryParams = {
   if (options.position && options.position !== "all") query = query.eq("position", options.position);
   if (options.nationality && options.nationality !== "all") query = query.eq("nationality", options.nationality);
   if (options.league && options.league !== "all") query = query.eq("league", options.league);
+  if (options.leagueGroup && options.leagueGroup !== "all") {
+    if (options.leagueGroup === "others") {
+      query = query.not("league", "in", `(${ALL_GROUPED_COUNTRIES.join(",")})`);
+    } else {
+      const countries = LOAN_WATCH_LEAGUE_GROUPS[options.leagueGroup];
+      if (countries) query = query.in("league", countries);
+    }
+  }
   if (options.competitionId && options.competitionId !== "all") query = query.eq("competition_id", options.competitionId);
   if (options.club && options.club !== "all") query = query.eq("club", options.club);
   if (options.ageRange) {

@@ -66,6 +66,22 @@ resolve the matching competition ids first (139-354 depending on the
 cutoff, confirmed live, comfortably within a safe `.in()` size), then
 filter players by that id list.
 
+## Region filter (Top 5 / Benelux / Scandinavia / Others)
+
+A grouped shortcut over the existing Country filter, since scouts
+naturally think in these blocs rather than picking one country at a
+time. Country names confirmed live against `players.league` before
+building the groups (`England`, `Spain`, `Germany`, `Italy`, `France`
+for Top 5; `Belgium`, `Netherlands` for Benelux — Luxembourg
+deliberately excluded, its clubs are genuinely amateur-tier in
+SCOUTASTIC's data, not what a scout means by this grouping;
+`Norway`, `Sweden`, `Denmark` for Scandinavia in the strict sense —
+Finland/Iceland are Nordic but not Scandinavian, left out rather than
+assumed included). "Others" is everything not in any of the three
+groups. Picking a Region clears the individual Country filter (and vice
+versa) since both filter the same underlying column — letting them
+disagree silently would just return nothing with no indication why.
+
 ## Where it lives
 
 - `/loan-watch` — full page, minutes/position/age filters, paginated
