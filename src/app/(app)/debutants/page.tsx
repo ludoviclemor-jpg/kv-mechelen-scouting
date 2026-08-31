@@ -81,7 +81,7 @@ export default function DebutantsPage() {
     <>
       <PageHeader
         title="African Debutants"
-        description="Senior first-team debuts by African players across Eastern European leagues (youth &amp; reserve teams excluded)."
+        description="U23 senior first-team debuts by African players across Eastern European leagues (youth &amp; reserve teams excluded)."
       />
 
       <FilterBar activeCount={chips.length}>

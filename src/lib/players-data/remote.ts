@@ -400,18 +400,29 @@ export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
 }
 
 /** Debut candidates are inherently rare (this season's debuts, African, Eastern European leagues only) — safe to fetch in full. */
+/**
+ * African Debutants is U23-only by definition (see the page's own
+ * description) — not merely the default filter, an eligibility rule.
+ * Enforced here, server-side, via the same DOB-based U23 cutoff every
+ * other U23 filter in the app uses (`agePresets.ts`'s U23 preset =
+ * age <= 22), so a non-U23 debutant can never appear regardless of
+ * whatever the page's own (further-narrowing) AgeFilter is set to.
+ */
+const U23_RANGE: AgeRange = { min: null, max: 22 };
+
 export async function fetchAfricanDebutants(limit = 500): Promise<Player[]> {
   if (!isSupabaseConfigured()) notConfigured();
-  const { data, error } = await getSupabaseClient()
+  const { gt: dobAfter } = ageRangeToDobRange(U23_RANGE);
+  let query = getSupabaseClient()
     .from("players")
     .select(PLAYER_COLUMNS)
     .eq("active", true)
     .eq("is_debutant", true)
     .eq("is_african", true)
     .eq("is_eastern_european_league", true)
-    .eq("is_youth_or_reserve", false)
-    .order("debut_date", { ascending: false, nullsFirst: false })
-    .limit(limit);
+    .eq("is_youth_or_reserve", false);
+  if (dobAfter) query = query.gt("date_of_birth", dobAfter);
+  const { data, error } = await query.order("debut_date", { ascending: false, nullsFirst: false }).limit(limit);
   if (error) throw error;
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
