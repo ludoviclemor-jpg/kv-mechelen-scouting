@@ -492,6 +492,40 @@ export async function fetchPriorityPlayers(limit = 6): Promise<Player[]> {
 export const LOAN_WATCH_DEFAULT_MAX_MINUTES = 450; // roughly five full matches — a rough, adjustable heuristic, not a rule; see docs/LOAN_WATCH.md
 
 /**
+ * Real, genuine league-tier `level_definition` values, confirmed live
+ * against scoutastic_competitions — deliberately excludes "Domestic
+ * Cup"/"Further Cup"/etc. (a cup context tells us nothing about a
+ * player's actual league level — confirmed live: ~1/3 of an unfiltered
+ * Loan Watch pool came from cup-context rows) and "Youth league" (a real
+ * gap found the same way: `players.is_youth_or_reserve` is always
+ * `false` regardless of reality — see docs/SCOUTASTIC_SYNC.md's "known
+ * gap" — so youth-league players were leaking through despite that
+ * filter). See docs/LOAN_WATCH.md.
+ */
+const LEAGUE_TIER_DEFINITIONS = ["First Tier", "Second Tier", "Third Tier", "Fourth Tier", "Fifth Tier", "Sixth Tier"];
+
+/**
+ * Competition ids for genuine league tiers at or above `maxLevel`
+ * (1 = top division). No FK exists between `players.competition_id` and
+ * `scoutastic_competitions` (a soft reference — see db/schema.sql's
+ * header), so this can't be a single joined query; fetching the id list
+ * first (confirmed live: 139-354 ids depending on maxLevel, well within
+ * a safe `.in()` size) and filtering players by it is the same
+ * two-step pattern already used for cascading Country/Competition/Club
+ * filters elsewhere in this file.
+ */
+async function fetchProfessionalCompetitionIds(maxLevel: number): Promise<string[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("scoutastic_competitions")
+    .select("competition_id")
+    .in("level_definition", LEAGUE_TIER_DEFINITIONS)
+    .lte("level", maxLevel)
+    .eq("is_active", true);
+  if (error) throw error;
+  return data.map((r) => r.competition_id as string);
+}
+
+/**
  * "Limited Game Time" — the real, data-backed half of "possible loan
  * candidates" (see docs/LOAN_WATCH.md for why this exists and what it
  * deliberately does NOT claim to detect).
@@ -519,6 +553,8 @@ export interface LoanWatchQueryParams {
   club?: string;
   ageRange?: AgeRange;
   valueBand?: string;
+  /** 1 = top division only, 2 = top two tiers, etc. `null`/omitted = no tier restriction. See fetchProfessionalCompetitionIds. */
+  maxTierLevel?: number | null;
   limit?: number;
 }
 
@@ -555,6 +591,16 @@ export async function fetchLoanWatchCandidates(options: LoanWatchQueryParams = {
   const { gte: valueGte, lt: valueLt } = valueBandToRange(options.valueBand);
   if (valueGte !== undefined) query = query.gte("market_value_eur", valueGte);
   if (valueLt !== undefined) query = query.lt("market_value_eur", valueLt);
+
+  if (options.maxTierLevel != null) {
+    const professionalCompetitionIds = await fetchProfessionalCompetitionIds(options.maxTierLevel);
+    // An empty list would make `.in()` match nothing at all (correct
+    // behavior — no professional competitions found for this tier — but
+    // Supabase's query builder needs at least one id to build a valid
+    // `.in()` clause), so short-circuit to an empty result instead.
+    if (professionalCompetitionIds.length === 0) return [];
+    query = query.in("competition_id", professionalCompetitionIds);
+  }
 
   const { data, error } = await query.order("minutes", { ascending: true }).limit(options.limit ?? 300);
   if (error) throw error;

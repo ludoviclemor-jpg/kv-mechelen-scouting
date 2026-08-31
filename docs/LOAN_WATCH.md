@@ -37,6 +37,35 @@ same reasoning documented for every other paginated list
   prospect rather than a loan candidate — this surfaces a real signal
   worth checking, not a conclusion.
 
+## "Professional leagues only" — real bug found and fixed
+
+Confirmed live against the actual candidate pool: without a tier filter,
+~1/3 of results came from `competition_id`s whose `level_definition` is
+a **cup** context ("Domestic Cup", "Further Cup") — a player's crawl
+context being a cup tells nothing about their real league level, since
+`players.competition_id` is just whichever competition their squad crawl
+happened to go through. Worse, real youth-league players were leaking
+in despite the existing `is_youth_or_reserve` filter — that flag is
+`false` for every single row regardless of reality (a known, separate
+data gap, see `docs/SCOUTASTIC_SYNC.md`), so it filters nothing.
+
+The Level filter (`fetchProfessionalCompetitionIds()` in
+`src/lib/players-data/remote.ts`) fixes both: it resolves the player's
+tier from `scoutastic_competitions.level_definition` restricted to the
+six genuine league-tier values ("First Tier" .. "Sixth Tier" — excludes
+every cup/youth-league/reserve/regional/national-team value), at or
+above a selectable cutoff (default: top 3 tiers). "Professional" is
+genuinely ambiguous below the top couple of tiers — it varies by
+country — so this is an adjustable filter, not a silently hardcoded
+rule; "All levels" keeps the full crawled pool, cups and amateur tiers
+included.
+
+No FK exists from `players.competition_id` to `scoutastic_competitions`
+(a soft reference — see `db/schema.sql`), so this is a two-step fetch:
+resolve the matching competition ids first (139-354 depending on the
+cutoff, confirmed live, comfortably within a safe `.in()` size), then
+filter players by that id list.
+
 ## Where it lives
 
 - `/loan-watch` — full page, minutes/position/age filters, paginated
