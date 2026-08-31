@@ -128,7 +128,7 @@ export interface Player {
 
   position: Position | null; // mapped from SCOUTASTIC's mainPosition
   positionRaw: string | null; // the untouched raw code, kept for auditing unmapped values
-  secondaryPositions: string[] | null; // not present in any confirmed SCOUTASTIC response yet
+  secondaryPositions: Position[] | null; // mapped from SCOUTASTIC's secondaryPosition1/secondaryPosition2 (confirmed real, see scripts/lib/fieldMap.mjs's normalizeSecondaryPositions) — null if the player has none
 
   club: string | null; // main team (teams[] entry with isMain === true)
   previousClub: string | null; // not present in any confirmed SCOUTASTIC response yet

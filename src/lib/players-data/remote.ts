@@ -42,7 +42,7 @@ interface PlayerRow {
   is_african: boolean;
   position: Position | null;
   position_raw: string | null;
-  secondary_positions: string[] | null;
+  secondary_positions: Position[] | null;
   club: string | null;
   previous_club: string | null;
   teams: PlayerTeam[];

@@ -3,6 +3,17 @@ import { DEFAULT_SHORTLISTS } from "./shortlists";
 export * from "./types";
 export * from "./constants";
 export { computeMatchStats, meetsMinimumMatches, ratingTrendSeries } from "./stats";
+export {
+  aggregateStats,
+  clubRows,
+  internationalRows,
+  availableSeasons,
+  competitionsInSeason,
+  capsByLevel,
+  type AggregatedStats,
+  type CompetitionOption as PerformanceCompetitionOption,
+  type CapsByLevel,
+} from "./performance";
 export { DEFAULT_SHORTLISTS } from "./shortlists";
 export { useAsync, type AsyncState } from "./useAsync";
 export {

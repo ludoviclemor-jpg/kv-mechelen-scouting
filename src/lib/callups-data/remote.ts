@@ -68,3 +68,15 @@ export async function fetchFirstCallUps(options: { level?: string; limit?: numbe
   if (error) throw error;
   return (data as unknown as CallUpRow[]).map(callUpFromRow).filter((c): c is FirstCallUp => c !== null);
 }
+
+/** Every first-call-up row for one player (one per level) — powers the player profile's "NEW INTERNATIONAL CALL-UP" banner. */
+export async function fetchCallUpsForPlayer(playerId: string): Promise<FirstCallUp[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient()
+    .from("player_international_callups")
+    .select(CALL_UP_COLUMNS)
+    .eq("player_id", playerId)
+    .order("first_call_up_date", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as CallUpRow[]).map(callUpFromRow).filter((c): c is FirstCallUp => c !== null);
+}

@@ -1,16 +1,35 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PlayerHeader } from "@/components/player-profile/PlayerHeader";
 import { LastMatchesTable } from "@/components/player-profile/LastMatchesTable";
 import { ScoutingNotesCard } from "@/components/player-profile/ScoutingNotesCard";
+import { StatsOverview, isGoalkeeperPlayer } from "@/components/player-profile/StatsOverview";
+import { GameTimeSection } from "@/components/player-profile/GameTimeSection";
+import { InternationalStatusSection } from "@/components/player-profile/InternationalStatusSection";
+import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePitch";
+import { FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
-import { fetchPlayerById, useAsync } from "@/lib/players-data";
+import {
+  fetchPlayerById,
+  fetchPlayerPerformanceDetail,
+  useAsync,
+  aggregateStats,
+  clubRows,
+  availableSeasons,
+  competitionsInSeason,
+  capsByLevel,
+} from "@/lib/players-data";
 import { fetchCompetitionById } from "@/lib/competitions-data";
+import { fetchCallUpsForPlayer } from "@/lib/callups-data";
+import { cn } from "@/lib/utils";
+
+const TABS = ["Overview", "Stats", "Matches", "Scouting"] as const;
+type Tab = (typeof TABS)[number];
 
 /**
  * `/player?id=sc-12345` — a query string, not `/players/[id]/`. Static
@@ -33,6 +52,39 @@ function PlayerProfileContent() {
     () => (player?.competitionId ? fetchCompetitionById(player.competitionId) : Promise.resolve(null)),
     [player?.competitionId]
   );
+  // The heavier performance/position fields — see PlayerPerformanceDetail's
+  // own comment for why this is a separate fetch from fetchPlayerById.
+  const { data: detail } = useAsync(
+    () => (id ? fetchPlayerPerformanceDetail(id) : Promise.resolve({ performanceSeasons: [], playedPositions: null })),
+    [id]
+  );
+  const { data: callUps } = useAsync(() => (id ? fetchCallUpsForPlayer(id) : Promise.resolve([])), [id]);
+
+  const [tab, setTab] = useState<Tab>("Overview");
+  const [season, setSeason] = useState("all");
+  const [competitionFilter, setCompetitionFilter] = useState("all");
+
+  const performanceSeasons = useMemo(() => detail?.performanceSeasons ?? [], [detail]);
+  const seasons = useMemo(() => availableSeasons(performanceSeasons), [performanceSeasons]);
+  const competitionOptions = useMemo(
+    () => competitionsInSeason(performanceSeasons, season === "all" ? null : season),
+    [performanceSeasons, season]
+  );
+
+  const filteredClubRows = useMemo(() => {
+    let rows = clubRows(performanceSeasons);
+    if (season !== "all") rows = rows.filter((r) => r.season === season);
+    if (competitionFilter !== "all") rows = rows.filter((r) => r.competitionId === competitionFilter);
+    return rows;
+  }, [performanceSeasons, season, competitionFilter]);
+
+  const stats = useMemo(() => aggregateStats(filteredClubRows), [filteredClubRows]);
+  const caps = useMemo(() => capsByLevel(performanceSeasons), [performanceSeasons]);
+
+  function handleSeasonChange(value: string) {
+    setSeason(value);
+    setCompetitionFilter("all"); // clear an incompatible competition selection
+  }
 
   if (!id) {
     return (
@@ -86,13 +138,90 @@ function PlayerProfileContent() {
     );
   }
 
+  const isGoalkeeper = isGoalkeeperPlayer(player);
+
   return (
     <>
       <PageHeader title={player.name} description="Player profile" />
       <div className="space-y-6 p-8">
         <PlayerHeader player={player} competitionName={competition?.name ?? null} />
-        <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} />
-        <ScoutingNotesCard player={player} />
+
+        <div className="border border-kvm-border bg-white">
+          <div role="tablist" aria-label="Player profile sections" className="flex border-b border-kvm-border">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors",
+                  tab === t
+                    ? "border-kvm-red text-kvm-ink"
+                    : "border-transparent text-gray-400 hover:text-kvm-ink"
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-5">
+            {tab === "Overview" ? (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="space-y-6 lg:col-span-2">
+                  <section>
+                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Game Time</h3>
+                    <GameTimeSection stats={stats} seasonRows={filteredClubRows} />
+                  </section>
+                  <section>
+                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Stats Overview</h3>
+                    <StatsOverview stats={stats} isGoalkeeper={isGoalkeeper} />
+                  </section>
+                </div>
+                <div className="space-y-6">
+                  <section>
+                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">International</h3>
+                    <InternationalStatusSection caps={caps} callUps={callUps ?? []} />
+                  </section>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "Stats" ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <FilterSelect
+                    label="Season"
+                    value={season}
+                    onChange={handleSeasonChange}
+                    options={[{ value: "all", label: "All seasons" }, ...seasons.map((s) => ({ value: s, label: s }))]}
+                  />
+                  <FilterSelect
+                    label="Competition"
+                    value={competitionFilter}
+                    onChange={setCompetitionFilter}
+                    options={[
+                      { value: "all", label: "All competitions" },
+                      ...competitionOptions.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
+                <StatsOverview stats={stats} isGoalkeeper={isGoalkeeper} />
+              </div>
+            ) : null}
+
+            {tab === "Matches" ? <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} /> : null}
+
+            {tab === "Scouting" ? <ScoutingNotesCard player={player} /> : null}
+          </div>
+        </div>
+
+        <div className="border border-kvm-border bg-white p-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Position Usage</h2>
+          <PositionUsagePitch playedPositions={detail?.playedPositions ?? null} registeredPosition={player.position} />
+        </div>
       </div>
     </>
   );

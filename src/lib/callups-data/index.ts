@@ -1,2 +1,2 @@
 export * from "./types";
-export { fetchFirstCallUps } from "./remote";
+export { fetchFirstCallUps, fetchCallUpsForPlayer } from "./remote";
