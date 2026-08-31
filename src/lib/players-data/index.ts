@@ -7,6 +7,7 @@ export { DEFAULT_SHORTLISTS } from "./shortlists";
 export { useAsync, type AsyncState } from "./useAsync";
 export {
   fetchPlayerById,
+  fetchPlayerPerformanceDetail,
   fetchPlayersByIds,
   searchPlayers,
   fetchPlayersPage,

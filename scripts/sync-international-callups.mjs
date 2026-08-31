@@ -50,8 +50,7 @@
  */
 
 import { baseUrl, fetchCompetitionMatches } from "./lib/scoutasticClient.mjs";
-
-const LEVEL_DEFS = ["National Team", "National team's qualifiers", "Youth National Team Qualifiers", "National youth team"];
+import { INTERNATIONAL_LEVEL_DEFINITIONS } from "./lib/internationalCompetitions.mjs";
 
 function parseArgs(argv) {
   const args = { delayMs: 200, retries: 3, dryRun: false, seasons: 2 };
@@ -185,7 +184,7 @@ async function main() {
       db,
       "scoutastic_competitions",
       "competition_id,age_category,current_season,available_seasons",
-      (q) => q.in("level_definition", LEVEL_DEFS).eq("is_active", true)
+      (q) => q.in("level_definition", INTERNATIONAL_LEVEL_DEFINITIONS).eq("is_active", true)
     );
     if (!res.ok) {
       console.error(`Failed to load international competitions: ${res.error.message}`);

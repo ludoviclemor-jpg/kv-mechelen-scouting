@@ -51,6 +51,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { baseUrl, fetchTeamPlayers } from "./lib/scoutasticClient.mjs";
 import { mapScoutasticPlayer } from "./lib/fieldMap.mjs";
+import { INTERNATIONAL_LEVEL_DEFINITIONS } from "./lib/internationalCompetitions.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -156,6 +157,8 @@ function toPlayerRow(player, nowIso) {
     minutes: player.minutes,
     goals: player.goals,
     assists: player.assists,
+    performance_seasons: player.performanceSeasons,
+    played_positions: player.playedPositions,
     last_synced_at: nowIso,
     active: true,
     is_youth_or_reserve: player.isYouthOrReserve,
@@ -233,6 +236,23 @@ async function main() {
       return;
     }
     competitionsById = new Map(res.data.map((c) => [c.competition_id, c]));
+  }
+  // Same map, reshaped — every performance_seasons row gets tagged with
+  // its competition's real age_category ("Senior", "U21", ...) at sync
+  // time, see extractPerformanceSeasons() in scripts/lib/fieldMap.mjs.
+  const competitionAgeCategories = new Map([...competitionsById].map(([id, c]) => [id, c.age_category ?? null]));
+
+  // Loaded once, reused for every player this run — the same confirmed
+  // level_definition rule sync-international-callups.mjs uses (see
+  // docs/INTERNATIONAL_CALLUPS.md) — keeps club-facing "this season"
+  // stats from silently absorbing international appearances (see
+  // currentSeasonStats() in scripts/lib/fieldMap.mjs).
+  let internationalCompetitionIds = new Set();
+  if (db) {
+    const res = await fetchAllRows(db, "scoutastic_competitions", "competition_id", (q) =>
+      q.in("level_definition", INTERNATIONAL_LEVEL_DEFINITIONS)
+    );
+    if (res.ok) internationalCompetitionIds = new Set(res.data.map((r) => r.competition_id));
   }
   if (competitionsById.size === 0 && !args.dryRun) {
     console.error("No competitions in scoutastic_competitions — run scripts/sync-competitions.mjs first.");
@@ -365,6 +385,8 @@ async function main() {
           isEasternEuropeanLeague: competition ? easternEuropeCountries.has(competition.area) : false,
           nowIso,
           imageBaseUrl,
+          internationalCompetitionIds,
+          competitionAgeCategories,
         });
         warnings.forEach((w) => console.error(`  [warn] ${player.name || player.scoutasticPlayerId}: ${w}`));
         if (player.isDebutant) debutantsFound++;

@@ -88,6 +88,24 @@ create table if not exists players (
   rating_lowest numeric
 );
 
+-- `players` predates these two columns (see the scoutastic_competitions
+-- comment above for why `create table if not exists` alone can't add
+-- them to an already-existing deployment) — idempotent either way.
+--
+-- performance_seasons: flattened performanceSummary, one row per
+-- (season, competition), club and international both included but
+-- tagged (isInternational) — powers the player-profile Stats/Game
+-- Time/International sections. See docs/PLAYER_PROFILE.md and
+-- scripts/lib/fieldMap.mjs's extractPerformanceSeasons().
+--
+-- played_positions: real per-position appearance counts (e.g.
+-- {"leftback": 23}), confirmed available on every squad-crawl response
+-- at no extra API cost — "positions actually played", not the generic
+-- registered `position` above. Null, never a guess, when SCOUTASTIC has
+-- nothing for this player. See scripts/lib/fieldMap.mjs's extractPlayedPositions().
+alter table players add column if not exists performance_seasons jsonb not null default '[]';
+alter table players add column if not exists played_positions jsonb;
+
 -- Filters used throughout the app (Players page, Debutants, Top Performers, Reports)
 create index if not exists idx_players_active on players(active) where active = true;
 create index if not exists idx_players_is_african on players(is_african) where is_african = true;

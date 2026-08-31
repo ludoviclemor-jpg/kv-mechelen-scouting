@@ -48,6 +48,47 @@ export interface MatchRating {
 }
 
 /**
+ * One (season, competition) row from SCOUTASTIC's own `performanceSummary`
+ * — real, unreduced, never invented. `isInternational` uses the same
+ * confirmed level_definition-based rule as
+ * scripts/sync-international-callups.mjs (docs/INTERNATIONAL_CALLUPS.md).
+ * A field is `null` only when SCOUTASTIC's row itself didn't include it —
+ * a real zero (an unused squad player) is a confirmed value, not missing.
+ */
+export interface PerformanceSeasonRow {
+  season: string; // year, e.g. "2025"
+  competitionId: string | null;
+  contest: string | null; // SCOUTASTIC's own competition display name for this row
+  teamId: string | null;
+  isInternational: boolean;
+  level: string | null; // the competition's own age_category ("Senior", "U21", ...) — null if the competition isn't in our own catalog yet
+  matchesPlayed: number | null;
+  minutesPlayed: number | null;
+  substitutes: number | null; // sub-appearance count
+  goals: number | null;
+  assists: number | null;
+  ownGoals: number | null;
+  yellow: number | null;
+  red: number | null;
+  yellowRed: number | null;
+  cleanSheets: number | null; // only meaningful for GK/defenders
+  opponentGoalsOnThePitch: number | null;
+}
+
+/**
+ * The heavier, profile-only fields (`players.performance_seasons`,
+ * `players.played_positions`) — deliberately kept off the base `Player`
+ * type and out of `PLAYER_COLUMNS` (src/lib/players-data/remote.ts) so
+ * every paginated list view (Players, Debutants, Top Performers, ...)
+ * keeps fetching the same lightweight row it always has. Fetched
+ * separately, only by the player-profile page — see fetchPlayerPerformanceDetail().
+ */
+export interface PlayerPerformanceDetail {
+  performanceSeasons: PerformanceSeasonRow[];
+  playedPositions: Record<string, number> | null;
+}
+
+/**
  * "pending"   — never attempted (the default for every player right now)
  * "matched"   — a confident SofaScore profile match was found
  * "ambiguous" — multiple plausible candidates, none confidently chosen —
@@ -104,7 +145,7 @@ export interface Player {
   marketValueEUR: number | null;
   contractExpiry: string | null; // ISO date
 
-  appearances: number | null; // pending performance-data field verification (Phase 2 follow-up)
+  appearances: number | null; // this season's *club* output only — see PerformanceSeasonRow for the full, unreduced history including international rows
   minutes: number | null;
   goals: number | null;
   assists: number | null;

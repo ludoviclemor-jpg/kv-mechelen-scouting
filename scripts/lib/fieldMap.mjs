@@ -171,12 +171,27 @@ function normalizeSecondaryPositions(raw, warnings) {
  * `performanceSummary` (confirmed available on both /player and
  * /players?teamId=) is keyed by season year, each holding one entry per
  * competition played that season. Aggregates the most recent season
- * across all competitions — the figures a scout cares about are "this
- * season's output", not a lifetime total. Returns nulls (not zeros) only
- * when the field itself is entirely absent — a real zero (e.g. an unused
- * squad player) is a confirmed value, not a missing one.
+ * across all *club* competitions — the figures a scout cares about here
+ * are "this season's club output", not a lifetime total and not
+ * international appearances mixed in.
+ *
+ * Real bug, found and fixed while building the player-profile stats work
+ * (docs/PLAYER_PROFILE.md): a player capped for their country in the
+ * same calendar year as their club season (very common — a full senior
+ * international season and the international match calendar both fall
+ * under the same year key) previously had those international
+ * `matchesPlayed`/`minutesPlayed`/`goals`/`assists` silently summed
+ * together with their club numbers, inflating "this season's" figures
+ * with matches that were never for their club. `internationalCompetitionIds`
+ * (the same confirmed level_definition-based set used by
+ * scripts/sync-international-callups.mjs — see
+ * docs/INTERNATIONAL_CALLUPS.md) excludes those rows here.
+ *
+ * Returns nulls (not zeros) only when the field itself is entirely
+ * absent — a real zero (e.g. an unused squad player) is a confirmed
+ * value, not a missing one.
  */
-function currentSeasonStats(raw) {
+function currentSeasonStats(raw, internationalCompetitionIds) {
   const summary = raw.performanceSummary;
   if (!summary || typeof summary !== "object") {
     return { appearances: null, minutes: null, goals: null, assists: null };
@@ -186,7 +201,8 @@ function currentSeasonStats(raw) {
     return { appearances: null, minutes: null, goals: null, assists: null };
   }
   const latestSeason = seasons.sort().at(-1);
-  const rows = Array.isArray(summary[latestSeason]) ? summary[latestSeason] : [];
+  const allRows = Array.isArray(summary[latestSeason]) ? summary[latestSeason] : [];
+  const rows = allRows.filter((row) => !internationalCompetitionIds?.has(row?.competitionId));
 
   const sum = (key) => rows.reduce((total, row) => total + (Number(row?.[key]) || 0), 0);
   return {
@@ -198,8 +214,71 @@ function currentSeasonStats(raw) {
 }
 
 /**
+ * Flattens `performanceSummary` (season -> array of per-competition rows)
+ * into one flat array, tagging each row `isInternational` using the same
+ * confirmed level_definition-based set as `currentSeasonStats()` above,
+ * and `level` (the competition's own `age_category` — "Senior", "U21",
+ * etc., same convention as scripts/sync-international-callups.mjs) —
+ * powers the player-profile Stats/Game Time/International sections
+ * (season + competition selectors, club vs. international split, caps
+ * grouped by level) without needing a second lookup at read time.
+ * Stored as-is on `players.performance_seasons`; nothing here is
+ * invented — every field is a real SCOUTASTIC value, `null`/omitted when
+ * absent, including `level` for a competition we haven't got in our own
+ * `scoutastic_competitions` catalog yet.
+ */
+function extractPerformanceSeasons(raw, internationalCompetitionIds, competitionAgeCategories) {
+  const summary = raw.performanceSummary;
+  if (!summary || typeof summary !== "object") return [];
+  const rows = [];
+  for (const [season, seasonRows] of Object.entries(summary)) {
+    if (!/^\d{4}$/.test(season) || !Array.isArray(seasonRows)) continue;
+    for (const row of seasonRows) {
+      if (!row || typeof row !== "object") continue;
+      rows.push({
+        season,
+        competitionId: typeof row.competitionId === "string" ? row.competitionId : null,
+        contest: typeof row.contest === "string" ? row.contest : null, // SCOUTASTIC's own competition display name for this row
+        teamId: row.teamId !== undefined && row.teamId !== null ? String(row.teamId) : null,
+        isInternational: Boolean(internationalCompetitionIds?.has(row.competitionId)),
+        level: competitionAgeCategories?.get(row.competitionId) ?? null,
+        matchesPlayed: Number.isFinite(row.matchesPlayed) ? row.matchesPlayed : null,
+        minutesPlayed: Number.isFinite(row.minutesPlayed) ? row.minutesPlayed : null,
+        substitutes: Number.isFinite(row.substitutes) ? row.substitutes : null,
+        goals: Number.isFinite(row.goals) ? row.goals : null,
+        assists: Number.isFinite(row.assists) ? row.assists : null,
+        ownGoals: Number.isFinite(row.ownGoals) ? row.ownGoals : null,
+        yellow: Number.isFinite(row.yellow) ? row.yellow : null,
+        red: Number.isFinite(row.red) ? row.red : null,
+        yellowRed: Number.isFinite(row.yellowRed) ? row.yellowRed : null,
+        cleanSheets: Number.isFinite(row.cleanSheets) ? row.cleanSheets : null,
+        opponentGoalsOnThePitch: Number.isFinite(row.opponentGoalsOnThePitch) ? row.opponentGoalsOnThePitch : null,
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * `playedPositions` (confirmed real, e.g. `{"leftback": 23, "rightback": 3}`)
+ * — real per-position appearance counts, already returned on every squad
+ * crawl at no extra API cost, previously discarded. Stored as-is (raw
+ * SCOUTASTIC position-code keys, not yet mapped through positionMap.json —
+ * the player-profile UI maps them for display the same way `mainPosition`
+ * already is) on `players.played_positions`. Powers "positions actually
+ * played" (docs/PLAYER_PROFILE.md) — never estimated from the generic
+ * registered `mainPosition`.
+ */
+function extractPlayedPositions(raw) {
+  const value = raw.playedPositions;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const entries = Object.entries(value).filter(([, count]) => Number.isFinite(count) && count > 0);
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+/**
  * @param {object} raw - raw SCOUTASTIC player object (from /player or /players?teamId=)
- * @param {object} context - { externalId, competitionId, competitionCountry, isEasternEuropeanLeague, nowIso, imageBaseUrl }
+ * @param {object} context - { externalId, competitionId, competitionCountry, isEasternEuropeanLeague, nowIso, imageBaseUrl, internationalCompetitionIds, competitionAgeCategories }
  * @returns {{ player: object, warnings: string[] }}
  */
 export function mapScoutasticPlayer(raw, context) {
@@ -223,7 +302,9 @@ export function mapScoutasticPlayer(raw, context) {
   const lastName = typeof raw.lastName === "string" ? raw.lastName : null;
   const { position, raw: positionRaw } = normalizePosition(raw.mainPosition, warnings);
   const teams = normalizeTeams(raw.teams);
-  const seasonStats = currentSeasonStats(raw);
+  const seasonStats = currentSeasonStats(raw, context.internationalCompetitionIds);
+  const performanceSeasons = extractPerformanceSeasons(raw, context.internationalCompetitionIds, context.competitionAgeCategories);
+  const playedPositions = extractPlayedPositions(raw);
   const debut = detectDebut(raw.debuts, context, warnings);
 
   const player = {
@@ -263,6 +344,8 @@ export function mapScoutasticPlayer(raw, context) {
     minutes: seasonStats.minutes,
     goals: seasonStats.goals,
     assists: seasonStats.assists,
+    performanceSeasons,
+    playedPositions,
 
     lastSyncedAt: context.nowIso,
     active: true,

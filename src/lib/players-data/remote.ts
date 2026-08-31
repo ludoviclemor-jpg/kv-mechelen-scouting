@@ -3,7 +3,9 @@ import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
 import { MINIMUM_RATED_MATCHES } from "./constants";
 import type {
   MatchRating,
+  PerformanceSeasonRow,
   Player,
+  PlayerPerformanceDetail,
   PlayerTeam,
   Position,
   PreferredFoot,
@@ -169,6 +171,27 @@ export async function fetchPlayerById(id: string): Promise<Player | null> {
     .maybeSingle();
   if (error) throw error;
   return data ? playerFromRow(data as unknown as PlayerRow) : null;
+}
+
+/**
+ * The heavier performance/position fields, fetched separately from
+ * `fetchPlayerById` — see PlayerPerformanceDetail's own comment for why
+ * these are kept off every paginated list view's query. Returns empty
+ * (never null-vs-[] ambiguity) if the player has no such data yet — a
+ * player not yet (re-)crawled since this field was added, for instance.
+ */
+export async function fetchPlayerPerformanceDetail(id: string): Promise<PlayerPerformanceDetail> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient()
+    .from("players")
+    .select("performance_seasons,played_positions")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return {
+    performanceSeasons: (data?.performance_seasons as unknown as PerformanceSeasonRow[]) ?? [],
+    playedPositions: (data?.played_positions as unknown as Record<string, number> | null) ?? null,
+  };
 }
 
 /** Bounded by `ids.length` — used for shortlist members and scouting-report rows, never the whole table. */
