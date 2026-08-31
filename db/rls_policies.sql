@@ -26,6 +26,9 @@
 
 alter table players enable row level security;
 alter table sync_meta enable row level security;
+alter table scoutastic_competitions enable row level security;
+alter table competition_teams enable row level security;
+alter table scoutastic_teams enable row level security;
 alter table shortlists enable row level security;
 alter table shortlist_players enable row level security;
 alter table player_scouting_state enable row level security;
@@ -41,6 +44,17 @@ drop policy if exists "authenticated can read sync_meta" on sync_meta;
 create policy "authenticated can read sync_meta" on sync_meta
   for select to authenticated using (true);
 -- Also written only by the sync script's service_role key.
+
+drop policy if exists "authenticated can read scoutastic_competitions" on scoutastic_competitions;
+create policy "authenticated can read scoutastic_competitions" on scoutastic_competitions
+  for select to authenticated using (true);
+drop policy if exists "authenticated can read competition_teams" on competition_teams;
+create policy "authenticated can read competition_teams" on competition_teams
+  for select to authenticated using (true);
+-- scoutastic_teams is an internal crawl-queue cache, never read by the
+-- frontend directly — RLS is still enabled (no table should be left
+-- unrestricted), just with no policy at all, which denies every role
+-- including authenticated. Only the sync script (service_role) touches it.
 
 -- player_nationalities / player_leagues / player_clubs are plain views
 -- (security_invoker = true, see schema.sql) — they carry no policies of

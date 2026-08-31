@@ -12,17 +12,27 @@ Everything below this note describes the **Phase 2 architecture**
 /competitions` endpoint (no id — confirmed to exist, returns **all
 2,439 competitions** in its database, not just the curated list) makes
 "every competition" a real, explicit request (`"Truly everything — rework
-the architecture first"`), and at that scale (~725 active senior
-competitions worldwide once filtered, ~15,989 teams, an estimated
-400,000–480,000 players) neither a committed JSON file nor one static
-HTML page per player survives — see `db/schema.sql`'s header.
+the architecture first"`), and at that scale neither a committed JSON file
+nor one static HTML page per player survives — see `db/schema.sql`'s
+header. (The original ~725-competition/~15,989-team estimate here assumed
+a separate request per competition to discover its teams — since
+confirmed wrong: `GET /competitions` returns each competition's team ids
+inline, so discovering every competition **and** its teams costs ~25
+requests total, not ~725. See `docs/COMPETITIONS.md` for the confirmed
+numbers — that document covers the competition-catalog side of this same
+rework in full, including the part of it that's already shipped.)
 
 **Done so far:** the Postgres side — `players`, `sync_meta`,
-`scoutastic_competitions`, `scoutastic_teams` (the crawl queue/cache, see
-below), the `player_*` filter views, all in `db/schema.sql` /
-`db/rls_policies.sql`; and the entire frontend now reads player data from
+`scoutastic_competitions`/`competition_teams`/`scoutastic_teams` (the
+competition catalog and crawl queue/cache, see `docs/COMPETITIONS.md`),
+the `player_*`/`competition_*` filter views, all in `db/schema.sql` /
+`db/rls_policies.sql`; the entire frontend now reads player data from
 Postgres at runtime instead of a build-time `data/players.json` import
-(`src/lib/players-data/remote.ts`, see `docs/POSTGRES_PERSISTENCE.md`).
+(`src/lib/players-data/remote.ts`, see `docs/POSTGRES_PERSISTENCE.md`);
+and `scripts/sync-competitions.mjs` discovers and upserts the competition
+catalog — written, not yet run against a real database (needs
+`SUPABASE_SERVICE_ROLE_KEY`; `--dry-run` needs only `SCOUTASTIC_API_KEY`
+and hasn't been executed yet either — see `docs/COMPETITIONS.md`).
 
 **Not done yet:** `scripts/sync-scoutastic.mjs` itself is still the old
 Phase 2 script (curated competitions → `data/players.json`) — it has not

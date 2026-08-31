@@ -79,11 +79,13 @@ the existing `shortlists`/`player_scouting_state` data.
 
 ## What's already built
 
-- `db/schema.sql` — `players`, `sync_meta`, `scoutastic_competitions`,
-  `scoutastic_teams` (crawl-queue cache, see `docs/SCOUTASTIC_SYNC.md`),
-  `shortlists`, `shortlist_players`, `player_scouting_state`, plus the
-  `player_nationalities`/`player_leagues`/`player_clubs` views that back
-  the Players page's filter dropdowns. Standard Postgres, works on any
+- `db/schema.sql` — `players`, `sync_meta`, `scoutastic_competitions` +
+  `competition_teams` (the Competitions feature's data, see
+  `docs/COMPETITIONS.md`), `scoutastic_teams` (crawl-queue cache, see
+  `docs/SCOUTASTIC_SYNC.md`), `shortlists`, `shortlist_players`,
+  `player_scouting_state`, plus the `player_nationalities`/`player_leagues`/
+  `player_clubs`/`competition_countries` views that back the Players and
+  Competitions pages' filter dropdowns. Standard Postgres, works on any
   host.
 - `db/rls_policies.sql` — Supabase-shaped policies (see the caveat above).
 - `src/lib/persistence/` — `PersistenceProvider` interface,

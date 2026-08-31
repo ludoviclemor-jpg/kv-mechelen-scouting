@@ -109,33 +109,90 @@ create index if not exists idx_players_name_trgm on players using gin (name gin_
 create index if not exists idx_players_club_trgm on players using gin (club gin_trgm_ops);
 create index if not exists idx_players_nationality_trgm on players using gin (nationality gin_trgm_ops);
 
--- Crawl queue/cache for the full-SCOUTASTIC-catalog sync. Discovering
--- every competition (GET /competitions, ~2,439 results) and every team
--- within the ones that qualify (~725 competitions, ~15,989 teams) is
--- itself real work — these tables cache that discovery so it doesn't
--- have to be redone every sync run, and double as the resumable work
--- queue for the actual squad-crawling (see docs/SCOUTASTIC_SYNC.md).
+-- Full SCOUTASTIC competition catalog (GET /competitions, ~2,439 results
+-- worldwide) — both the browsable "Competitions" feature's data source and
+-- the crawl queue/cache for the full-SCOUTASTIC-catalog player sync (see
+-- docs/SCOUTASTIC_SYNC.md, docs/COMPETITIONS.md). `competition_id` is
+-- SCOUTASTIC's own stable code (its `transfermarktId`, e.g. "PO1") — used
+-- directly as the primary key, same convention as `players.scoutastic_player_id`
+-- being the natural key there; no synthetic id needed.
+--
+-- `level`/`level_definition` are stored verbatim from SCOUTASTIC (e.g.
+-- level 2 / "Second Tier", level 14 / "League Cup") rather than mapped
+-- into an invented "type" taxonomy — SCOUTASTIC already combines tier and
+-- competition-type into this one human-readable label, confirmed against
+-- real responses; inventing a separate classification would just be
+-- guessing at a distinction SCOUTASTIC doesn't actually draw.
 create table if not exists scoutastic_competitions (
   competition_id text primary key,
   name text,
-  area text,
-  association text,
-  age_category text,
+  area text, -- country/region name — SCOUTASTIC gives no separate country id
+  association text, -- confederation code, e.g. "UEFA", "CAF", "AFC"
+  age_category text, -- "Senior" vs youth categories, straight from SCOUTASTIC
   is_active boolean not null default true,
-  team_count integer not null default 0,
-  discovered_at timestamptz not null default now()
+  team_count integer not null default 0
 );
 
+-- This table predates the columns below (created empty by an earlier
+-- version of this schema, possibly already applied to a live database) —
+-- `create table if not exists` above is then a no-op there, so every new
+-- column needs its own idempotent `add column if not exists` to actually
+-- reach an existing deployment. Safe either way: fresh install or
+-- already-existing empty table (never populated by any completed sync —
+-- see docs/SCOUTASTIC_SYNC.md).
+alter table scoutastic_competitions add column if not exists is_european boolean not null default false; -- association = 'UEFA', computed at sync time
+alter table scoutastic_competitions add column if not exists gender text;
+alter table scoutastic_competitions add column if not exists level integer;
+alter table scoutastic_competitions add column if not exists level_definition text;
+alter table scoutastic_competitions add column if not exists logo_url text;
+alter table scoutastic_competitions add column if not exists available_seasons jsonb not null default '[]';
+alter table scoutastic_competitions add column if not exists current_season integer;
+alter table scoutastic_competitions add column if not exists season_start_date date;
+alter table scoutastic_competitions add column if not exists season_end_date date;
+alter table scoutastic_competitions add column if not exists created_at timestamptz not null default now();
+alter table scoutastic_competitions add column if not exists updated_at timestamptz not null default now();
+alter table scoutastic_competitions add column if not exists last_scoutastic_sync_at timestamptz;
+
+create index if not exists idx_competitions_is_european on scoutastic_competitions(is_european) where is_european = true;
+create index if not exists idx_competitions_area on scoutastic_competitions(area);
+create index if not exists idx_competitions_is_active on scoutastic_competitions(is_active) where is_active = true;
+create index if not exists idx_competitions_name_trgm on scoutastic_competitions using gin (name gin_trgm_ops);
+
+-- Many-to-many: a real club can play in a domestic league AND a domestic
+-- cup AND a continental competition in the same season — a single
+-- competition_id column on a teams table (the original, never-populated
+-- version of this schema) can't represent that. This junction is
+-- populated directly from GET /competitions' inline `teamIds` — no extra
+-- per-competition request needed (see docs/COMPETITIONS.md).
+create table if not exists competition_teams (
+  competition_id text not null references scoutastic_competitions(competition_id) on delete cascade,
+  team_id text not null,
+  team_name text,
+  primary key (competition_id, team_id)
+);
+
+create index if not exists idx_competition_teams_team on competition_teams(team_id);
+
+-- Pure crawl queue/cache for the resumable player-squad crawl (see
+-- docs/SCOUTASTIC_SYNC.md) — deliberately has no competition reference of
+-- its own now that competition_teams models that relationship properly;
+-- a team's crawl status doesn't depend on which competition(s) it's in.
 create table if not exists scoutastic_teams (
   team_id text primary key,
-  competition_id text not null references scoutastic_competitions(competition_id) on delete cascade,
   name text,
   discovered_at timestamptz not null default now(),
   last_crawled_at timestamptz -- null = never crawled, always processed first
 );
 
 create index if not exists idx_scoutastic_teams_last_crawled on scoutastic_teams(last_crawled_at nulls first);
-create index if not exists idx_scoutastic_teams_competition on scoutastic_teams(competition_id);
+
+-- scoutastic_teams predates the competition_teams junction above — its
+-- old single-competition column is now redundant (superseded, not
+-- preserved: never populated by any completed sync, see comment further
+-- up). scoutastic_competitions' old `discovered_at` is superseded by
+-- `created_at`/`updated_at` the same way.
+alter table scoutastic_teams drop column if exists competition_id;
+alter table scoutastic_competitions drop column if exists discovered_at;
 
 -- Single-row sync status, read by the Sidebar/Settings/SyncStatusBanner —
 -- moved out of data/players.json's `meta` object along with everything
@@ -171,6 +228,17 @@ create or replace view player_leagues
 create or replace view player_clubs
   with (security_invoker = true) as
   select distinct club as value from players where club is not null order by 1;
+
+-- Same reasoning, for the Competitions page's country filter. Scoped to
+-- Senior + male, matching the page's default (confirmed live: the raw
+-- European set is 1,350 competitions, most youth/women's — see
+-- docs/COMPETITIONS.md) — otherwise this would list a country whose only
+-- European competitions are youth leagues, with nothing to actually show.
+create or replace view competition_countries
+  with (security_invoker = true) as
+  select distinct area as value from scoutastic_competitions
+  where is_european = true and age_category = 'Senior' and gender = 'male' and area is not null
+  order by 1;
 
 create table if not exists shortlists (
   id uuid primary key default gen_random_uuid(),
@@ -221,4 +289,9 @@ create trigger trg_player_scouting_state_updated_at
 drop trigger if exists trg_players_updated_at on players;
 create trigger trg_players_updated_at
   before update on players
+  for each row execute function set_updated_at();
+
+drop trigger if exists trg_scoutastic_competitions_updated_at on scoutastic_competitions;
+create trigger trg_scoutastic_competitions_updated_at
+  before update on scoutastic_competitions
   for each row execute function set_updated_at();

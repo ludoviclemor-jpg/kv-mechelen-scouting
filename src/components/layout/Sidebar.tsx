@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  Trophy,
   Globe2,
   TrendingUp,
   ListChecks,
@@ -20,6 +21,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/players", label: "Players", icon: Users },
+  { href: "/competitions", label: "Competitions", icon: Trophy },
   { href: "/debutants", label: "African Debutants", icon: Globe2 },
   { href: "/top-performers", label: "Top Performers", icon: TrendingUp },
   { href: "/shortlists", label: "Shortlists", icon: ListChecks },

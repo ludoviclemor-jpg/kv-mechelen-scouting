@@ -229,6 +229,8 @@ export interface PlayersQueryParams {
   nationality?: string;
   league?: string;
   club?: string;
+  competitionId?: string; // exact SCOUTASTIC competition id — used by the Competition detail page
+  africanOnly?: boolean;
   ageBand?: string;
   valueBand?: string;
   contractBand?: string;
@@ -314,6 +316,8 @@ export async function fetchPlayersPage(
   if (params.nationality && params.nationality !== "all") q = q.eq("nationality", params.nationality);
   if (params.league && params.league !== "all") q = q.eq("league", params.league);
   if (params.club && params.club !== "all") q = q.eq("club", params.club);
+  if (params.competitionId) q = q.eq("competition_id", params.competitionId);
+  if (params.africanOnly) q = q.eq("is_african", true);
 
   const dobRange = ageBandToDobRange(params.ageBand, today);
   if (dobRange.gt) q = q.gt("date_of_birth", dobRange.gt);

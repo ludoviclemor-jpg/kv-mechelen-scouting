@@ -1,0 +1,45 @@
+name: Sync SCOUTASTIC Competitions
+
+# Discovers every SCOUTASTIC competition (GET /competitions, ~2,439
+# worldwide — see docs/COMPETITIONS.md) and upserts them straight into
+# Postgres. Unlike the player sync, this never touches the git repo —
+# competition data lives only in Supabase, read by the frontend at
+# runtime, so there's nothing to commit and no Pages deploy to trigger.
+#
+# Needs SUPABASE_SERVICE_ROLE_KEY (bypasses Row Level Security by design
+# — that's what lets this script write to a table the frontend can only
+# read) as a repository secret, in addition to the existing
+# SCOUTASTIC_API_KEY secret and NEXT_PUBLIC_SUPABASE_URL variable. Never
+# put the service_role key in a variable (public) or in any file — secret
+# only, same handling as SCOUTASTIC_API_KEY.
+
+on:
+  schedule:
+    - cron: "30 5 * * *" # 05:30 UTC daily — after the player sync's 05:00 slot
+  workflow_dispatch: {} # manual trigger from the Actions tab
+
+concurrency:
+  group: "scoutastic-competitions-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run competition sync
+        env:
+          SCOUTASTIC_API_KEY: ${{ secrets.SCOUTASTIC_API_KEY }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-competitions.mjs

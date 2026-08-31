@@ -22,11 +22,26 @@ export interface AsyncState<T> {
  */
 export function useAsync<T>(fetcher: () => Promise<T>, deps: unknown[]): AsyncState<T> {
   const [state, setState] = useState<AsyncState<T>>({ data: null, loading: true, error: null });
+  // Keeping "the fetcher to call" in a ref (updated inside the effect
+  // below, never during render — react-hooks/refs) lets the effect always
+  // call the latest closure without needing the fetcher's own,
+  // usually-new-every-render identity in its dependency array.
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   useEffect(() => {
     let cancelled = false;
+    // Resetting to "loading" synchronously here matches React's own
+    // documented data-fetching effect pattern (see the "Fetching data"
+    // example in the React docs) — flagged by the newer
+    // react-hooks/set-state-in-effect rule as a stricter default, but
+    // deliberately kept: every page in this app relies on `loading`
+    // flipping back to true when `deps` change (a filter, a page number),
+    // not just on first mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({ data: prev.data, loading: true, error: null }));
     fetcherRef
       .current()

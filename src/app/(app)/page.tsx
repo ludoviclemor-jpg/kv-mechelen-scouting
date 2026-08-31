@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Users, UserPlus, Globe2, Eye, ListChecks, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { Users, UserPlus, Globe2, Eye, ListChecks, TrendingUp, Trophy, MapPin, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -18,6 +19,7 @@ import {
   fetchRecentlyAdded,
   useAsync,
 } from "@/lib/players-data";
+import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
 
 export default function DashboardPage() {
   // Captured once per page load — a fresh value every render would
@@ -28,6 +30,8 @@ export default function DashboardPage() {
   const topPerformers = useAsync(() => fetchTopPerformers(5), []);
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
+  const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
+  const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
 
   const loading = overview.loading || topPerformers.loading || debutants.loading || recentlyAdded.loading;
   const error = overview.error ?? topPerformers.error ?? debutants.error ?? recentlyAdded.error;
@@ -96,6 +100,47 @@ export default function DashboardPage() {
               <div className="pt-3">
                 <RecentlyAddedTable players={recentlyAdded.data!} />
               </div>
+            </section>
+
+            <section className="border border-kvm-border bg-white pb-2">
+              <SectionHeader title="European Competitions" viewAllHref="/competitions" />
+              {competitionsSummary.error ? (
+                <div className="p-5 text-xs text-gray-400">Competition data unavailable.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
+                    <StatCard
+                      label="Competitions"
+                      value={competitionsSummary.data?.totalEuropean ?? "—"}
+                      icon={Trophy}
+                    />
+                    <StatCard label="Countries" value={competitionsSummary.data?.countriesCovered ?? "—"} icon={MapPin} />
+                    <StatCard label="Active" value={competitionsSummary.data?.activeEuropean ?? "—"} icon={Globe2} />
+                    <StatCard
+                      label="Players Covered"
+                      value={competitionsSummary.data?.playersInEuropeanCompetitions ?? "—"}
+                      icon={Users}
+                    />
+                  </div>
+                  {recentCompetitions.data && recentCompetitions.data.length > 0 ? (
+                    <ul className="divide-y divide-kvm-border border-t border-kvm-border">
+                      {recentCompetitions.data.map((c) => (
+                        <li key={c.id}>
+                          <Link
+                            href={`/competition?id=${c.id}`}
+                            className="flex items-center justify-between px-5 py-2.5 text-sm hover:bg-gray-50"
+                          >
+                            <span className="truncate font-medium text-kvm-ink">
+                              {c.name} <span className="font-normal text-gray-400">· {c.area}</span>
+                            </span>
+                            <ArrowRight size={13} className="shrink-0 text-gray-300" aria-hidden="true" />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
             </section>
           </>
         )}

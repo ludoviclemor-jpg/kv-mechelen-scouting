@@ -123,6 +123,47 @@ export async function fetchCompetitionTeams(apiBase, apiKey, competitionId, { ge
 }
 
 /**
+ * GET /competitions (no id) — confirmed real, bare endpoint listing every
+ * competition SCOUTASTIC knows about (2,439 at last count), not scoped to
+ * any club. Same Mongoose-paginate wrapper shape as fetchTeamPlayers.
+ *
+ * Confirmed real per-competition fields (see docs/COMPETITIONS.md for the
+ * full confirmed shape and a real sample): `transfermarktId` (the stable
+ * competition code, matches what `fetchCompetitionTeams`/the rest of this
+ * project calls `competitionId`), `name`, `area` (country/region name, no
+ * separate id field exists), `association` (confederation code, e.g.
+ * "UEFA"), `gender`, `ageCategory`, `isActive`, `level` + `levelDefinition`
+ * (SCOUTASTIC's own combined tier/type label — not split into separate
+ * fields, so this project doesn't invent that split either),
+ * `imageUrl`/`imageUrlV2`, `availableSeasons`, `season`, `startDate`,
+ * `endDate`, and — importantly — `teamIds`: the competition's team list is
+ * included inline here, so discovering every competition AND every
+ * competition's teams costs ~25 requests total (at limit=100), not one
+ * request per competition.
+ */
+export async function fetchAllCompetitions(apiBase, apiKey, { limit = 100, retries, onRetry } = {}) {
+  const all = [];
+  let page = 1;
+
+  while (true) {
+    const result = await apiGet(`${apiBase}/competitions`, { page, limit }, apiKey, { retries, onRetry });
+    if (!result.ok) return all.length > 0 ? { ok: true, data: all, partial: true, error: result.error } : result;
+
+    const raw = result.data;
+    const pageDocs = Array.isArray(raw?.docs) ? raw.docs : null;
+    if (pageDocs === null) {
+      return { ok: false, error: `Unrecognized /competitions response shape: ${JSON.stringify(Object.keys(raw ?? {}))}`, status: null };
+    }
+    all.push(...pageDocs);
+
+    if (!raw.hasNextPage || !raw.nextPage) break;
+    page = raw.nextPage;
+  }
+
+  return { ok: true, data: all };
+}
+
+/**
  * Confirmed real shape: a Mongoose-paginate wrapper — `{ docs, totalPages,
  * page, hasNextPage, nextPage, ... }`, not a bare array or `{ players }`.
  * Squads have stayed under one page (`limit`) in practice, but this walks

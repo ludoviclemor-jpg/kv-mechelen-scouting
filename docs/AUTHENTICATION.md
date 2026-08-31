@@ -57,6 +57,7 @@ depended on whether that page was a Server or Client Component:
 |---|---|---|
 | Dashboard (`/`) | Client | **No** |
 | Player profile (`/player?id=...`) | Client | **No** |
+| Competitions (`/competitions`), Competition detail (`/competition?id=...`) | Client | **No** — added with the Competitions feature (`docs/COMPETITIONS.md`), same query-string-route/Client-Component pattern as the player profile, for the same reason |
 | Players list, Debutants, Top Performers, Shortlists, Reports, Settings | Client | **No** |
 
 Scouting notes/status are unaffected regardless of route — always fetched
