@@ -54,7 +54,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-kvm-border-dark bg-kvm-charcoal text-white">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-kvm-border-dark bg-kvm-charcoal text-white">
       <div className="flex items-center gap-3 border-b border-kvm-border-dark px-5 py-5">
         <ClubCrest className="h-10 w-10 text-base shrink-0" />
         <div className="leading-tight">
