@@ -117,6 +117,16 @@ create index if not exists idx_players_league on players(league);
 create index if not exists idx_players_club on players(club);
 create index if not exists idx_players_status on players(sofascore_match_status);
 create index if not exists idx_players_market_value on players(market_value_eur);
+-- The Players page's *default* view (no filters, sorted by market value
+-- descending — fetchPlayersPage's default sortKey) does
+-- `ORDER BY market_value_eur DESC NULLS LAST`, but a plain btree index's
+-- natural order for DESC is NULLS FIRST — the mismatch meant Postgres
+-- couldn't use the index above for this exact sort and fell back to
+-- sorting the ~177k-row `active = true` scan directly. Confirmed live:
+-- this reproduced the reported "Couldn't load data" on the Players page
+-- — 8-9+ seconds / outright statement timeout even with the plain index
+-- in place. This index matches the query's actual requested order.
+create index if not exists idx_players_market_value_desc on players(market_value_eur desc nulls last);
 create index if not exists idx_players_contract_expiry on players(contract_expiry);
 create index if not exists idx_players_rating_average on players(rating_average);
 create index if not exists idx_players_rated_matches_count on players(rated_matches_count);
