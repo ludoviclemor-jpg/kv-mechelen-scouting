@@ -12,6 +12,7 @@ import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
+import { CallUpTable } from "@/components/players/CallUpTable";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import {
   fetchScoutingOverview,
@@ -21,6 +22,7 @@ import {
   useAsync,
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
+import { fetchFirstCallUps } from "@/lib/callups-data";
 
 export default function DashboardPage() {
   // Captured once per page load — a fresh value every render would
@@ -33,6 +35,7 @@ export default function DashboardPage() {
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
+  const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
 
   const loading = overview.loading || topPerformers.loading || debutants.loading || recentlyAdded.loading;
   const error = overview.error ?? topPerformers.error ?? debutants.error ?? recentlyAdded.error;
@@ -75,6 +78,13 @@ export default function DashboardPage() {
             <section className="border border-kvm-border bg-white pb-2">
               <SectionHeader title="Today's Matches" viewAllHref="/explore" />
               <TodaysMatches />
+            </section>
+
+            <section className="border border-kvm-border bg-white pb-2">
+              <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
+              <div className="pt-3">
+                <CallUpTable callUps={callUps.data ?? []} />
+              </div>
             </section>
 
             <section className="border border-kvm-border bg-white pb-4">

@@ -1,0 +1,48 @@
+name: Sync International Call-Ups
+
+# Powers the "First International Call-Ups" widget/page
+# (docs/INTERNATIONAL_CALLUPS.md) — syncs recent national-team matchday
+# squads (any confederation, any age level) into player_international_callups,
+# cross-referenced against players already in `players`. Small scope (92
+# active international competitions, ~1,600 matches/season combined) —
+# runs in one non-batched pass, like the competitions/matches syncs.
+#
+# Depends on scripts/sync-competitions.mjs having already run at least
+# once (reads scoutastic_competitions for the international-competition
+# list) and on scripts/sync-scoutastic.mjs for the players to
+# cross-reference against — scheduled after the other daily syncs.
+#
+# Needs SUPABASE_SERVICE_ROLE_KEY + SCOUTASTIC_API_KEY (secrets) and
+# NEXT_PUBLIC_SUPABASE_URL (variable) — same credentials already used by
+# the other sync workflows.
+
+on:
+  schedule:
+    - cron: "30 6 * * *" # 06:30 UTC daily — after player (05:00), competition (05:30) and match (06:00) syncs
+  workflow_dispatch: {}
+
+concurrency:
+  group: "scoutastic-international-callups-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run international call-up sync
+        env:
+          SCOUTASTIC_API_KEY: ${{ secrets.SCOUTASTIC_API_KEY }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-international-callups.mjs

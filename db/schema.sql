@@ -340,6 +340,29 @@ create table if not exists player_scouting_state (
 
 create index if not exists idx_shortlist_players_player on shortlist_players(scoutastic_player_id);
 
+-- Real "first call-up" (squad selection), not "first appearance" — see
+-- docs/INTERNATIONAL_CALLUPS.md. One row per (player, level): a player
+-- can have both a U21 row and, later, a separate Senior row. Populated by
+-- scripts/sync-international-callups.mjs, which only ever moves
+-- first_call_up_date *earlier* on a re-run (a later sync window covering
+-- more history should never regress an already-detected earlier date).
+create table if not exists player_international_callups (
+  player_id text not null references players(id) on delete cascade,
+  level text not null, -- the competition's age_category at match time: 'Senior', 'U21', 'U20', 'U19', 'U18', 'U17', or whatever else SCOUTASTIC returns — not a fixed enum, since the real data isn't one either
+  team_name text not null, -- e.g. "Belgium", "Belgium U21" — the national team as SCOUTASTIC names it
+  team_id text,
+  competition_id text references scoutastic_competitions(competition_id) on delete set null,
+  first_call_up_date date not null,
+  -- true if the player actually played (inLineup or minutesPlayed > 0) in
+  -- that first call-up match, not just an unused squad member — lets the
+  -- UI distinguish "called up and played" from "called up, unused".
+  first_call_up_appeared boolean not null default false,
+  updated_at timestamptz not null default now(),
+  primary key (player_id, level)
+);
+
+create index if not exists idx_player_intl_callups_date on player_international_callups(first_call_up_date desc);
+
 -- keep updated_at current on write, instead of relying on every caller to set it
 create or replace function set_updated_at() returns trigger as $$
 begin
@@ -371,4 +394,9 @@ create trigger trg_scoutastic_competitions_updated_at
 drop trigger if exists trg_matches_updated_at on matches;
 create trigger trg_matches_updated_at
   before update on matches
+  for each row execute function set_updated_at();
+
+drop trigger if exists trg_player_international_callups_updated_at on player_international_callups;
+create trigger trg_player_international_callups_updated_at
+  before update on player_international_callups
   for each row execute function set_updated_at();
