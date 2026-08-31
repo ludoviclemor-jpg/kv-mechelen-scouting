@@ -68,6 +68,12 @@ create policy "authenticated can read player_international_callups" on player_in
   for select to authenticated using (true);
 -- Also written only by scripts/sync-international-callups.mjs's service_role key.
 
+alter table ai_scouting_tips enable row level security;
+drop policy if exists "authenticated can read ai_scouting_tips" on ai_scouting_tips;
+create policy "authenticated can read ai_scouting_tips" on ai_scouting_tips
+  for select to authenticated using (true);
+-- Also written only by scripts/generate-ai-tips.mjs's service_role key.
+
 -- player_nationalities / player_leagues / player_clubs are plain views
 -- (security_invoker = true, see schema.sql) — they carry no policies of
 -- their own and never need any; they're exactly as readable as `players`

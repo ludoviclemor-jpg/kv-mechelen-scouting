@@ -107,6 +107,32 @@ function seasonsToSync(comp, count) {
   return seasons;
 }
 
+/**
+ * The competition's own `age_category` is NOT reliable for level —
+ * confirmed live (2026-08-31): "FS" (International Friendlies) is a
+ * single shared bucket across every age level in SCOUTASTIC's data (a
+ * real U15 fixture, "Finland U15", showed up tagged `age_category:
+ * "Senior"` at the competition level), so relying on it alone
+ * mis-labeled real U15/U16/U17 call-ups as "Senior". The national
+ * team's own name is the reliable signal instead — SCOUTASTIC
+ * consistently suffixes youth sides ("Hungary U17"), and a name with no
+ * such suffix is the senior side. Falls back to the competition's
+ * age_category only when the team name itself has no U-suffix but the
+ * competition is unambiguously youth-scoped anyway (a competition like
+ * "U19Q" should never really hit this path, but it's a safety net, not
+ * the primary signal).
+ */
+function levelFromTeamName(teamName) {
+  const match = typeof teamName === "string" ? teamName.match(/\bU-?(\d{1,2})\b/i) : null;
+  return match ? `U${match[1]}` : null;
+}
+
+function deriveLevel(teamName, competitionAgeCategory) {
+  const fromName = levelFromTeamName(teamName);
+  if (fromName) return fromName;
+  return competitionAgeCategory && competitionAgeCategory !== "Senior" ? competitionAgeCategory : "Senior";
+}
+
 /** Every lineup player on either side who matches a player we already track — never a global crawl of every capped player worldwide. */
 function extractCandidates(rawMatch, competition, knownPlayerIds) {
   const candidates = [];
@@ -128,7 +154,7 @@ function extractCandidates(rawMatch, competition, knownPlayerIds) {
 
       candidates.push({
         playerId,
-        level: typeof competition.age_category === "string" && competition.age_category ? competition.age_category : "Unknown",
+        level: deriveLevel(side.teamName, competition.age_category),
         teamName: side.teamName,
         teamId: side.teamId !== undefined && side.teamId !== null ? String(side.teamId) : null,
         competitionId: competition.competition_id,

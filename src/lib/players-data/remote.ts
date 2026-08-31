@@ -510,18 +510,53 @@ export const LOAN_WATCH_DEFAULT_MAX_MINUTES = 450; // roughly five full matches 
  * surfaces players who *have* featured but rarely, not players with no
  * recorded matches at all (more likely a data gap than a real signal).
  */
-export async function fetchLoanWatchCandidates(options: { maxMinutes?: number; limit?: number } = {}): Promise<Player[]> {
+export interface LoanWatchQueryParams {
+  maxMinutes?: number;
+  position?: string;
+  nationality?: string;
+  league?: string; // country — same convention as fetchPlayersPage
+  competitionId?: string;
+  club?: string;
+  ageRange?: AgeRange;
+  valueBand?: string;
+  limit?: number;
+}
+
+/**
+ * All filters applied server-side, same convention as fetchPlayersPage —
+ * important here specifically because the result is a *capped* set
+ * (ordered by minutes ascending, `limit`): filtering client-side after
+ * the cap would silently miss real matches outside whatever happened to
+ * be the 300 lowest-minutes players overall, e.g. a Country filter could
+ * come back empty even when real matches exist further down the
+ * minutes-ordered list.
+ */
+export async function fetchLoanWatchCandidates(options: LoanWatchQueryParams = {}): Promise<Player[]> {
   if (!isSupabaseConfigured()) notConfigured();
   const maxMinutes = options.maxMinutes ?? LOAN_WATCH_DEFAULT_MAX_MINUTES;
-  const { data, error } = await getSupabaseClient()
+  let query = getSupabaseClient()
     .from("players")
     .select(PLAYER_COLUMNS)
     .eq("active", true)
     .eq("is_youth_or_reserve", false)
     .gt("appearances", 0)
-    .lte("minutes", maxMinutes)
-    .order("minutes", { ascending: true })
-    .limit(options.limit ?? 300);
+    .lte("minutes", maxMinutes);
+
+  if (options.position && options.position !== "all") query = query.eq("position", options.position);
+  if (options.nationality && options.nationality !== "all") query = query.eq("nationality", options.nationality);
+  if (options.league && options.league !== "all") query = query.eq("league", options.league);
+  if (options.competitionId && options.competitionId !== "all") query = query.eq("competition_id", options.competitionId);
+  if (options.club && options.club !== "all") query = query.eq("club", options.club);
+  if (options.ageRange) {
+    const { gt, lte } = ageRangeToDobRange(options.ageRange);
+    if (gt) query = query.gt("date_of_birth", gt);
+    if (lte) query = query.lte("date_of_birth", lte);
+  }
+  const { gte: valueGte, lt: valueLt } = valueBandToRange(options.valueBand);
+  if (valueGte !== undefined) query = query.gte("market_value_eur", valueGte);
+  if (valueLt !== undefined) query = query.lt("market_value_eur", valueLt);
+
+  const { data, error } = await query.order("minutes", { ascending: true }).limit(options.limit ?? 300);
   if (error) throw error;
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
