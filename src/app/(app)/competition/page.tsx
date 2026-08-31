@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Trophy, Users, Calendar, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
+import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { AgeFilter } from "@/components/ui/AgeFilter";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,17 +13,10 @@ import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { PlayerTable, type PlayerSortKey, type SortDirection } from "@/components/players/PlayerTable";
 import { fetchCompetitionById, type Competition } from "@/lib/competitions-data";
 import { fetchPlayersPage, POSITIONS, POSITION_LABELS, useAsync } from "@/lib/players-data";
+import { ageRangeLabel, type AgeRange } from "@/lib/agePresets";
 
 const PAGE_SIZE = 25;
-
-const AGE_BANDS = [
-  { value: "all", label: "All ages" },
-  { value: "u21", label: "Under 21" },
-  { value: "21-23", label: "21 – 23" },
-  { value: "24-26", label: "24 – 26" },
-  { value: "27-29", label: "27 – 29" },
-  { value: "30+", label: "30+" },
-];
+const ALL_AGES: AgeRange = { min: null, max: null };
 
 const VALUE_BANDS = [
   { value: "all", label: "All values" },
@@ -31,6 +25,8 @@ const VALUE_BANDS = [
   { value: "3-6", label: "€3M – €6M" },
   { value: "6+", label: "€6M+" },
 ];
+
+const VALUE_BAND_LABELS: Record<string, string> = Object.fromEntries(VALUE_BANDS.map((b) => [b.value, b.label]));
 
 function useDebounced<T>(value: T, delayMs = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -81,7 +77,7 @@ function CompetitionContent() {
 
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("all");
-  const [ageBand, setAgeBand] = useState("all");
+  const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
   const [valueBand, setValueBand] = useState("all");
   const [africanOnly, setAfricanOnly] = useState(false);
   const [sortKey, setSortKey] = useState<PlayerSortKey>("marketValueEUR");
@@ -99,7 +95,7 @@ function CompetitionContent() {
             competitionId: id,
             search: debouncedSearch,
             position,
-            ageBand,
+            ageRange,
             valueBand,
             africanOnly,
             sortKey,
@@ -108,7 +104,7 @@ function CompetitionContent() {
             pageSize: PAGE_SIZE,
           })
         : Promise.resolve({ players: [], total: 0 }),
-    [id, debouncedSearch, position, ageBand, valueBand, africanOnly, sortKey, sortDirection, page]
+    [id, debouncedSearch, position, ageRange, valueBand, africanOnly, sortKey, sortDirection, page]
   );
 
   function handleSort(key: PlayerSortKey) {
@@ -184,6 +180,21 @@ function CompetitionContent() {
   const total = playersResult.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const ageLabel = ageRangeLabel(ageRange);
+  const chips: ActiveFilterChip[] = [];
+  if (position !== "all") chips.push({ key: "position", label: "Position", value: POSITION_LABELS[position as keyof typeof POSITION_LABELS], onClear: () => resetPage(setPosition)("all") });
+  if (ageLabel) chips.push({ key: "age", label: "Age", value: ageLabel, onClear: () => resetPage(setAgeRange)(ALL_AGES) });
+  if (valueBand !== "all") chips.push({ key: "value", label: "Value", value: VALUE_BAND_LABELS[valueBand], onClear: () => resetPage(setValueBand)("all") });
+  if (africanOnly) chips.push({ key: "african", label: "Nationality", value: "African only", onClear: () => resetPage(setAfricanOnly)(false) });
+  function clearAll() {
+    setSearch("");
+    setPosition("all");
+    setAgeRange(ALL_AGES);
+    setValueBand("all");
+    setAfricanOnly(false);
+    setPage(1);
+  }
+
   return (
     <>
       <PageHeader
@@ -204,7 +215,7 @@ function CompetitionContent() {
           onChange={resetPage(setPosition)}
           options={[{ value: "all", label: "All positions" }, ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] }))]}
         />
-        <FilterSelect label="Age" value={ageBand} onChange={resetPage(setAgeBand)} options={AGE_BANDS} />
+        <AgeFilter range={ageRange} onChange={resetPage(setAgeRange)} />
         <FilterSelect label="Market Value" value={valueBand} onChange={resetPage(setValueBand)} options={VALUE_BANDS} />
         <FilterSelect
           label="Nationality"
@@ -216,6 +227,8 @@ function CompetitionContent() {
           ]}
         />
       </FilterBar>
+
+      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
         {playersResult.error ? (

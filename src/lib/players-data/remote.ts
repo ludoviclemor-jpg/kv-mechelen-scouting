@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
 import { MINIMUM_RATED_MATCHES } from "./constants";
 import type {
   MatchRating,
@@ -229,40 +230,15 @@ export interface PlayersQueryParams {
   nationality?: string;
   league?: string;
   club?: string;
-  competitionId?: string; // exact SCOUTASTIC competition id — used by the Competition detail page
+  competitionId?: string; // exact SCOUTASTIC competition id — used by the Competition detail page and the Country -> Competition -> Club cascade
   africanOnly?: boolean;
-  ageBand?: string;
+  ageRange?: AgeRange; // shared preset/custom-range system — see src/lib/agePresets.ts
   valueBand?: string;
   contractBand?: string;
   sortKey: PlayerSortKey;
   sortDirection: "asc" | "desc";
   page: number; // 1-based
   pageSize: number;
-}
-
-/** `today` is injected (not `new Date()`) so age-band math is deterministic and testable. */
-function ageBandToDobRange(band: string | undefined, today: Date): { gt?: string; lte?: string } {
-  if (!band || band === "all") return {};
-  const minus = (years: number) => {
-    const d = new Date(today);
-    d.setFullYear(d.getFullYear() - years);
-    return d.toISOString().slice(0, 10);
-  };
-  // age >= N  <=>  dob <= today-N-years ; age <= N  <=>  dob > today-(N+1)-years
-  switch (band) {
-    case "u21":
-      return { gt: minus(21) };
-    case "21-23":
-      return { lte: minus(21), gt: minus(24) };
-    case "24-26":
-      return { lte: minus(24), gt: minus(27) };
-    case "27-29":
-      return { lte: minus(27), gt: minus(30) };
-    case "30+":
-      return { lte: minus(30) };
-    default:
-      return {};
-  }
 }
 
 function valueBandToRange(band: string | undefined): { gte?: number; lt?: number } {
@@ -319,7 +295,7 @@ export async function fetchPlayersPage(
   if (params.competitionId) q = q.eq("competition_id", params.competitionId);
   if (params.africanOnly) q = q.eq("is_african", true);
 
-  const dobRange = ageBandToDobRange(params.ageBand, today);
+  const dobRange = ageRangeToDobRange(params.ageRange ?? { min: null, max: null }, today);
   if (dobRange.gt) q = q.gt("date_of_birth", dobRange.gt);
   if (dobRange.lte) q = q.lte("date_of_birth", dobRange.lte);
 
@@ -367,6 +343,39 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
     leagues: (leagues.data ?? []).map((r) => r.value as string),
     clubs: (clubs.data ?? []).map((r) => r.value as string),
   };
+}
+
+export interface CompetitionOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * Cascading Country -> Competition step. `country` is a value from
+ * `player_leagues` (players.league — the competition's country, set at
+ * sync time, see scripts/lib/fieldMap.mjs — a naming leftover, it's not
+ * actually a competition name). Real competition names come from the
+ * `player_competitions_in_country` Postgres function (db/schema.sql),
+ * which joins against scoutastic_competitions and only returns
+ * competitions that actually have synced players — never a dead-end
+ * selection with zero results.
+ */
+export async function fetchCompetitionsInCountry(country: string): Promise<CompetitionOption[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient().rpc("player_competitions_in_country", { country });
+  if (error) throw error;
+  return (data ?? []).map((r: { competition_id: string; name: string | null }) => ({
+    id: r.competition_id,
+    name: r.name ?? r.competition_id,
+  }));
+}
+
+/** Cascading Competition -> Club step — see fetchCompetitionsInCountry's reasoning; same function-over-view approach since this needs a parameter. */
+export async function fetchClubsInCompetition(competitionId: string): Promise<string[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient().rpc("player_clubs_in_competition", { comp_id: competitionId });
+  if (error) throw error;
+  return (data ?? []).map((r: { club: string }) => r.club);
 }
 
 /**

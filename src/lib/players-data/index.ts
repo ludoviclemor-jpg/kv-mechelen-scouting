@@ -11,6 +11,8 @@ export {
   searchPlayers,
   fetchPlayersPage,
   fetchFilterOptions,
+  fetchCompetitionsInCountry,
+  fetchClubsInCompetition,
   fetchTopPerformers,
   fetchAfricanDebutants,
   fetchRecentlyAdded,
@@ -19,6 +21,7 @@ export {
   type PlayerSortKey,
   type PlayersQueryParams,
   type FilterOptions,
+  type CompetitionOption,
   type ScoutingOverview,
 } from "./remote";
 

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect } from "@/components/ui/FilterBar";
+import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { AgeFilter } from "@/components/ui/AgeFilter";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -12,30 +13,11 @@ import {
   POSITIONS,
   POSITION_LABELS,
 } from "@/lib/players-data";
+import { ageRangeLabel, matchesAgeRange, type AgeRange } from "@/lib/agePresets";
 import { calculateAge } from "@/lib/utils";
 import { Globe2 } from "lucide-react";
 
-const AGE_BANDS = [
-  { value: "all", label: "All ages" },
-  { value: "u20", label: "Under 20" },
-  { value: "20-22", label: "20 – 22" },
-  { value: "23+", label: "23+" },
-];
-
-function matchesAgeBand(age: number | null, band: string) {
-  if (band === "all") return true;
-  if (age === null) return false; // unknown age never matches a specific band
-  switch (band) {
-    case "u20":
-      return age < 20;
-    case "20-22":
-      return age >= 20 && age <= 22;
-    case "23+":
-      return age >= 23;
-    default:
-      return true;
-  }
-}
+const ALL_AGES: AgeRange = { min: null, max: null };
 
 function uniqueSorted(values: (string | null)[]) {
   return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
@@ -47,7 +29,7 @@ export default function DebutantsPage() {
   const [country, setCountry] = useState("all");
   const [league, setLeague] = useState("all");
   const [position, setPosition] = useState("all");
-  const [ageBand, setAgeBand] = useState("all");
+  const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
   const [sortByDebutDate, setSortByDebutDate] = useState<"newest" | "oldest">(
     "newest"
   );
@@ -73,14 +55,27 @@ export default function DebutantsPage() {
         if (country !== "all" && p.nationality !== country) return false;
         if (league !== "all" && p.league !== league) return false;
         if (position !== "all" && p.position !== position) return false;
-        if (!matchesAgeBand(calculateAge(p.dateOfBirth), ageBand)) return false;
+        if (!matchesAgeRange(calculateAge(p.dateOfBirth), ageRange)) return false;
         return true;
       })
       .sort((a, b) => {
         const cmp = (a.debutDate ?? "").localeCompare(b.debutDate ?? "");
         return sortByDebutDate === "newest" ? -cmp : cmp;
       });
-  }, [allDebutants, country, league, position, ageBand, sortByDebutDate]);
+  }, [allDebutants, country, league, position, ageRange, sortByDebutDate]);
+
+  const ageLabel = ageRangeLabel(ageRange);
+  const chips: ActiveFilterChip[] = [];
+  if (country !== "all") chips.push({ key: "country", label: "Nationality", value: country, onClear: () => setCountry("all") });
+  if (league !== "all") chips.push({ key: "league", label: "League", value: league, onClear: () => setLeague("all") });
+  if (position !== "all") chips.push({ key: "position", label: "Position", value: POSITION_LABELS[position as keyof typeof POSITION_LABELS], onClear: () => setPosition("all") });
+  if (ageLabel) chips.push({ key: "age", label: "Age", value: ageLabel, onClear: () => setAgeRange(ALL_AGES) });
+  function clearAll() {
+    setCountry("all");
+    setLeague("all");
+    setPosition("all");
+    setAgeRange(ALL_AGES);
+  }
 
   return (
     <>
@@ -111,7 +106,7 @@ export default function DebutantsPage() {
             ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
           ]}
         />
-        <FilterSelect label="Age" value={ageBand} onChange={setAgeBand} options={AGE_BANDS} />
+        <AgeFilter range={ageRange} onChange={setAgeRange} />
         <FilterSelect
           label="Debut date"
           value={sortByDebutDate}
@@ -122,6 +117,8 @@ export default function DebutantsPage() {
           ]}
         />
       </FilterBar>
+
+      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
       <div className="mx-8 my-6 border border-kvm-border bg-white">
         {error ? (

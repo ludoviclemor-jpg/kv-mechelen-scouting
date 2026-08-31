@@ -274,6 +274,33 @@ create or replace view player_clubs
   with (security_invoker = true) as
   select distinct club as value from players where club is not null order by 1;
 
+-- Cascading Country -> Competition -> Club filters (Players, Debutants,
+-- Top Performers, Explore). Plain views can't take a parameter, so these
+-- are functions instead — `security invoker` is the function equivalent
+-- of a view's `security_invoker = true`: without it, a function runs
+-- with its *owner's* privileges, bypassing the caller's RLS entirely.
+-- `stable` (not `volatile`) tells Postgres this only reads data, letting
+-- it optimize accordingly. `players.league` is already "the competition's
+-- country" (set at sync time from the competition being crawled, see
+-- scripts/lib/fieldMap.mjs) — the real competition *name* only exists on
+-- scoutastic_competitions, hence the join below.
+create or replace function player_competitions_in_country(country text)
+returns table(competition_id text, name text) as $$
+  select distinct p.competition_id, sc.name
+  from players p
+  left join scoutastic_competitions sc on sc.competition_id = p.competition_id
+  where p.league = country and p.competition_id is not null and p.active = true
+  order by sc.name;
+$$ language sql stable security invoker;
+
+create or replace function player_clubs_in_competition(comp_id text)
+returns table(club text) as $$
+  select distinct p.club
+  from players p
+  where p.competition_id = comp_id and p.club is not null and p.active = true
+  order by p.club;
+$$ language sql stable security invoker;
+
 -- Same reasoning, for the Competitions page's country filter. Scoped to
 -- Senior + male, matching the page's default (confirmed live: the raw
 -- European set is 1,350 competitions, most youth/women's — see
