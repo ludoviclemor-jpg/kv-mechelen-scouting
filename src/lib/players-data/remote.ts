@@ -541,11 +541,22 @@ export async function fetchScoutingOverview(referenceDateISO: string): Promise<S
   const fourteenDaysAgo = new Date(referenceDateISO);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
+  // `total`/`fresh` scan the *entire* players table (177k+ rows, growing) —
+  // `active` alone matches essentially every row (no deactivation logic
+  // exists yet, see docs/SCOUTASTIC_SYNC.md's "known gap"), and after a
+  // large crawl most of the table can genuinely have a recent
+  // `created_at` too, so neither filter is actually selective. An exact
+  // COUNT(*) here confirmed live to take 5-9+ seconds and intermittently
+  // error outright even after VACUUM ANALYZE — this is what surfaced as
+  // "Dashboard error says can't load data" for real. `count: "planned"`
+  // uses Postgres's own fast statistics-based row estimate instead of a
+  // real scan — perfectly fine for a rough dashboard KPI tile, and
+  // consistently fast regardless of table size.
   const [total, fresh, debutants, monitored, shortlists] = await Promise.all([
-    db.from("players").select("id", { count: "exact", head: true }).eq("active", true),
+    db.from("players").select("id", { count: "planned", head: true }).eq("active", true),
     db
       .from("players")
-      .select("id", { count: "exact", head: true })
+      .select("id", { count: "planned", head: true })
       .eq("active", true)
       .gte("created_at", fourteenDaysAgo.toISOString()),
     db
