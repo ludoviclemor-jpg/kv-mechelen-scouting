@@ -12,7 +12,7 @@ export function PageHeader({
   return (
     <header className="flex items-start justify-between gap-4 border-b border-kvm-border bg-white px-8 py-5">
       <div>
-        <h1 className="text-lg font-bold tracking-tight text-kvm-ink">
+        <h1 className="text-xl font-bold tracking-tight text-kvm-ink">
           {title}
         </h1>
         {description ? (
