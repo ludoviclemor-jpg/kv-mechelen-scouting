@@ -35,48 +35,52 @@ const VALUE_BANDS = [
 ];
 const VALUE_BAND_LABELS: Record<string, string> = Object.fromEntries(VALUE_BANDS.map((b) => [b.value, b.label]));
 
-// "Professional" is genuinely ambiguous below the top few tiers (varies by
-// country) — exposed as an adjustable filter rather than a silent
-// hardcoded cutoff. Default excludes cup/youth-league noise (see
-// fetchProfessionalCompetitionIds' own comment) at a conservative tier
-// cutoff; "All levels" keeps the full crawled pool, cup contexts included.
-const TIER_OPTIONS = [
-  { value: "2", label: "Top 2 divisions (default)" },
-  { value: "1", label: "Top division only" },
-  { value: "3", label: "Top 3 divisions" },
-  { value: "all", label: "All levels (incl. cups/amateur)" },
+/**
+ * One combined "Level" filter — division-tier cutoffs and region groups
+ * both narrow the same underlying idea ("which competitions count") and
+ * a scout only ever wants one active at a time, so this is a single
+ * select rather than two separate filters. Value encodes which kind:
+ * `tier:N` -> maxTierLevel, `region:key` -> leagueGroup (see
+ * fetchLoanWatchCandidates in players-data/remote.ts).
+ *
+ * "Professional" is genuinely ambiguous below the top few tiers (varies
+ * by country) — this stays adjustable, not a silently hardcoded cutoff.
+ * Region country names confirmed live against players.league — see
+ * LOAN_WATCH_LEAGUE_GROUPS' own comment for why Luxembourg/Finland/
+ * Iceland are deliberately excluded from Benelux/Scandinavia.
+ */
+const LEVEL_OPTIONS = [
+  { value: "tier:2", label: "Top 2 divisions (default)" },
+  { value: "tier:1", label: "Top division only" },
+  { value: "tier:3", label: "Top 3 divisions" },
+  { value: "tier:all", label: "All levels (incl. cups/amateur)" },
+  { value: "region:top5", label: `Top 5 leagues (${LOAN_WATCH_LEAGUE_GROUPS.top5.join(", ")})` },
+  { value: "region:benelux", label: `Benelux (${LOAN_WATCH_LEAGUE_GROUPS.benelux.join(", ")})` },
+  { value: "region:scandinavia", label: `Scandinavia (${LOAN_WATCH_LEAGUE_GROUPS.scandinavia.join(", ")})` },
+  { value: "region:others", label: "Other regions" },
 ];
-const DEFAULT_TIER = "2"; // top 2 divisions per country by default — confirmed live no lower tier leaks through this filter (docs/LOAN_WATCH.md)
-
-// Real country names, confirmed live against players.league — see
-// LOAN_WATCH_LEAGUE_GROUPS' own comment in players-data/remote.ts for
-// why Luxembourg/Finland/Iceland are deliberately excluded.
-const LEAGUE_GROUP_OPTIONS = [
-  { value: "all", label: "All regions" },
-  { value: "top5", label: `Top 5 (${LOAN_WATCH_LEAGUE_GROUPS.top5.join(", ")})` },
-  { value: "benelux", label: `Benelux (${LOAN_WATCH_LEAGUE_GROUPS.benelux.join(", ")})` },
-  { value: "scandinavia", label: `Scandinavia (${LOAN_WATCH_LEAGUE_GROUPS.scandinavia.join(", ")})` },
-  { value: "others", label: "Others (everywhere else)" },
-];
+const DEFAULT_LEVEL = "tier:2"; // top 2 divisions per country by default — confirmed live no lower tier leaks through this filter (docs/LOAN_WATCH.md)
 
 export default function LoanWatchPage() {
   const [maxMinutes, setMaxMinutes] = useState(String(LOAN_WATCH_DEFAULT_MAX_MINUTES));
-  const [tier, setTier] = useState(DEFAULT_TIER);
+  const [level, setLevel] = useState(DEFAULT_LEVEL);
   const [position, setPosition] = useState("all");
   const [nationality, setNationality] = useState("all");
-  const [leagueGroup, setLeagueGroup] = useState("all");
   // Cascading: country -> competition -> club, same convention as the
   // Players page — changing a parent clears its children so the UI can
-  // never show options that don't actually apply anymore. League Group
-  // and Country both filter the same underlying column at different
-  // granularities, so picking one clears the other rather than letting
-  // them silently conflict (e.g. Country=France + Group=Scandinavia
-  // would just return nothing, with no indication why).
+  // never show options that don't actually apply anymore. The combined
+  // Level filter and Country both narrow the same underlying column at
+  // different granularities, so picking a region clears Country (and
+  // vice versa) rather than letting them silently conflict.
   const [country, setCountry] = useState("all");
   const [competitionId, setCompetitionId] = useState("all");
   const [club, setClub] = useState("all");
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
   const [valueBand, setValueBand] = useState("all");
+
+  const [levelKind, levelValue] = level.split(":");
+  const maxTierLevel = levelKind === "tier" ? (levelValue === "all" ? null : Number(levelValue)) : null;
+  const leagueGroup = levelKind === "region" ? levelValue : "all";
 
   const filterOptions = useAsync(() => fetchFilterOptions(), []);
   const competitionOptions = useAsync(() => (country !== "all" ? fetchCompetitionsInCountry(country) : Promise.resolve([])), [country]);
@@ -98,23 +102,25 @@ export default function LoanWatchPage() {
         club,
         ageRange,
         valueBand,
-        maxTierLevel: tier === "all" ? null : Number(tier),
+        maxTierLevel,
       }),
-    [maxMinutes, position, nationality, country, leagueGroup, competitionId, club, ageRange, valueBand, tier]
+    [maxMinutes, position, nationality, country, leagueGroup, competitionId, club, ageRange, valueBand, maxTierLevel]
   );
+
+  function handleLevelChange(value: string) {
+    setLevel(value);
+    if (value.startsWith("region:")) {
+      setCountry("all");
+      setCompetitionId("all");
+      setClub("all");
+    }
+  }
 
   function handleCountryChange(value: string) {
     setCountry(value);
     setCompetitionId("all");
     setClub("all");
-    setLeagueGroup("all");
-  }
-
-  function handleLeagueGroupChange(value: string) {
-    setLeagueGroup(value);
-    setCountry("all");
-    setCompetitionId("all");
-    setClub("all");
+    if (value !== "all" && level.startsWith("region:")) setLevel(DEFAULT_LEVEL);
   }
 
   function handleCompetitionChange(value: string) {
@@ -129,10 +135,9 @@ export default function LoanWatchPage() {
     const opt = MINUTES_OPTIONS.find((o) => o.value === maxMinutes);
     chips.push({ key: "minutes", label: "Minutes", value: opt?.label ?? `Under ${maxMinutes}′`, onClear: () => setMaxMinutes(String(LOAN_WATCH_DEFAULT_MAX_MINUTES)) });
   }
-  if (tier !== DEFAULT_TIER) chips.push({ key: "tier", label: "Level", value: TIER_OPTIONS.find((o) => o.value === tier)?.label ?? tier, onClear: () => setTier(DEFAULT_TIER) });
+  if (level !== DEFAULT_LEVEL) chips.push({ key: "level", label: "Level", value: LEVEL_OPTIONS.find((o) => o.value === level)?.label ?? level, onClear: () => setLevel(DEFAULT_LEVEL) });
   if (position !== "all") chips.push({ key: "position", label: "Position", value: POSITION_LABELS[position as keyof typeof POSITION_LABELS], onClear: () => setPosition("all") });
   if (nationality !== "all") chips.push({ key: "nationality", label: "Nationality", value: nationality, onClear: () => setNationality("all") });
-  if (leagueGroup !== "all") chips.push({ key: "leagueGroup", label: "Region", value: LEAGUE_GROUP_OPTIONS.find((o) => o.value === leagueGroup)?.label ?? leagueGroup, onClear: () => handleLeagueGroupChange("all") });
   if (country !== "all") chips.push({ key: "country", label: "Country", value: country, onClear: () => handleCountryChange("all") });
   if (competitionId !== "all") chips.push({ key: "competition", label: "Competition", value: competitionName, onClear: () => handleCompetitionChange("all") });
   if (club !== "all") chips.push({ key: "club", label: "Club", value: club, onClear: () => setClub("all") });
@@ -140,10 +145,9 @@ export default function LoanWatchPage() {
   if (valueBand !== "all") chips.push({ key: "value", label: "Value", value: VALUE_BAND_LABELS[valueBand], onClear: () => setValueBand("all") });
   function clearAll() {
     setMaxMinutes(String(LOAN_WATCH_DEFAULT_MAX_MINUTES));
-    setTier(DEFAULT_TIER);
+    setLevel(DEFAULT_LEVEL);
     setPosition("all");
     setNationality("all");
-    setLeagueGroup("all");
     handleCountryChange("all");
     setAgeRange(ALL_AGES);
     setValueBand("all");
@@ -153,12 +157,12 @@ export default function LoanWatchPage() {
     <>
       <PageHeader
         title="Loan Watch"
-        description="Players with limited game time this season — a real signal for a possible loan move. Built entirely from real minutes/appearances data; SCOUTASTIC has no transfer-rumour data, so nothing here is based on speculation. Defaults to the top 2 divisions per country (Level filter) to exclude amateur/cup-context noise — widen it if you want the full crawled pool."
+        description="Players with limited game time this season — a real signal for a possible loan move. Built entirely from real minutes/appearances data; SCOUTASTIC has no transfer-rumour data, so nothing here is based on speculation. Defaults to the top 2 divisions per country (Level filter) to exclude amateur/cup-context noise — widen it, or pick a region, if you want a different pool."
       />
 
       <FilterBar activeCount={chips.length}>
         <FilterSelect label="Minutes" value={maxMinutes} onChange={setMaxMinutes} options={MINUTES_OPTIONS} />
-        <FilterSelect label="Level" value={tier} onChange={setTier} options={TIER_OPTIONS} />
+        <FilterSelect label="Level" value={level} onChange={handleLevelChange} options={LEVEL_OPTIONS} />
         <FilterSelect
           label="Position"
           value={position}
@@ -171,7 +175,6 @@ export default function LoanWatchPage() {
           onChange={setNationality}
           options={[{ value: "all", label: "All nationalities" }, ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n }))]}
         />
-        <FilterSelect label="Region" value={leagueGroup} onChange={handleLeagueGroupChange} options={LEAGUE_GROUP_OPTIONS} />
         <FilterSelect
           label="Country"
           value={country}
