@@ -392,9 +392,25 @@ async function main() {
   }
 
   // --- 5. Mark crawled teams (advances the resumable queue) ---
+  // Chunked — a single .update().in() with thousands of ids in one
+  // request failed outright ("Bad Request") on a real 6,000-team run.
+  // Same root cause as the read-side fixes above: a request this large
+  // hits a hard limit, just surfacing as an error here instead of a
+  // silent truncation. Failure here doesn't lose any player data (already
+  // upserted per-team above) — it only means unmarked teams would be
+  // re-crawled next run, wasteful but not incorrect.
   if (!args.dryRun && crawledTeamIds.length > 0) {
-    const { error } = await db.from("scoutastic_teams").update({ last_crawled_at: nowIso }).in("team_id", crawledTeamIds);
-    if (error) console.error(`  [fail] updating last_crawled_at: ${error.message}`);
+    const MARK_CHUNK = 500;
+    let markFailures = 0;
+    for (let i = 0; i < crawledTeamIds.length; i += MARK_CHUNK) {
+      const chunk = crawledTeamIds.slice(i, i + MARK_CHUNK);
+      const { error } = await db.from("scoutastic_teams").update({ last_crawled_at: nowIso }).in("team_id", chunk);
+      if (error) {
+        markFailures += chunk.length;
+        console.error(`  [fail] updating last_crawled_at for ${chunk.length} teams: ${error.message}`);
+      }
+    }
+    if (markFailures) console.error(`  ${markFailures} teams not marked crawled — will be re-crawled next run.`);
   }
 
   // --- 6. Update sync_meta ---
