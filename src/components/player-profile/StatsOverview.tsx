@@ -4,9 +4,9 @@ import type { AggregatedStats } from "@/lib/players-data";
 
 function StatTile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="border border-kvm-border bg-white px-3 py-2.5">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
-      <div className="mt-0.5 text-lg font-bold text-kvm-ink tabular-nums">{value}</div>
+    <div className="rounded-sm bg-gray-50 px-2.5 py-1.5">
+      <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
+      <div className="mt-0.5 text-sm font-bold text-kvm-ink tabular-nums">{value}</div>
     </div>
   );
 }
@@ -14,8 +14,8 @@ function StatTile({ label, value }: { label: string; value: string | number }) {
 function Category({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">{title}</h3>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{children}</div>
+      <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">{title}</h3>
+      <div className="grid grid-cols-3 gap-1.5">{children}</div>
     </div>
   );
 }
@@ -39,7 +39,7 @@ export function StatsOverview({ stats, isGoalkeeper }: { stats: AggregatedStats;
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <Category title="Attacking">
         <StatTile label="Goals" value={stats.goals} />
         <StatTile label="Assists" value={stats.assists} />

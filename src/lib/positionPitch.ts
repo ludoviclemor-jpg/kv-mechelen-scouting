@@ -23,6 +23,7 @@ export interface PitchCoord {
   x: number;
   y: number;
   label: string; // short on-pitch label, e.g. "RCB", "LAM"
+  fullLabel: string; // unambiguous name for the primary/secondary summary line, e.g. "Right Centre-Back"
 }
 
 type Side = "left" | "right" | "center";
@@ -43,32 +44,58 @@ function xFor(side: Side | null, spread: number): number {
 export function pitchCoordinateFor(rawCode: string): PitchCoord | null {
   const code = rawCode.toLowerCase().replace(/[\s_-]/g, "");
   const side = detectSide(code);
+  const sidePrefix = side === "left" ? "Left " : side === "right" ? "Right " : "";
 
-  if (code === "goalkeeper") return { x: 50, y: 6, label: "GK" };
+  if (code === "goalkeeper") return { x: 50, y: 6, label: "GK", fullLabel: "Goalkeeper" };
 
-  if (code.includes("wingback")) return { x: xFor(side, 10), y: 24, label: side === "left" ? "LWB" : "RWB" };
+  if (code.includes("wingback")) {
+    return { x: xFor(side, 10), y: 24, label: side === "left" ? "LWB" : "RWB", fullLabel: `${sidePrefix}Wing-Back` };
+  }
 
   if (code.includes("centerback") || code.includes("centreback") || code === "libero" || code.includes("centraldefen")) {
-    return { x: xFor(side, 30), y: 16, label: side === "left" ? "LCB" : side === "right" ? "RCB" : "CB" };
+    return {
+      x: xFor(side, 30),
+      y: 16,
+      label: side === "left" ? "LCB" : side === "right" ? "RCB" : "CB",
+      fullLabel: `${sidePrefix}Centre-Back`,
+    };
   }
 
-  if (code === "leftback" || code === "rightback") return { x: xFor(side, 8), y: 20, label: side === "left" ? "LB" : "RB" };
+  if (code === "leftback" || code === "rightback") {
+    return { x: xFor(side, 8), y: 20, label: side === "left" ? "LB" : "RB", fullLabel: `${sidePrefix}Back` };
+  }
 
-  if (code.includes("defensivemidfield")) return { x: xFor(side, 28), y: 38, label: side === "left" ? "LDM" : side === "right" ? "RDM" : "DM" };
+  if (code.includes("defensivemidfield")) {
+    return {
+      x: xFor(side, 28),
+      y: 38,
+      label: side === "left" ? "LDM" : side === "right" ? "RDM" : "DM",
+      fullLabel: `${sidePrefix}Defensive Midfield`,
+    };
+  }
 
-  if (code === "leftmidfield") return { x: 10, y: 55, label: "LM" };
-  if (code === "rightmidfield") return { x: 90, y: 55, label: "RM" };
+  if (code === "leftmidfield") return { x: 10, y: 55, label: "LM", fullLabel: "Left Midfield" };
+  if (code === "rightmidfield") return { x: 90, y: 55, label: "RM", fullLabel: "Right Midfield" };
   if (code.includes("centralmidfield") || code.includes("centremidfield") || code.includes("centermidfield")) {
-    return { x: 50, y: 50, label: "CM" };
+    return { x: 50, y: 50, label: "CM", fullLabel: "Central Midfield" };
   }
 
-  if (code.includes("attackingmidfield")) return { x: xFor(side, 28), y: 68, label: side === "left" ? "LAM" : side === "right" ? "RAM" : "AM" };
+  if (code.includes("attackingmidfield")) {
+    return {
+      x: xFor(side, 28),
+      y: 68,
+      label: side === "left" ? "LAM" : side === "right" ? "RAM" : "AM",
+      fullLabel: `${sidePrefix}Attacking Midfield`,
+    };
+  }
 
-  if (code === "leftwing") return { x: 8, y: 78, label: "LW" };
-  if (code === "rightwing") return { x: 92, y: 78, label: "RW" };
+  if (code === "leftwing") return { x: 8, y: 78, label: "LW", fullLabel: "Left Wing" };
+  if (code === "rightwing") return { x: 92, y: 78, label: "RW", fullLabel: "Right Wing" };
 
-  if (code === "secondstriker") return { x: 50, y: 80, label: "SS" };
-  if (code === "striker" || code.includes("centreforward") || code.includes("centerforward")) return { x: 50, y: 90, label: "ST" };
+  if (code === "secondstriker") return { x: 50, y: 80, label: "SS", fullLabel: "Second Striker" };
+  if (code === "striker" || code.includes("centreforward") || code.includes("centerforward")) {
+    return { x: 50, y: 90, label: "ST", fullLabel: "Striker" };
+  }
 
   return null;
 }

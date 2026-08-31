@@ -14,6 +14,7 @@ import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
+import { LoanWatchList } from "@/components/players/LoanWatchList";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import {
   fetchScoutingOverview,
@@ -21,6 +22,7 @@ import {
   fetchAfricanDebutants,
   fetchRecentlyAdded,
   fetchPriorityPlayers,
+  fetchLoanWatchCandidates,
   useAsync,
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
@@ -43,6 +45,7 @@ export default function DashboardPage() {
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
+  const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5 }), []); // returns Player[] directly, already ordered by minutes ascending — see fetchLoanWatchCandidates' own comment for why this isn't a paginated/counted query
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
@@ -117,12 +120,21 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              <section className="border border-kvm-border bg-white pb-2">
-                <SectionHeader title="Priority Players" viewAllHref="/shortlists" />
-                <div className="pt-1">
-                  <PriorityPlayersList players={priorityPlayers.data ?? []} />
-                </div>
-              </section>
+              <div className="space-y-6">
+                <section className="border border-kvm-border bg-white pb-2">
+                  <SectionHeader title="Priority Players" viewAllHref="/shortlists" />
+                  <div className="pt-1">
+                    <PriorityPlayersList players={priorityPlayers.data ?? []} />
+                  </div>
+                </section>
+
+                <section className="border border-kvm-border bg-white pb-2">
+                  <SectionHeader title="Loan Watch" viewAllHref="/loan-watch" />
+                  <div className="pt-1">
+                    <LoanWatchList players={loanWatch.data ?? []} />
+                  </div>
+                </section>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

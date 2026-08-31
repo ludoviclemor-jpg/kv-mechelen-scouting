@@ -489,6 +489,43 @@ export async function fetchPriorityPlayers(limit = 6): Promise<Player[]> {
   return ids.map((id) => byId.get(id)).filter((p): p is Player => p !== undefined);
 }
 
+export const LOAN_WATCH_DEFAULT_MAX_MINUTES = 450; // roughly five full matches — a rough, adjustable heuristic, not a rule; see docs/LOAN_WATCH.md
+
+/**
+ * "Limited Game Time" — the real, data-backed half of "possible loan
+ * candidates" (see docs/LOAN_WATCH.md for why this exists and what it
+ * deliberately does NOT claim to detect).
+ *
+ * Real bug found and fixed while building this: an early version filtered
+ * the *entire* 177k-row table on `minutes <= threshold` with an exact
+ * count for pagination — confirmed live to either time out or take 8+
+ * seconds, because "under 450 minutes" genuinely matches ~140k players
+ * (most of SCOUTASTIC's crawled scope is semi-pro/amateur-tier clubs with
+ * minimal recorded minutes, not a small "flagged" set). Fetching a
+ * *bounded* set instead (`limit`, ordered by minutes ascending, server
+ * side) and letting the page filter/narrow client-side is the same
+ * pattern already used for Top Performers/African Debutants
+ * (`fetchTopPerformers`, `fetchAfricanDebutants` above) — no numbered
+ * pagination or exact count needed. `appearances > 0` is required so this
+ * surfaces players who *have* featured but rarely, not players with no
+ * recorded matches at all (more likely a data gap than a real signal).
+ */
+export async function fetchLoanWatchCandidates(options: { maxMinutes?: number; limit?: number } = {}): Promise<Player[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const maxMinutes = options.maxMinutes ?? LOAN_WATCH_DEFAULT_MAX_MINUTES;
+  const { data, error } = await getSupabaseClient()
+    .from("players")
+    .select(PLAYER_COLUMNS)
+    .eq("active", true)
+    .eq("is_youth_or_reserve", false)
+    .gt("appearances", 0)
+    .lte("minutes", maxMinutes)
+    .order("minutes", { ascending: true })
+    .limit(options.limit ?? 300);
+  if (error) throw error;
+  return (data as unknown as PlayerRow[]).map(playerFromRow);
+}
+
 export interface ScoutingOverview {
   totalPlayers: number;
   newPlayers: number;

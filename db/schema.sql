@@ -121,6 +121,18 @@ create index if not exists idx_players_contract_expiry on players(contract_expir
 create index if not exists idx_players_rating_average on players(rating_average);
 create index if not exists idx_players_rated_matches_count on players(rated_matches_count);
 create index if not exists idx_players_added on players(created_at);
+-- Loan Watch (docs/LOAN_WATCH.md) — fetchLoanWatchCandidates() filters +
+-- sorts on `minutes` across the full table; without this the query timed
+-- out for real at 177k rows (confirmed live, 2026-08-31: "statement
+-- timeout" on an unindexed range + order scan). A plain `minutes` index
+-- alone still took 8+ real seconds once `appearances > 0` was added —
+-- most low-minutes rows have 0 appearances, so Postgres had to walk deep
+-- into the minutes-ordered index checking that condition row by row
+-- before collecting 300 real matches. The partial predicate below
+-- matches the query's actual WHERE clause so the planner can use the
+-- index directly instead of filtering after the fact.
+drop index if exists idx_players_minutes;
+create index if not exists idx_players_loan_watch on players(minutes) where minutes is not null and appearances > 0;
 -- Search bar ("Search player, club or nationality...") — trigram indexes
 -- make `ILIKE '%term%'` fast even across hundreds of thousands of rows.
 create index if not exists idx_players_name_trgm on players using gin (name gin_trgm_ops);

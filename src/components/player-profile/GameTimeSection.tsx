@@ -6,9 +6,9 @@ import type { PerformanceSeasonRow } from "@/lib/players-data";
 
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="border border-kvm-border bg-white px-3 py-2.5">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
-      <div className="mt-0.5 text-lg font-bold text-kvm-ink tabular-nums">{value}</div>
+    <div className="rounded-sm bg-gray-50 px-2.5 py-1.5">
+      <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
+      <div className="mt-0.5 text-sm font-bold text-kvm-ink tabular-nums">{value}</div>
     </div>
   );
 }
@@ -43,11 +43,11 @@ export function GameTimeSection({ stats, seasonRows }: { stats: AggregatedStats;
   const ninetiesPlayed = stats.minutesPlayed > 0 ? (stats.minutesPlayed / 90).toFixed(1) : "0.0";
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
         <Tile label="Appearances" value={stats.matchesPlayed} />
         <Tile label="Starts" value={stats.starts} />
-        <Tile label="Sub appearances" value={stats.substitutes} />
+        <Tile label="Sub apps" value={stats.substitutes} />
         <Tile label="Minutes" value={stats.minutesPlayed.toLocaleString()} />
         <Tile label="90s played" value={ninetiesPlayed} />
       </div>
@@ -55,7 +55,7 @@ export function GameTimeSection({ stats, seasonRows }: { stats: AggregatedStats;
       {chartData.length > 1 ? (
         <div>
           <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Starts vs. sub appearances by season</h4>
-          <div className="h-40 w-full">
+          <div className="h-28 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ececec" />

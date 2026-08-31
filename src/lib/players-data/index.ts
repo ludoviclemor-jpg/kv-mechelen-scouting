@@ -29,6 +29,8 @@ export {
   fetchAfricanDebutants,
   fetchRecentlyAdded,
   fetchPriorityPlayers,
+  fetchLoanWatchCandidates,
+  LOAN_WATCH_DEFAULT_MAX_MINUTES,
   fetchScoutingOverview,
   fetchSyncMeta,
   type PlayerSortKey,

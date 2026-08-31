@@ -10,6 +10,7 @@ import {
   Trophy,
   Globe2,
   TrendingUp,
+  ArrowRightLeft,
   ListChecks,
   FileText,
   Settings,
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/competitions", label: "Competitions", icon: Trophy },
   { href: "/debutants", label: "African Debutants", icon: Globe2 },
   { href: "/top-performers", label: "Top Performers", icon: TrendingUp },
+  { href: "/loan-watch", label: "Loan Watch", icon: ArrowRightLeft },
   { href: "/shortlists", label: "Shortlists", icon: ListChecks },
   { href: "/reports", label: "Reports", icon: FileText },
 ];
