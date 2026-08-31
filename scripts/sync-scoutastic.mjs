@@ -90,22 +90,34 @@ function loadJson(p, fallback) {
 }
 
 /**
- * PostgREST caps an unpaginated `.select()` at 1,000 rows by default —
- * silently, no error, no truncation flag. `scoutastic_competitions` alone
- * is 2,435 rows, so reading it without this wrapper would quietly load
- * less than half the table. Confirmed the hard way once already (see
- * docs/COMPETITIONS.md) — always use this for anything not already
- * bounded by a small filter (like `.in("team_id", <one batch>)`).
+ * PostgREST caps a `.select()` at 1,000 rows **per request** by default —
+ * silently, no error, no truncation flag, and this applies even when an
+ * explicit `.limit()` asks for more (confirmed the hard way: a real run
+ * asked for `--batch-size 7000` and silently got exactly 1,000 team rows
+ * back, no error). `scoutastic_competitions` alone is 2,435 rows, and
+ * `competition_teams` averages ~2.5 rows per team — so even a *filtered*
+ * `.in("team_id", <1000 ids>)` lookup can itself exceed 1,000 result rows
+ * and get silently truncated too, which is what caused the real "453
+ * teams skipped, no competition context" in that same run: some of those
+ * teams' links were just never fetched, not actually missing.
+ *
+ * `build` receives the base `db.from(table).select(columns)` query and
+ * returns it with whatever `.eq()`/`.in()`/`.order()` filters applied —
+ * this fetches every matching row across as many 1,000-row pages as
+ * needed, always, regardless of `.limit()`. `maxRows`, if given, stops
+ * once that many rows are collected (still exact — it's a cap on top of
+ * full pagination, not a substitute for it).
  */
-async function fetchAllRows(db, table, columns) {
+async function fetchAllRows(db, table, columns, build = (q) => q, maxRows = Infinity) {
   const rows = [];
   const PAGE = 1000;
   let from = 0;
-  while (true) {
-    const { data, error } = await db.from(table).select(columns).range(from, from + PAGE - 1);
+  while (rows.length < maxRows) {
+    const to = Math.min(from + PAGE - 1, from + (maxRows - rows.length) - 1);
+    const { data, error } = await build(db.from(table).select(columns)).range(from, to);
     if (error) return { ok: false, error };
     rows.push(...data);
-    if (data.length < PAGE) break;
+    if (data.length < to - from + 1) break; // fewer than asked for => that was the last page
     from += PAGE;
   }
   return { ok: true, data: rows };
@@ -238,17 +250,19 @@ async function main() {
   if (args.onlyTeam) {
     teamIds = [args.onlyTeam];
   } else if (db) {
-    const { data, error } = await db
-      .from("scoutastic_teams")
-      .select("team_id")
-      .order("last_crawled_at", { ascending: true, nullsFirst: true })
-      .limit(args.batchSize);
-    if (error) {
-      console.error(`Failed to load team queue: ${error.message}`);
+    const res = await fetchAllRows(
+      db,
+      "scoutastic_teams",
+      "team_id",
+      (q) => q.order("last_crawled_at", { ascending: true, nullsFirst: true }),
+      args.batchSize
+    );
+    if (!res.ok) {
+      console.error(`Failed to load team queue: ${res.error.message}`);
       process.exitCode = 1;
       return;
     }
-    teamIds = data.map((r) => r.team_id);
+    teamIds = res.data.map((r) => r.team_id);
   } else {
     console.error("--dry-run needs --only-team <id> (no database to read the team queue from).");
     process.exitCode = 1;
@@ -263,14 +277,25 @@ async function main() {
   // --- 3. Find each team's primary in-scope competition ---
   let teamCompetitions = new Map(); // team_id -> competition_id
   if (db) {
-    const { data, error } = await db.from("competition_teams").select("competition_id,team_id").in("team_id", teamIds);
-    if (error) {
-      console.error(`Failed to load competition_teams: ${error.message}`);
-      process.exitCode = 1;
-      return;
+    // Chunked both ways: teamIds itself can be thousands long (an .in()
+    // list that large risks its own URL-length/row-cap issues), and
+    // competition_teams averages ~2.5 rows/team, so even one chunk's
+    // result can exceed the 1,000-row cap on its own — fetchAllRows
+    // handles that inner pagination per chunk.
+    const CHUNK = 500;
+    const allLinks = [];
+    for (let i = 0; i < teamIds.length; i += CHUNK) {
+      const chunk = teamIds.slice(i, i + CHUNK);
+      const res = await fetchAllRows(db, "competition_teams", "competition_id,team_id", (q) => q.in("team_id", chunk));
+      if (!res.ok) {
+        console.error(`Failed to load competition_teams: ${res.error.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      allLinks.push(...res.data);
     }
     const byTeam = new Map();
-    for (const row of data) {
+    for (const row of allLinks) {
       if (!isInScope(row.competition_id)) continue;
       const list = byTeam.get(row.team_id) ?? [];
       list.push(row.competition_id);

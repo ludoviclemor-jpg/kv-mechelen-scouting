@@ -189,3 +189,21 @@ caught and fixed in the process: PostgREST silently caps an unpaginated
 lookup (2,435 rows) and the crawl-queue cleanup work against an
 incomplete, arbitrary subset — `fetchAllRows()` in
 `scripts/sync-scoutastic.mjs` paginates properly now.
+
+**Second, related bug found on the first large real run** (`--batch-size
+7000`, meant to sweep every remaining team in one go): only 1,000 of the
+7,000 requested teams were actually processed, and 453 of those were
+wrongly skipped as "no competition context." The 1,000-row PostgREST cap
+applies **even when an explicit `.limit()` asks for more** — a
+`.limit(7000)` silently returned exactly 1,000 rows, no error. Worse,
+`competition_teams` averages ~2.5 rows per team, so even the *filtered*
+`.in("team_id", <1000 ids>)` lookup for that batch could itself exceed
+1,000 result rows and get silently truncated too — which is what actually
+caused those 453 false "no context" skips; their links weren't missing,
+just never fetched. Both reads now go through the same `fetchAllRows()`
+pagination helper, extended to accept query-builder modifiers
+(`.order()`, `.in()`) and chunked appropriately (`competition_teams`
+looked up in chunks of 500 team ids at a time, each chunk itself fully
+paginated). 14,447 real players were still written successfully from that
+run despite the undersized batch — nothing was lost, just less was
+covered than intended.
