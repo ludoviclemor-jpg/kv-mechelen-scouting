@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
 import { AgeFilter } from "@/components/ui/AgeFilter";
@@ -58,10 +59,14 @@ function useDebounced<T>(value: T, delayMs = 300): T {
   return debounced;
 }
 
-export default function PlayersPage() {
-  const [search, setSearch] = useState("");
+function PlayersPageContent() {
+  // Initial values from a global-search suggestion (?search=, ?nationality=)
+  // — see src/components/layout/GlobalSearch.tsx. Read once on mount, not
+  // kept in sync afterward — this page's own filters take over from there.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("search") ?? "");
   const [position, setPosition] = useState("all");
-  const [nationality, setNationality] = useState("all");
+  const [nationality, setNationality] = useState(() => params.get("nationality") ?? "all");
   // Cascading: country -> competition -> club. Changing a parent always
   // clears its children (see the on*Change handlers below) so the UI can
   // never be left showing options that don't actually apply anymore.
@@ -279,5 +284,13 @@ export default function PlayersPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function PlayersPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading players…" />}>
+      <PlayersPageContent />
+    </Suspense>
   );
 }
