@@ -54,11 +54,14 @@ const LEVEL_OPTIONS = [
   { value: "tier:1", label: "Top division only" },
   { value: "tier:3", label: "Top 3 divisions" },
   { value: "tier:all", label: "All levels (incl. cups/amateur)" },
-  { value: "region:top5", label: `Top 5 leagues (${LOAN_WATCH_LEAGUE_GROUPS.top5.join(", ")})` },
-  { value: "region:benelux", label: `Benelux (${LOAN_WATCH_LEAGUE_GROUPS.benelux.join(", ")})` },
-  { value: "region:scandinavia", label: `Scandinavia (${LOAN_WATCH_LEAGUE_GROUPS.scandinavia.join(", ")})` },
-  { value: "region:others", label: "Other regions" },
+  { value: "region:top5", label: `Top 5 leagues, top 2 divisions (${LOAN_WATCH_LEAGUE_GROUPS.top5.join(", ")})` },
+  { value: "region:benelux", label: `Benelux, top 2 divisions (${LOAN_WATCH_LEAGUE_GROUPS.benelux.join(", ")})` },
+  { value: "region:scandinavia", label: `Scandinavia, top 2 divisions (${LOAN_WATCH_LEAGUE_GROUPS.scandinavia.join(", ")})` },
 ];
+// Regions always stay capped at the top 2 divisions too — "only
+// professional players" / "first and 2nd division clubs" applies
+// regardless of which region is picked, not just the plain tier options.
+const REGION_TIER_CAP = 2;
 const DEFAULT_LEVEL = "tier:2"; // top 2 divisions per country by default — confirmed live no lower tier leaks through this filter (docs/LOAN_WATCH.md)
 
 export default function LoanWatchPage() {
@@ -79,7 +82,7 @@ export default function LoanWatchPage() {
   const [valueBand, setValueBand] = useState("all");
 
   const [levelKind, levelValue] = level.split(":");
-  const maxTierLevel = levelKind === "tier" ? (levelValue === "all" ? null : Number(levelValue)) : null;
+  const maxTierLevel = levelKind === "tier" ? (levelValue === "all" ? null : Number(levelValue)) : REGION_TIER_CAP;
   const leagueGroup = levelKind === "region" ? levelValue : "all";
 
   const filterOptions = useAsync(() => fetchFilterOptions(), []);
