@@ -169,7 +169,7 @@ export async function fetchAllCompetitions(apiBase, apiKey, { limit = 100, retri
  * Squads have stayed under one page (`limit`) in practice, but this walks
  * every page for real rather than assuming that always holds.
  */
-export async function fetchTeamPlayers(apiBase, apiKey, teamId, { gender = "male", limit = 100, retries, onRetry } = {}) {
+export async function fetchTeamPlayers(apiBase, apiKey, teamId, { gender = "male", limit = 100, debuts = false, retries, onRetry } = {}) {
   const allPlayers = [];
   let page = 1;
 
@@ -183,7 +183,13 @@ export async function fetchTeamPlayers(apiBase, apiKey, teamId, { gender = "male
         performanceData: "false",
         performanceSummary: "true", // confirmed available — powers appearances/minutes/goals/assists
         performanceHistory: "false",
-        debuts: "false",
+        // Confirmed real on this endpoint too (not just /player) — see
+        // docs/COMPETITIONS.md's debut-detection section. Each entry:
+        // { date, competitionExternalId, matchExternalId, teamExternalId,
+        // opponentExternalId } — "first appearance in this competition",
+        // not "career debut"; needs cross-referencing against known
+        // competitions to mean anything (see fieldMap.mjs).
+        debuts: debuts ? "true" : "false",
         injuryData: "false",
         includeMissedMatches: "false",
         limit,

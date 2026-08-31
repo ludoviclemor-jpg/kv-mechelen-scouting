@@ -117,20 +117,32 @@ the place to add it — not a UI-level hardcoded list.
 
 ## Verified
 
-- `node scripts/sync-competitions.mjs --dry-run` — run for real against
-  the live API (2026-08-31): fetched all 2,439 competitions across 25
-  pages in 13.6s, mapped and filtered correctly (see the real numbers
-  table above), zero errors.
+- `node scripts/sync-competitions.mjs` — run for real against both the
+  live API and the live database (2026-08-31, after `SUPABASE_SERVICE_ROLE_KEY`
+  was added as a GitHub secret and locally): 2,435 competitions and 17,873
+  competition-team links upserted successfully, 6,993 teams correctly
+  queued for the player crawl (scoped to active + Senior + male +
+  European only — see the fix note below).
+- The player-squad crawl that consumes this catalog
+  (`scripts/sync-scoutastic.mjs`) is also now live and tested — see
+  `docs/SCOUTASTIC_SYNC.md`'s "Verified" section.
+
+**Bug found and fixed during the first real run:** the crawl-queue
+seeding step originally queued *every* team from all 2,435 competitions
+worldwide (11,591 teams) instead of just the 499 active/Senior/male/
+European ones actually in scope — `competition_teams` correctly stores
+links for everything, but `scoutastic_teams` (the crawl queue) is only
+ever seeded from the in-scope subset now. A separate, unrelated bug
+turned up while cleaning up the already-queued stale entries: PostgREST
+silently caps an unpaginated `.select()` at 1,000 rows, so a one-off
+cleanup script's "read `scoutastic_competitions` back to recompute scope"
+step only saw 1,000 of 2,435 rows and nearly deleted teams that were
+actually still in scope. Fixed by paginating properly (`fetchAllRows()`
+in `scripts/sync-scoutastic.mjs`) — worth remembering for any future
+script that reads a table without an explicit `.range()`/`.limit()`.
 
 ## Not yet done
 
-- `scripts/sync-competitions.mjs` needs `SUPABASE_SERVICE_ROLE_KEY` as a
-  GitHub Actions repository secret before `.github/workflows/sync-competitions.yml`
-  or a real (non-`--dry-run`) local run can actually write anything to
-  Postgres (same credential the still-pending player-sync Postgres
-  migration will also need — see `docs/SCOUTASTIC_SYNC.md`). Until that
-  secret exists, `scoutastic_competitions`/`competition_teams` stay empty
-  and the Competitions page shows its empty state.
 - Team **names** aren't fetched during discovery (only ids) — `GET
   /competitions` doesn't include them, and fetching each competition's full
   team list separately would reintroduce the per-competition request cost

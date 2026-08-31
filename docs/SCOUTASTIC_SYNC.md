@@ -1,88 +1,69 @@
-# SCOUTASTIC sync
+# SCOUTASTIC player sync
 
-How real player data gets from SCOUTASTIC into this dashboard, and what's
-actually confirmed against the live API (as of 2026-08-30) vs. still
-unverified.
+How real player data gets from SCOUTASTIC into Postgres, and what's
+actually confirmed against the live API vs. still unverified. See
+`docs/COMPETITIONS.md` for the competition/team catalog side of this same
+architecture (`scripts/sync-competitions.mjs`) — this document covers the
+player-squad crawl that depends on it.
 
-## Architecture rework in progress (2026-08-31)
-
-Everything below this note describes the **Phase 2 architecture**
-(competitions.json's ~34 curated competitions → `data/players.json`,
-8,454 players). That's being replaced — SCOUTASTIC's real `GET
-/competitions` endpoint (no id — confirmed to exist, returns **all
-2,439 competitions** in its database, not just the curated list) makes
-"every competition" a real, explicit request (`"Truly everything — rework
-the architecture first"`), and at that scale neither a committed JSON file
-nor one static HTML page per player survives — see `db/schema.sql`'s
-header. (The original ~725-competition/~15,989-team estimate here assumed
-a separate request per competition to discover its teams — since
-confirmed wrong: `GET /competitions` returns each competition's team ids
-inline, so discovering every competition **and** its teams costs ~25
-requests total, not ~725. See `docs/COMPETITIONS.md` for the confirmed
-numbers — that document covers the competition-catalog side of this same
-rework in full, including the part of it that's already shipped.)
-
-**Done so far:** the Postgres side — `players`, `sync_meta`,
-`scoutastic_competitions`/`competition_teams`/`scoutastic_teams` (the
-competition catalog and crawl queue/cache, see `docs/COMPETITIONS.md`),
-the `player_*`/`competition_*` filter views, all in `db/schema.sql` /
-`db/rls_policies.sql`; the entire frontend now reads player data from
-Postgres at runtime instead of a build-time `data/players.json` import
-(`src/lib/players-data/remote.ts`, see `docs/POSTGRES_PERSISTENCE.md`);
-and `scripts/sync-competitions.mjs` discovers and upserts the competition
-catalog — written, not yet run against a real database (needs
-`SUPABASE_SERVICE_ROLE_KEY`; `--dry-run` needs only `SCOUTASTIC_API_KEY`
-and hasn't been executed yet either — see `docs/COMPETITIONS.md`).
-
-**Not done yet:** `scripts/sync-scoutastic.mjs` itself is still the old
-Phase 2 script (curated competitions → `data/players.json`) — it has not
-been rewritten to (a) discover competitions via `GET /competitions`
-instead of the curated list, (b) crawl in a batched/resumable way against
-`scoutastic_teams` as a work queue (mirroring `scripts/sync-sofascore.mjs`'s
-proven pattern — a full crawl at this scale is many requests, likely
-spread across many scheduled runs, not one), or (c) write to Postgres
-(via a `service_role` key — GitHub Actions secret only, never committed)
-instead of `data/players.json`. Until that's done, the architecture below
-is provisioned but has nothing populating it yet — the frontend will show
-an empty player database against a freshly-migrated Supabase project
-until either the old sync is pointed at Postgres or the new one is built.
-
-## Architecture (Phase 2 — being replaced, see above)
+## Architecture (current, working, tested 2026-08-31)
 
 ```
-SCOUTASTIC API
-      ↓ (SCOUTASTIC_API_KEY — GitHub Actions repository secret, server-side only)
+GET /competitions (SCOUTASTIC)
+      ↓ scripts/sync-competitions.mjs (own workflow, see docs/COMPETITIONS.md)
+scoutastic_competitions, competition_teams, scoutastic_teams   (Postgres)
+      ↓ scoutastic_teams is the crawl queue, ordered by last_crawled_at
 scripts/sync-scoutastic.mjs   (.github/workflows/sync-scoutastic.yml)
-      ↓ upserts
-data/players.json             (committed to the repo — Phase 2 only; superseded by Postgres, see above)
-      ↓ read at build time
-Next.js static export → GitHub Pages
+      ↓ GET /players?teamId=...&debuts=true per team (batched)
+      ↓ mapScoutasticPlayer() (scripts/lib/fieldMap.mjs)
+      ↓ upsert (service_role key — never exposed to the browser)
+players   (Postgres)
+      ↓ read at runtime, authenticated-only (db/rls_policies.sql)
+Next.js static export → GitHub Pages (src/lib/players-data/remote.ts)
 ```
 
-There is no live backend server. The frontend never talks to SCOUTASTIC
-and never sees the API key. In the target architecture, the sync script
-upserts into Postgres (via a service_role key, never exposed to the
-browser) and the frontend reads it at runtime through Supabase's REST API
-under RLS — the same pattern already used for shortlists/notes, see
-`docs/POSTGRES_PERSISTENCE.md`.
+There is no live backend server and the frontend never talks to
+SCOUTASTIC or sees its API key — it only ever reads `players` through
+Supabase's REST API under RLS, same pattern as shortlists/notes and the
+Competitions feature (`docs/POSTGRES_PERSISTENCE.md`).
+
+**Scope:** only teams belonging to an active, `ageCategory: "Senior"`,
+`gender: "male"`, European (`association: "UEFA"`) competition are ever
+crawled — 6,993 teams as of the last full competition discovery (see
+`docs/COMPETITIONS.md`'s real numbers). `scoutastic_teams` (the crawl
+queue) only ever contains teams in this scope; `competition_teams` itself
+still records links for every competition worldwide, kept separate on
+purpose.
+
+**Batching:** deliberately not a single full pass — `--batch-size`
+(default 500 via the workflow's `workflow_dispatch` input, GitHub
+Actions' scheduled run also defaults to 500) teams per run, picked by
+oldest `last_crawled_at` first (nulls first), same reasoning as
+`scripts/sync-sofascore.mjs`. A team already crawled keeps its place in
+line; nothing is skipped, nothing is repeatedly re-crawled while older
+teams wait. At ~0.5–0.6s/team (delay + request time, confirmed via a real
+20-team run), a full first pass over all 6,993 teams is on the order of
+an hour of actual crawl time, spread across many scheduled runs rather
+than attempted in one.
 
 ## What's confirmed against the real API
 
 Everything in `scripts/lib/scoutasticClient.mjs` and
-`scripts/lib/fieldMap.mjs` has been verified directly against real
-responses — nothing is guessed:
+`scripts/lib/fieldMap.mjs` is verified directly against real responses —
+nothing is guessed:
 
 - Base URL: `https://kvmechelen.scoutastic.com/api/v1`
 - Auth: `Authorization: <api_key>` header (the raw key, **not** `Bearer <key>`)
-- `GET /player?externalId=...` — one player, full detail.
-- `GET /competitions/{id}/teams?gender=...` — returns a **full competition
-  object** (name, area, `teams[]`, etc.), not a bare `{ teamIds }`. It also
-  carries a flat `teamIds` array that matches `teams[].externalId` exactly
-  — that's what `fetchCompetitionTeams()` returns.
 - `GET /players?teamId=...&...` — a **Mongoose-paginate wrapper**
   (`{ docs, totalPages, page, hasNextPage, nextPage, ... }`), not a bare
   array. `fetchTeamPlayers()` walks every page (squads have stayed under
   one page of 100 in practice, but this doesn't assume that).
+- `debuts` — confirmed real on **both** `/player?externalId=...` and
+  `/players?teamId=...` (same shape either way): an array of
+  `{ date, competitionExternalId, matchExternalId, teamExternalId,
+  opponentExternalId }` — one entry per competition the player has ever
+  appeared in, **not** a single career-debut flag. See "Debut detection"
+  below for how this is used.
 
 **Field mapping — confirmed, not assumed:**
 
@@ -95,97 +76,116 @@ responses — nothing is guessed:
 | `secondaryPositions` | `secondaryPosition1`, `secondaryPosition2` | |
 | `club` | `teams[]` entry where `isMain === true` | |
 | `heightCm`, `preferredFoot`, `agent`, `marketValueEUR`, `contractExpiry`, `nationality`, `secondNationality`, `dateOfBirth` | `height`, `foot`, `agent`, `marketValue`, `contractExpires`, `nationality`, `secondNationality`, `dateOfBirth` | |
-| `appearances`, `minutes`, `goals`, `assists` | `performanceSummary[latestSeasonYear]`, summed across every competition played that season | Requested via `performanceSummary=true`. `performanceHistory` (per-match detail) and `performanceData` are left `false` — not consumed yet. |
+| `appearances`, `minutes`, `goals`, `assists` | `performanceSummary[latestSeasonYear]`, summed across every competition played that season | Requested via `performanceSummary=true`. `performanceHistory` (per-match detail, confirmed real and useful for minutes/starter-vs-sub per match — see `docs/COMPETITIONS.md`) is deliberately left `false` on the bulk squad crawl — its payload is ~250 rows per player, too heavy to request for every player on every team; not yet wired into a targeted follow-up enrichment pass. |
+| `isDebutant`, `debutDate` | `debuts[]`, cross-referenced against the crawl's own competition context | See "Debut detection" below — genuinely computed, not a placeholder. |
 
-**Still `null` — no confirmed source:**
-
-- `previousClub`, and any secondary position beyond the two SCOUTASTIC returns.
+**Still `null` — no confirmed source:** `previousClub`, and any secondary
+position beyond the two SCOUTASTIC returns.
 
 **Real player-id gotcha:** squad-crawl entries and the single-player
 endpoint both use `transfermarktId`, not `externalId`, as the actual
-unique id. Using `externalId` (as the very first pass here did, before
-this was checked against real data) would leave every squad-crawled
-player's id empty.
+unique id.
 
-There is no documented "list all players" endpoint. "Import all players"
-means "every player in every verified, configured competition" — crawled
-via competitions → teams → squads — not literally every player
-SCOUTASTIC has ever indexed.
+## Debut detection
 
-## Competition coverage
+`debuts[]` is "first appearance **per competition**," not "career
+debut" — a real player can have a dozen+ entries spanning every
+club/cup/international tournament they've ever featured in, including
+youth internationals (confirmed via a real player: 16 entries spanning
+`AR1N` league, `CLI` continental cup, `20WC` U20 World Cup, senior
+internationals, all in the same array, same shape). Naively treating any
+`debuts` entry as "this player just debuted" would flag almost every
+player in the database.
 
-`src/lib/scoutastic/config/competitions.json` was verified for real on
-2026-08-30: **23 of 34 configured competitions resolve** (`verified:
-true`); 11 don't (mostly Baltic states, Albania, Moldova, and a couple of
-tier-2 leagues). The sync skips unverified competitions by default. Codes
-can change between seasons — re-run `--list-competitions --update-config`
-periodically.
+`mapScoutasticPlayer()`'s `detectDebut()` (in `scripts/lib/fieldMap.mjs`)
+scopes this down to something meaningful:
+
+1. Only looks for a `debuts` entry matching the **specific competition
+   this player was just crawled through** (`context.competitionId` — the
+   team/league that got us this player), not any competition anywhere in
+   their career.
+2. Only counts if that debut happened within `DEBUT_RECENCY_DAYS` (270
+   days, ~one season) of the sync run — otherwise a player who debuted
+   years ago and simply still plays for the same club would read as a
+   fresh debutant forever.
+
+**Known data-quality caveat, confirmed real, not a bug in this code:**
+for at least one obscure, likely-recently-backfilled competition (Ireland's
+third-tier `IRL3`), every single player on a squad showed the *identical*
+debut date — almost certainly the date SCOUTASTIC computed/indexed that
+competition's historical debut records in one batch, not each player's
+actual first-appearance date. Checked against a long-tracked top-tier
+competition (Belgium's `BE1`, Jupiler Pro League) for comparison — debut
+dates there are realistically spread across 2013–2026, no such artifact.
+This means debutant counts for lower-tier or newly-covered competitions
+should be treated with more skepticism than well-established top
+divisions; no filtering heuristic has been built for this (deliberately —
+not enough confirmed real cases yet to trust one over just documenting
+the caveat).
+
+## Upsert logic
+
+Players are matched by `scoutastic_player_id` (`onConflict:
+"scoutastic_player_id"`). Only SCOUTASTIC-owned columns are ever included
+in the upsert payload — ratings fields (`sofascore_*`, `matches`,
+`rating_*`) are never touched by this script, so Postgres's `ON CONFLICT
+DO UPDATE` leaves them exactly as they were; no manual "preserve" merge
+logic is needed the way the old `data/players.json`-based design required
+(see git history for that if curious — it's genuinely simpler now that
+this is a real upsert against a real database, not a hand-rolled merge
+into a JSON blob).
+
+**Known gap, not yet built:** no deactivation logic. A player who leaves
+a squad isn't marked `active: false` — `players` has no `team_id` column
+to reliably detect "no longer on this squad" against (only a `club` name
+string, which name-matching alone isn't reliable enough for). Worth
+building once there's a real need to notice players leaving; not blocking
+for now since the upsert side (new/changed players) is what matters most
+for a scouting tool.
 
 ## Running it
 
-The API key is read **exclusively** from the `SCOUTASTIC_API_KEY`
-environment variable. It is never written to a file by this script, never
-printed, and never committed. Locally, set it as a real environment
-variable in your own shell profile (a file outside this repo, e.g.
-`~/.zshenv` for zsh — not `~/.zshrc`, which only loads for interactive
-shells and won't be picked up by tooling that runs non-interactively).
+Credentials are read **exclusively** from environment variables — never
+written to any file this script produces, never printed, never
+committed. Locally, set them in your shell profile (`~/.zshenv` for zsh —
+not `~/.zshrc`, which only loads for interactive shells).
 
 ```bash
-# 1. Verify which configured competitions actually resolve
-node scripts/sync-scoutastic.mjs --list-competitions
-node scripts/sync-scoutastic.mjs --list-competitions --update-config   # persist verified:true/false
+# Inspect one team's raw response (with debuts) without writing anything
+node scripts/sync-scoutastic.mjs --inspect-team 294
 
-# 2. Spot-check one player or one team's raw response shape
-node scripts/sync-scoutastic.mjs --inspect-player 1000674
-node scripts/sync-scoutastic.mjs --inspect-team 501
+# Test the crawl against the real queue/competitions, writing nothing
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/sync-scoutastic.mjs --dry-run --batch-size 5
 
-# 3. Try a small real sync first (one verified competition, capped teams)
-node scripts/sync-scoutastic.mjs --only NO1 --limit-teams 2 --dry-run
-
-# 4. Full sync (writes data/players.json)
-node scripts/sync-scoutastic.mjs
+# Real run
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/sync-scoutastic.mjs --batch-size 500
 ```
 
-Useful flags: `--dry-run` (don't write the file), `--only NO1,SE1`
-(restrict to specific competitionIds), `--include-unverified` (sync
-competitions not yet marked verified — not recommended), `--delay-ms`,
-`--retries`, `--gender` (default `male`), `--competitions-file` /
-`--data-file` (point at alternate paths — used for offline testing, see
-below).
+Flags: `--dry-run`, `--batch-size` (default 500), `--delay-ms` (default
+250), `--retries`, `--gender` (default `male`), `--only-team <id>`
+(force-crawl one specific team, ignoring the queue — for testing), `--inspect-team <id>`.
 
 ## Production
 
-`SCOUTASTIC_API_KEY` is set as a **GitHub Actions repository secret**
-(Settings → Secrets and variables → Actions → New repository secret). The
-`sync-scoutastic.yml` workflow reads it from there; it never appears in
-any committed file. The schedule (default `05:00 UTC` daily) and manual
-trigger both call the exact same script as above.
+`SCOUTASTIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are GitHub Actions
+repository **secrets**; `NEXT_PUBLIC_SUPABASE_URL` (reused as-is — same
+value, already public) is a repository **variable**. The
+`sync-scoutastic.yml` workflow runs daily by schedule, or on-demand via
+`workflow_dispatch` with a configurable batch size. Run
+`scripts/sync-competitions.mjs`'s own workflow at least once first — this
+crawl's queue and league-context lookups depend on the catalog it builds.
 
-## Upsert / dedupe / deactivation logic
+## Verified
 
-Players are matched by `scoutasticPlayerId` (SCOUTASTIC's
-`transfermarktId`), the stable external id preserved on every record. On
-each sync:
-
-- **New** id → inserted, `createdAt` set.
-- **Existing** id, fields changed → updated in place, `updatedAt` set,
-  original `createdAt`/`addedDate` preserved.
-- **Existing** id, fields identical → only `lastSyncedAt` refreshed
-  (counted as "unchanged", not "updated").
-- **Existing** id, not returned by this run — but *only* for a competition
-  the sync actually finished crawling — → `active: false`. The record is
-  never deleted, so history is preserved and a player who reappears next
-  sync is reactivated automatically.
-
-`getAllPlayers()` and friends (`src/lib/players-data/index.ts`) filter to
-`active` players only.
-
-## Offline testing
-
-The sync logic (retry/backoff, pagination, upsert, change detection,
-deactivation, failure isolation, missing/malformed field handling) was
-verified against a local mock HTTP server before ever touching the real
-API — see the git history for `scripts/lib/*.mjs` around the "Phase 2"
-commits for the test harness used. `--competitions-file` / `--data-file`
-plus `SCOUTASTIC_API_BASE_URL` pointed at `http://127.0.0.1:<port>` is the
-pattern: nothing about the sync script is hardcoded to the real host.
+A real batch run (`--batch-size 20`, 2026-08-31) against the live
+database: 20 teams crawled (Ireland `IRL3`, France lower divisions), 540
+players retrieved and upserted with zero failures, real field values
+confirmed in Postgres afterward (name, nationality, position, club,
+league, competition_id, market value, contract expiry all populated
+correctly), 215 debutant flags set (40 of them African), `last_crawled_at`
+correctly advanced on all 20 teams. A subtle but real pagination bug was
+caught and fixed in the process: PostgREST silently caps an unpaginated
+`.select()` at 1,000 rows, which would have made the competition-scope
+lookup (2,435 rows) and the crawl-queue cleanup work against an
+incomplete, arbitrary subset — `fetchAllRows()` in
+`scripts/sync-scoutastic.mjs` paginates properly now.

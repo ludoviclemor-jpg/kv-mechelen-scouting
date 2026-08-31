@@ -5,7 +5,8 @@
  * `dateOfBirth`, `height`, `foot`, `agent`, `nationality`,
  * `secondNationality`, `mainPosition`, `secondaryPosition1/2`,
  * `contractExpires`, `marketValue`, `teams[]`, `imageUrlV2`,
- * `performanceSummary` — is confirmed directly against real API responses.
+ * `performanceSummary`, `debuts` — is confirmed directly against real API
+ * responses (see docs/COMPETITIONS.md for the `debuts` confirmation).
  * Fields SCOUTASTIC doesn't return are left `null`, never invented.
  *
  * Two confirmed things worth calling out because they're easy to get
@@ -119,6 +120,42 @@ function photoUrlFrom(raw, imageBaseUrl) {
   return `${imageBaseUrl}${raw.imageUrlV2}`;
 }
 
+/**
+ * Real senior-debut detection (see docs/COMPETITIONS.md's "confirmed live"
+ * section) — confirmed on both /player and /players?teamId= that `debuts`
+ * is "first appearance per competition", not "career debut": a real
+ * player can have a dozen+ entries across every club/cup/international
+ * tournament they've ever featured in, including youth internationals.
+ *
+ * Scoped deliberately narrowly to avoid the obvious trap ("every senior
+ * player has a debut somewhere, so this would be true for almost
+ * everyone"): only counts as a real "debutant" here if —
+ *   1. `debuts` has an entry for the *specific competition this player was
+ *      just crawled through* (`context.competitionId` — the team/league
+ *      context that got us this player in the first place), not any
+ *      competition anywhere in their career, and
+ *   2. that debut happened within `DEBUT_RECENCY_DAYS` of the sync run —
+ *      otherwise a player who debuted three years ago and simply still
+ *      plays for the same club would spuriously read as a fresh debutant
+ *      forever.
+ */
+export const DEBUT_RECENCY_DAYS = 270; // roughly one football season
+
+function detectDebut(rawDebuts, context, warnings) {
+  if (!Array.isArray(rawDebuts) || !context.competitionId) return { isDebutant: false, debutDate: null };
+  const entry = rawDebuts.find((d) => d && d.competitionExternalId === context.competitionId);
+  if (!entry) return { isDebutant: false, debutDate: null };
+  const debutDate = normalizeDate(entry.date);
+  if (!debutDate) {
+    warnings.push(`debuts entry for competition ${context.competitionId} had an unparseable date: ${JSON.stringify(entry.date)}`);
+    return { isDebutant: false, debutDate: null };
+  }
+  const now = context.nowIso ? new Date(context.nowIso) : new Date();
+  const ageDays = (now.getTime() - new Date(debutDate).getTime()) / (1000 * 60 * 60 * 24);
+  if (ageDays < 0 || ageDays > DEBUT_RECENCY_DAYS) return { isDebutant: false, debutDate: null };
+  return { isDebutant: true, debutDate };
+}
+
 function normalizeSecondaryPositions(raw, warnings) {
   const codes = [raw.secondaryPosition1, raw.secondaryPosition2].filter(
     (v) => typeof v === "string" && v.length > 0
@@ -187,6 +224,7 @@ export function mapScoutasticPlayer(raw, context) {
   const { position, raw: positionRaw } = normalizePosition(raw.mainPosition, warnings);
   const teams = normalizeTeams(raw.teams);
   const seasonStats = currentSeasonStats(raw);
+  const debut = detectDebut(raw.debuts, context, warnings);
 
   const player = {
     scoutasticPlayerId: playerId,
@@ -231,20 +269,29 @@ export function mapScoutasticPlayer(raw, context) {
 
     status: "not_assessed",
     notes: { strengths: "", weaknesses: "", recommendation: "", general: "" },
+    // Real, only when a senior competition + team assignment is confirmed
+    // for this crawl — see docs/COMPETITIONS.md ("senior/first-team vs.
+    // youth/reserve" is established by scope, since only senior
+    // competitions are ever crawled, not by a SCOUTASTIC field).
     isYouthOrReserve: false,
 
-    // SofaScore enrichment defaults — this is the SCOUTASTIC mapper, it
-    // never sets these to anything but "no data yet". The sync script's
-    // upsert logic preserves real values here on existing players; see
-    // the PRESERVED_ON_UPDATE fields in sync-scoutastic.mjs.
+    // SCOUTASTIC-owned as of the debut-detection work (see detectDebut
+    // above and docs/COMPETITIONS.md) — genuinely computed from real
+    // `debuts` data, not a placeholder. Rating fields below remain
+    // SofaScore-provider-owned; the sync script's upsert logic must keep
+    // preserving those on existing players (see PRESERVED_ON_UPDATE in
+    // sync-scoutastic.mjs) — only isDebutant/debutDate moved out of that
+    // preserved group.
+    isDebutant: debut.isDebutant,
+    debutDate: debut.debutDate,
+
     sofascorePlayerId: null,
     sofascoreMatchStatus: "pending",
     sofascoreMatchConfidence: null,
     ratingsTeamId: null,
     lastSofaScoreSyncAt: null,
     matches: [],
-    isDebutant: false,
-    debutDate: null,
+    ratedMatchesCount: 0,
     ratingAverage: null,
     ratingHighest: null,
     ratingLowest: null,

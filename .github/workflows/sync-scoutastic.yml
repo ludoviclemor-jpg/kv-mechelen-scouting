@@ -1,19 +1,28 @@
 name: Sync SCOUTASTIC
 
-# Pulls real player data from SCOUTASTIC (competitions -> teams -> squads,
-# see docs/SCOUTASTIC_SYNC.md) and commits the result to data/players.json.
-# The API key never leaves this workflow — it's read from the
-# SCOUTASTIC_API_KEY repository secret and is never printed, logged, or
-# written to any file.
+# Batched, resumable player-squad crawl (competitions -> teams -> squads,
+# see docs/SCOUTASTIC_SYNC.md) — writes straight to Postgres via the
+# service_role key. No git commit, no Pages deploy trigger: player data
+# lives only in Postgres now, read by the frontend at runtime, same as
+# the Competitions feature (docs/COMPETITIONS.md).
+#
+# Needs SCOUTASTIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY (both secrets) and
+# NEXT_PUBLIC_SUPABASE_URL (an existing repository variable). None of
+# these are ever printed, logged, or written to any file.
+#
+# Run scripts/sync-competitions.mjs (its own workflow) at least once
+# before this one — the competition/team catalog it builds is what this
+# crawl's queue and league-context lookups depend on.
 
 on:
   schedule:
-    - cron: "0 5 * * *" # 05:00 UTC daily — adjust to your preferred time
-  workflow_dispatch: {} # manual trigger from the Actions tab
-
-permissions:
-  contents: write # to commit the refreshed data/players.json
-  actions: write # to dispatch the Pages deploy workflow afterwards
+    - cron: "0 5 * * *" # 05:00 UTC daily — one batch per day; see batch-size below
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "How many teams to crawl this run"
+        required: false
+        default: "500"
 
 concurrency:
   group: "scoutastic-sync"
@@ -31,31 +40,12 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run SCOUTASTIC sync
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run SCOUTASTIC player sync
         env:
           SCOUTASTIC_API_KEY: ${{ secrets.SCOUTASTIC_API_KEY }}
-        run: node scripts/sync-scoutastic.mjs
-
-      - name: Commit updated player data (if anything changed)
-        id: commit
-        run: |
-          git config user.name "scoutastic-sync-bot"
-          git config user.email "scoutastic-sync-bot@users.noreply.github.com"
-          git add data/players.json
-          if git diff --staged --quiet; then
-            echo "No changes in the dataset — nothing to commit."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "Sync SCOUTASTIC player data"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # A commit pushed with the default GITHUB_TOKEN does not itself
-      # trigger other workflows (GitHub's loop-prevention rule), so the
-      # Pages deploy has to be dispatched explicitly here.
-      - name: Trigger Pages deploy
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref ${{ github.ref_name }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-scoutastic.mjs --batch-size ${{ github.event.inputs.batch_size || '500' }}

@@ -106,6 +106,15 @@ async function main() {
     Array.isArray(c.teamIds) ? c.teamIds.map((teamId) => ({ competition_id: c.transfermarktId, team_id: String(teamId) })) : []
   );
 
+  // Scoped to the actual target set (active, Senior, male, European) — not
+  // every team from all 2,435 competitions. competition_teams still stores
+  // links for everything (cheap, keeps that data available if scope ever
+  // broadens), but the *crawl queue* only ever holds teams worth actually
+  // fetching squads for, per the same scope the Competitions page shows.
+  const inScopeIds = new Set(europeanSeniorMale.map((c) => c.competition_id));
+  const scopedTeamIds = new Set(competitionTeamRows.filter((r) => inScopeIds.has(r.competition_id)).map((r) => r.team_id));
+  const uniqueTeamIds = [...scopedTeamIds];
+
   const durationSec = ((Date.now() - startedAt) / 1000).toFixed(1);
 
   console.log(`\nCompetitions fetched: ${result.data.length}${result.partial ? " (partial — a later page failed)" : ""}`);
@@ -113,7 +122,8 @@ async function main() {
   console.log(`European (association = UEFA): ${european.length}`);
   console.log(`  active: ${europeanActive.length}`);
   console.log(`  active + Senior + male: ${europeanSeniorMale.length}`);
-  console.log(`Competition-team links: ${competitionTeamRows.length}`);
+  console.log(`Competition-team links (all competitions): ${competitionTeamRows.length}`);
+  console.log(`Unique teams in scope for the squad crawl (active + Senior + male + European): ${uniqueTeamIds.length}`);
   console.log(`Fetch duration: ${durationSec}s`);
 
   if (args.dryRun) {
@@ -158,8 +168,7 @@ async function main() {
     }
   }
 
-  console.log("Queuing newly-discovered teams for the squad crawl...");
-  const uniqueTeamIds = [...new Set(competitionTeamRows.map((r) => r.team_id))];
+  console.log("Queuing newly-discovered teams for the squad crawl (active + Senior + male + European only)...");
   const TEAM_BATCH = 1000;
   for (let i = 0; i < uniqueTeamIds.length; i += TEAM_BATCH) {
     const batch = uniqueTeamIds.slice(i, i + TEAM_BATCH).map((team_id) => ({ team_id }));
