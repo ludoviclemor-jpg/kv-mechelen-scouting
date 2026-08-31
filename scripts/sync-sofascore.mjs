@@ -1,30 +1,36 @@
 #!/usr/bin/env node
 /**
  * Ratings enrichment sync (module/file names are a historical "SofaScore"
- * label — the active provider is API-Football; see
- * scripts/lib/apiFootballProvider.mjs and docs/SOFASCORE_PROVIDER.md for
- * why, and what's confirmed vs. still unverified about it).
+ * label). Currently a pure no-op: no real ratings provider is connected
+ * (see docs/SOFASCORE_PROVIDER.md) — scripts/lib/sofascoreProvider.mjs
+ * always returns the null provider, which finds nothing and rates
+ * nothing. An earlier API-Football implementation was removed per
+ * explicit instruction; it was never connected to a real key.
  *
- * No-op when SOFASCORE_PROVIDER is unset (default) — see
- * scripts/lib/sofascoreProvider.mjs.
+ * Also worth knowing before trying to make this do anything real: this
+ * script still targets DATA_PATH (data/players.json) below, not the real
+ * Postgres `players` table the rest of the app now reads from (see
+ * docs/SCOUTASTIC_SYNC.md — the player sync itself already made that
+ * move; this one hasn't yet). Wiring up a real provider here would need
+ * that same migration first, or it would enrich a file nothing reads.
  *
- * Scope: by explicit decision, this only ever processes African debutant
- * candidates (isAfrican && isEasternEuropeanLeague && !isYouthOrReserve),
- * not the full SCOUTASTIC player set — the free API-Football tier's
- * 100 requests/day makes covering all 8,454 players impractical, and
- * this scope directly powers the currently-empty African Debutants page.
- * Pass --include-all to override (not recommended on the free tier).
+ * Scope, as designed (kept for whenever this is revived): only African
+ * debutant candidates (isAfrican && isEasternEuropeanLeague &&
+ * !isYouthOrReserve), not the full player set — the free API-Football
+ * tier's 100 requests/day made covering everything impractical, and this
+ * scope directly powers the African Debutants page. Pass --include-all
+ * to override (not recommended on a rate-limited free tier).
  *
- * Design:
+ * Design (kept for whenever a real provider is connected):
  *   - Never re-search a player whose sofascoreMatchStatus is already
  *     "matched"/"ambiguous"/"not_found" — those are terminal until a
  *     human or a stronger provider revisits them. Only "pending" players
  *     get findPlayer() calls.
  *   - Matched players get their ratings refreshed periodically (default:
  *     older than --refresh-after-days), not on every run.
- *   - A hard per-run request budget (enforced inside the provider, see
- *     API_FOOTBALL_MAX_REQUESTS_PER_RUN) stops a run cleanly before it
- *     could blow through a daily API limit, rather than after the fact.
+ *   - A hard per-run request budget, enforced inside whichever provider
+ *     is active, stops a run cleanly before it could blow through a rate
+ *     limit, rather than after the fact.
  *   - --delay-ms between provider calls + the provider's own retry/backoff
  *     is the rate-limit protection.
  *

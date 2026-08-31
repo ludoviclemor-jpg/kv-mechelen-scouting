@@ -120,19 +120,23 @@ export interface Player {
   notes: ScoutingNotes;
   isYouthOrReserve: boolean; // false by construction: only senior competitions are crawled
 
-  // --- Ratings enrichment — historically named after SofaScore (the
-  // originally-intended provider); the field names stuck even though the
-  // active implementation is API-Football (see
-  // scripts/lib/apiFootballProvider.mjs, docs/SOFASCORE_PROVIDER.md).
-  // SCOUTASTIC data above is never gated on any of this being present. ---
+  // --- Real, SCOUTASTIC-owned: computed from SCOUTASTIC's own `debuts`
+  // data, cross-referenced against known senior European competitions
+  // (see scripts/lib/fieldMap.mjs's detectDebut(), docs/SCOUTASTIC_SYNC.md). ---
+  isDebutant: boolean;
+  debutDate: string | null;
+
+  // --- Ratings enrichment — historically named after SofaScore. No real
+  // provider is connected as of 2026-08-31 (see docs/SOFASCORE_PROVIDER.md
+  // for what's been investigated and ruled out) — every field below is
+  // genuinely empty/pending for every player, not populated by an
+  // approximation. SCOUTASTIC data above is never gated on any of this. ---
   sofascorePlayerId: string | null; // the configured provider's player id (not literally a SofaScore id)
   sofascoreMatchStatus: SofaScoreMatchStatus;
   sofascoreMatchConfidence: number | null; // 0-1, only meaningful once matched
-  ratingsTeamId: string | null; // provider's current-team id for this player — API-Football's fixtures lookup is team-centric, so this avoids re-searching on every refresh
+  ratingsTeamId: string | null; // provider's current-team id for this player — avoids re-searching just to refresh ratings, for providers whose match-history lookup is team-centric
   lastSofaScoreSyncAt: string | null; // ISO datetime
   matches: MatchRating[]; // last 5 completed matches with ratings — always [] until matched
-  isDebutant: boolean; // debut detection needs match-level data — always false until built
-  debutDate: string | null;
   ratingAverage: number | null; // stored aggregate of `matches` — computed once at sync time, not on every read
   ratingHighest: number | null;
   ratingLowest: number | null;

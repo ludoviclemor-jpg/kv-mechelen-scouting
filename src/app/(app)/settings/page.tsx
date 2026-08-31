@@ -214,10 +214,10 @@ export default function SettingsPage() {
             />
             <IntegrationCard
               icon={Radar}
-              name="Match Ratings (API-Football)"
-              description="Match ratings for African debutant candidates, via a real licensed API — see docs/SOFASCORE_PROVIDER.md. SofaScore itself has no legitimate public API; not used."
+              name="Match Ratings (SofaScore)"
+              description="Real SofaScore match ratings for African debutant candidates. SofaScore's API is confirmed blocked and offers no legitimate access route — see docs/SOFASCORE_PROVIDER.md. No substitute provider is used; every player shows 'SofaScore data unavailable' until a real one exists."
               state="not_connected"
-              badgeLabel="Not connected yet"
+              badgeLabel="No provider connected"
               phase="Phase 4"
             />
             <IntegrationCard

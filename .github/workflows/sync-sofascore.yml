@@ -1,29 +1,23 @@
 name: Sync SofaScore
 
-# Ratings enrichment sync (workflow/file names are a historical
-# "SofaScore" label — the active provider is API-Football; see
-# scripts/lib/apiFootballProvider.mjs, docs/SOFASCORE_PROVIDER.md).
+# Ratings enrichment sync — currently dormant. No real ratings provider is
+# connected (SofaScore's own API is confirmed blocked, 403, from every
+# network tested; API-Football was implemented but explicitly removed per
+# instruction — never connected to a real key, so nothing regresses by
+# removing it; FotMob was investigated and ruled out for the same class
+# of anti-bot bypass requirement). See docs/SOFASCORE_PROVIDER.md.
 #
-# No-op until SOFASCORE_PROVIDER is set to "api-football" and
-# API_FOOTBALL_KEY exists as a repository secret.
-#
-# Runs ONCE a day, deliberately — the free API-Football tier is capped at
-# 100 requests/day, and the script's own per-run budget (default 90,
-# API_FOOTBALL_MAX_REQUESTS_PER_RUN) assumes a single daily run. Running
-# this more often would blow through the daily limit.
+# scripts/lib/sofascoreProvider.mjs always returns the null provider
+# today, so running this script does nothing harmful — but it also still
+# targets the old data/players.json file, not the real Postgres `players`
+# table (see docs/SCOUTASTIC_SYNC.md for that migration, already done for
+# the player sync itself) — so it wouldn't do anything *useful* yet
+# either, even with a real provider connected. Scheduled runs are
+# disabled until both of those are addressed; kept as workflow_dispatch
+# only so it's easy to smoke-test once work resumes here.
 
 on:
-  schedule:
-    - cron: "15 4 * * *" # once daily, 04:15 UTC
   workflow_dispatch: {}
-
-permissions:
-  contents: write
-  actions: write
-
-concurrency:
-  group: "sofascore-sync"
-  cancel-in-progress: false
 
 jobs:
   sync:
@@ -37,30 +31,5 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run ratings sync
-        env:
-          SOFASCORE_PROVIDER: ${{ vars.SOFASCORE_PROVIDER }}
-          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-          API_FOOTBALL_BASE_URL: ${{ vars.API_FOOTBALL_BASE_URL }}
+      - name: Run ratings sync (no-op — no real provider connected)
         run: node scripts/sync-sofascore.mjs
-
-      - name: Commit updated player data (if anything changed)
-        id: commit
-        run: |
-          git config user.name "sofascore-sync-bot"
-          git config user.email "sofascore-sync-bot@users.noreply.github.com"
-          git add data/players.json
-          if git diff --staged --quiet; then
-            echo "No changes — nothing to commit."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "Sync ratings enrichment data"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Trigger Pages deploy
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref ${{ github.ref_name }}

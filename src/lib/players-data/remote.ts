@@ -370,11 +370,12 @@ export async function fetchFilterOptions(): Promise<FilterOptions> {
 }
 
 /**
- * Ratings are only ever populated for the API-Football-scoped subset
- * (African debutant candidates — see docs/SOFASCORE_PROVIDER.md), so this
- * is inherently a small set worldwide, not a slice of the full 400K+
- * catalog — safe to fetch in full and let the page filter/sort it in the
- * browser exactly as it always has.
+ * Ratings, once a real provider exists, are only ever scoped to African
+ * debutant candidates (see docs/SOFASCORE_PROVIDER.md — no provider is
+ * connected today, so this returns nothing for now, not an
+ * approximation), so this is inherently a small set worldwide, not a
+ * slice of the full 165K+ catalog — safe to fetch in full and let the
+ * page filter/sort it in the browser exactly as it always has.
  */
 export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
   if (!isSupabaseConfigured()) notConfigured();

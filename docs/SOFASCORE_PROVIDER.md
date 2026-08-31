@@ -2,13 +2,18 @@
 
 Match ratings are a core requirement of this project. The module/file
 names throughout this system say "SofaScore" — that's a historical label
-from when SofaScore was the first (and, it turned out, inaccessible)
-candidate; the **active provider is API-Football**. Treat "SofaScore" in
-filenames as "the ratings provider slot", not a live claim.
+from the first candidate investigated; treat it as "the ratings provider
+slot," not a live claim about which vendor is active.
 
-## SofaScore itself — investigated, no legitimate access
+**Current state (2026-08-31): no real provider is connected.** Every
+player genuinely shows "SofaScore data unavailable" — not an
+approximation, not a substitute source. `getSofaScoreProvider()`
+(`scripts/lib/sofascoreProvider.mjs`) always returns the null provider;
+there is no other option implemented today.
 
-Their own FAQ states plainly:
+## What's been investigated and ruled out, and why
+
+**SofaScore itself.** Their own FAQ states plainly:
 
 > "due to agreements with our data providers, we are unable to share the
 > data sources in the form of API endpoints"
@@ -16,69 +21,48 @@ Their own FAQ states plainly:
 
 Their only sanctioned integration route is a media/corporate widget
 partnership (`corporate.sofascore.com/widgets`) — embeddable display
-widgets, not a data feed. Separately: direct (non-widget) requests to
+widgets, not a data feed. Direct (non-widget) requests to
 `api.sofascore.com` are actively blocked (`403`) from every network
-tested — residential, GitHub Actions, and Anthropic's own infrastructure.
-A separate library (ScraperFC) that claims to access Sofascore data was
-inspected and found to depend on `cloudscraper`, `selenium`, and
-`botasaurus` — anti-bot-bypass and browser-automation tooling. **This
-project deliberately does not use bypass techniques of any kind** —
-that's a product decision (legal/ToS exposure for the club), not a
-technical limitation, and it doesn't change if asked again.
+tested — residential, GitHub Actions, and Anthropic's own infrastructure,
+confirmed directly. A library claiming to access SofaScore data
+(ScraperFC) was inspected and found to depend on `cloudscraper`,
+`selenium`, and `botasaurus` — anti-bot-bypass and browser-automation
+tooling.
 
-## Active provider: API-Football (api-sports.io)
+**FotMob**, investigated as an alternative (2026-08-31). The
+straightforward wrapper library (plain `requests`, no special headers)
+turned out to hit dead endpoints — FotMob has since moved its real API.
+The actively-maintained wrapper explicitly advertises "automatic proxy
+token handling and caching" as a feature, meaning the *current* real
+FotMob API needs a rotating signed auth token plus proxy infrastructure —
+the same class of anti-bot bypass already ruled out for SofaScore, not an
+easier path.
 
-A real, licensed API — not a bypass. Confirmed via official docs/support
-content:
+**API-Football** (api-sports.io) was implemented as a real, licensed
+alternative (not a bypass) — base URL, auth header, and endpoint shapes
+were confirmed via official docs, offline-tested against a mock server,
+and scoped to African debutant candidates only (the free tier's 100
+requests/day couldn't cover the full player set). It was **never
+connected to a real key** — nothing was verified against a live
+response. It was subsequently **removed per explicit instruction**: real
+SofaScore ratings only, no substitute provider, "SofaScore data
+unavailable" when nothing real is available. Nothing regresses by having
+removed it, since it was never live.
 
-- Base URL: `https://v3.football.api-sports.io`
-- Auth: `x-apisports-key: <key>` header
-- `GET /players?search=|team=&season=|id=&season=` — player lookup
-- `GET /fixtures?team=&last=N` — a team's most recent N fixtures
-  (the API is **team-centric**, not player-centric, for match history —
-  there's no confirmed "last N fixtures for this player" shortcut)
-- `GET /fixtures/players?fixture=` — every player's stats for one
-  fixture, including a numeric `rating` field
+**This project deliberately does not use bypass techniques of any
+kind** — proxies, rotating tokens, browser automation, fingerprint
+spoofing, cookie tricks. That's a product decision (legal/ToS exposure
+for the club), not a technical limitation, and doesn't change if a
+different provider is suggested — the same evaluation applies to any of
+them.
 
-**Not yet confirmed against a real response** (no key exists to test
-with as of writing) — verify with
-`node scripts/sync-sofascore.mjs --inspect-player "Full Name"` before
-trusting a full sync, the same discipline SCOUTASTIC was verified with:
-the exact JSON path to `rating`, whether search reliably finds
-lower-league Eastern European players (API-Football's depth is richest
-for the "top five" leagues), and the real per-player request count.
+## What's still real and ready
 
-Offline-tested against a mock server matching the documented shapes
-(scope filtering, matching with real DOB/nationality signals, home/away/
-draw result derivation, request counting) — see git history around where
-this was built for the test output.
-
-## Scope: African debutant candidates only
-
-By explicit decision, **not** all 8,454 SCOUTASTIC players — the free
-API-Football tier is 100 requests/day, which cannot cover that many
-players in any reasonable time. `sync-sofascore.mjs` only ever processes
-players where `isAfrican && isEasternEuropeanLeague && !isYouthOrReserve`
-— directly powers the African Debutants page, `--include-all` overrides
-this (not recommended on the free tier).
-
-## Request-volume math (this scope, this tier)
-
-Per matched player: ~1 search + 1 team-fixtures lookup + up to ~8
-per-fixture lookups (to find 5 games they actually appear in) ≈ 10
-requests. Per unmatched player: 1. At `--batch-size 8` (the default) and
-a ~90-request-per-run hard cap (`API_FOOTBALL_MAX_REQUESTS_PER_RUN`,
-enforced inside the provider — a run stops cleanly rather than exceeding
-budget), one daily run processes roughly 8 never-tried candidates. A
-first full pass over the debutant-candidate pool (expected: dozens to a
-few hundred players, not yet counted for real) takes days to a few
-weeks; after that, only stale `matched` players get refreshed
-(`--refresh-after-days`, default 14), which is far lighter.
-
-The sync workflow (`sync-sofascore.yml`) runs **once daily** — running
-more often would exceed the free tier.
-
-## The interface (why adding this provider touched almost nothing)
+`sofascoreProvider.mjs`'s interface is unchanged and provider-agnostic —
+adding a real implementation later (a licensed data feed, a legitimate
+SofaScore partnership, anything with a genuine `rating` field and a
+sanctioned way to reach it) only means writing one new file and one
+branch in `getSofaScoreProvider()`, never touching any caller:
 
 ```js
 findPlayer({ name, dateOfBirth, nationality, club })
@@ -91,41 +75,45 @@ getLastFiveRatings(sofascorePlayerId, ratingsTeamId) -> { ratings, average, high
 isConfigured() -> boolean
 ```
 
-Every consumer (the sync script; indirectly the frontend, via
-`data/players.json`) depends only on this shape. Adding API-Football
-meant writing one new file (`apiFootballProvider.mjs`) and one line in
-`getSofaScoreProvider()`'s `if` chain — one real addition to the shape:
-`getLastFiveRatings` and the stored player record both carry a
-`ratingsTeamId` now, because API-Football's fixtures lookup needs a team
-id, not just a player id (avoids re-searching just to refresh ratings).
+**Matching logic** (`scripts/lib/sofascoreMatching.mjs`) is also kept,
+unwired but ready — pure functions, no network calls, scores candidates
+by name similarity (Levenshtein, accent/case-insensitive) plus bonuses
+for exact date-of-birth match, nationality match, and club overlap. Only
+resolves to `matched` if the top candidate clears a confidence floor
+*and* beats the runner-up by a clear margin — otherwise `ambiguous`,
+never a silent guess. Verified directly against 5 scenarios (clear match,
+same-name tie, DOB breaking that tie, unrelated name, no candidates).
 
-### Matching — never auto-assigns an ambiguous profile
+**Postgres columns are already in place** on `players`
+(`sofascore_player_id`, `sofascore_match_status`,
+`sofascore_match_confidence`, `ratings_team_id`, `matches`,
+`rated_matches_count`, `rating_average/highest/lowest`) and
+`scripts/sync-scoutastic.mjs`'s upserts never touch them — only
+SCOUTASTIC-owned columns are written, so a future ratings sync can freely
+own these fields without any coordination needed.
 
-`resolveMatch()` in `sofascoreMatching.mjs` scores candidates by name
-similarity (Levenshtein, accent/case-insensitive) plus bonuses for an
-exact date-of-birth match, nationality match, and club overlap. Only
-`matched` if the top candidate clears a confidence floor *and* beats the
-runner-up by a clear margin — otherwise `ambiguous`, never a silent
-guess. Verified directly against 5 scenarios (clear match, same-name tie,
-DOB breaking that tie, unrelated name, no candidates) — see git history.
+## What's NOT ready — a real gap, not hidden
 
-### SCOUTASTIC sync never touches ratings fields
+`scripts/sync-sofascore.mjs` still targets `data/players.json`, not the
+real Postgres `players` table the rest of the app reads from — it
+predates the Postgres migration the player sync itself already went
+through (see `docs/SCOUTASTIC_SYNC.md`). Wiring up a real provider here
+would need that same migration first (read candidate players from
+Postgres by `sofascore_match_status`/`rated_matches_count` staleness,
+write ratings back via upsert), or it would enrich a file nothing reads
+in production anymore. Scope for that migration is the same shape as the
+player sync's own rewrite — not attempted yet, since there's no real
+provider to test it against.
 
-`scripts/sync-scoutastic.mjs`'s upsert only merges fields SCOUTASTIC
-actually owns; `sofascorePlayerId`, `sofascoreMatchStatus`,
-`ratingsTeamId`, `matches`, the rating aggregates, and local scouting
-state (`status`, `notes`) are explicitly preserved on every SCOUTASTIC
-update. (This was a real bug caught while wiring the architecture up
-originally — the first merge did a blanket object spread that would have
-reset all of this on every SCOUTASTIC sync.)
+`.github/workflows/sync-sofascore.yml`'s schedule is disabled
+(`workflow_dispatch` only) for the same reason — nothing to run on a
+schedule until a provider exists and the Postgres migration above is done.
 
-## Setup (once you have a free API-Football key)
+## Scope, once revived: African debutant candidates only
 
-1. Sign up at [api-football.com](https://www.api-football.com/) (direct,
-   not RapidAPI — the header/host differ) and grab the free-tier key.
-2. Locally: `API_FOOTBALL_KEY=... SOFASCORE_PROVIDER=api-football node scripts/sync-sofascore.mjs --inspect-player "Some Real Player Name"` —
-   confirms auth works and the response shape matches what the code
-   expects before trusting a real batch.
-3. Production: `API_FOOTBALL_KEY` as a GitHub Actions **secret**;
-   `SOFASCORE_PROVIDER=api-football` as a GitHub Actions **variable**
-   (not sensitive — the string name of the active provider).
+By explicit decision, not the full player set (165,147 as of the last
+full crawl) — whatever free/affordable tier a future provider offers is
+very unlikely to cover that many players. The design already scopes to
+`isAfrican && isEasternEuropeanLeague && !isYouthOrReserve` (directly
+powers the African Debutants page, itself now populated for real by
+SCOUTASTIC — see `docs/SCOUTASTIC_SYNC.md` — independently of ratings).

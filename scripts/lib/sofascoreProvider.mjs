@@ -15,11 +15,19 @@
  * attempt to bypass its bot protection (explicit product decision, not a
  * technical limitation — see docs/SOFASCORE_PROVIDER.md).
  *
- * The active implementation is **API-Football** (api-sports.io) instead —
- * a real, licensed API with a genuine `rating` field — see
- * apiFootballProvider.mjs. This module/interface predates that choice and
- * kept its original name; treat "SofaScore" in these filenames as a
- * historical label for "the ratings provider slot", not a live claim.
+ * FotMob was investigated as an alternative (2026-08-31) and ruled out
+ * for the same reason — its current real API requires a rotating signed
+ * token plus proxy infrastructure to reach reliably, the same class of
+ * anti-bot bypass already ruled out for SofaScore.
+ *
+ * No real provider is connected as of 2026-08-31 (an earlier API-Football
+ * implementation existed but was removed per explicit instruction — it
+ * was never connected to a real key, so nothing regresses by removing
+ * it). `getSofaScoreProvider()` always returns the null provider today —
+ * every player genuinely shows "SofaScore data unavailable," not an
+ * approximation from a different source. Treat "SofaScore" in these
+ * filenames as a historical label for "the ratings provider slot," not a
+ * live claim about which vendor is active.
  *
  * This module exists so the rest of the app never has to change once a
  * legitimate provider (a licensed data feed, a different real ratings
@@ -98,12 +106,8 @@ export async function getSofaScoreProvider(providerName = process.env.SOFASCORE_
   if (name === "null" || name === "none" || name === "") {
     return createNullProvider();
   }
-  if (name === "api-football") {
-    const { createApiFootballProvider } = await import("./apiFootballProvider.mjs");
-    return createApiFootballProvider();
-  }
   throw new Error(
-    `SOFASCORE_PROVIDER="${providerName}" is not implemented. Only "null" and "api-football" exist today — ` +
-      `see docs/SOFASCORE_PROVIDER.md for how to add another provider.`
+    `SOFASCORE_PROVIDER="${providerName}" is not implemented. Only "null" exists today (no real ratings ` +
+      `provider is connected — see docs/SOFASCORE_PROVIDER.md) — add a real implementation here, never in a caller, when one becomes available.`
   );
 }

@@ -54,9 +54,11 @@ export default function TopPerformersPage() {
   const [ageBand, setAgeBand] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("last5");
 
-  // Ratings only ever get populated for the API-Football-scoped subset
-  // (see docs/SOFASCORE_PROVIDER.md) — inherently small, fetched once and
-  // filtered/sorted client-side, unlike the full Players list.
+  // Ratings are only ever populated for a scoped subset once a real
+  // provider exists (see docs/SOFASCORE_PROVIDER.md — none is connected
+  // today, so this is currently empty for every player) — inherently
+  // small even then, fetched once and filtered/sorted client-side, unlike
+  // the full Players list.
   const { data: rated, loading, error } = useAsync(() => fetchTopPerformers(), []);
 
   const leagues = useMemo(() => uniqueSorted((rated ?? []).map((p) => p.league)), [rated]);
