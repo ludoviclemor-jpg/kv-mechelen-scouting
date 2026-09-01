@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { fetchMatchesByDate, type MatchSummary } from "@/lib/matches-data";
 import { useAsync } from "@/lib/players-data";
+import { fetchFavoriteCompetitionIds, addFavoriteCompetition, removeFavoriteCompetition } from "@/lib/competitions-data";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -48,6 +49,28 @@ export default function ExplorePage() {
 
   const { data: matches, loading, error } = useAsync(() => fetchMatchesByDate(date), [date]);
 
+  // Shared across all scouts, same convention as shortlists — loaded once;
+  // `overrides` layers optimistic toggles on top the same way
+  // useEffectiveStatus/useEffectiveNotes do in app-store.tsx, rather than
+  // copying async data into a second piece of state. See docs/EXPLORE.md.
+  const { data: loadedFavorites } = useAsync(() => fetchFavoriteCompetitionIds(), []);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const favoriteIds = useMemo(() => {
+    const result = new Set(loadedFavorites ?? []);
+    for (const [id, isFavorite] of Object.entries(overrides)) {
+      if (isFavorite) result.add(id);
+      else result.delete(id);
+    }
+    return result;
+  }, [loadedFavorites, overrides]);
+
+  function toggleFavorite(competitionId: string) {
+    const newValue = !favoriteIds.has(competitionId);
+    setOverrides((prev) => ({ ...prev, [competitionId]: newValue }));
+    const persist = newValue ? addFavoriteCompetition(competitionId) : removeFavoriteCompetition(competitionId);
+    persist.catch((err) => console.error("Failed to save favorite competition:", err));
+  }
+
   const countries = useMemo(() => uniqueSorted((matches ?? []).map((m) => m.competitionArea)), [matches]);
   const competitionsInCountry = useMemo(() => {
     const pool = country === "all" ? matches ?? [] : (matches ?? []).filter((m) => m.competitionArea === country);
@@ -74,7 +97,7 @@ export default function ExplorePage() {
     });
   }, [matches, country, competitionId, status, kickoffBand, clubSearch]);
 
-  const groups = useMemo(() => groupMatches(filtered), [filtered]);
+  const groups = useMemo(() => groupMatches(filtered, favoriteIds), [filtered, favoriteIds]);
 
   function handleCountryChange(value: string) {
     setCountry(value);
@@ -161,7 +184,7 @@ export default function ExplorePage() {
             />
           </div>
         ) : (
-          <MatchList groups={groups} />
+          <MatchList groups={groups} favoriteCompetitionIds={favoriteIds} onToggleFavorite={toggleFavorite} />
         )}
       </div>
     </>

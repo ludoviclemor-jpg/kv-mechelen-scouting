@@ -106,6 +106,17 @@ drop policy if exists "authenticated can update player_scouting_state" on player
 create policy "authenticated can update player_scouting_state" on player_scouting_state
   for update to authenticated using (true) with check (true);
 
+alter table favorite_competitions enable row level security;
+drop policy if exists "authenticated can read favorite_competitions" on favorite_competitions;
+create policy "authenticated can read favorite_competitions" on favorite_competitions
+  for select to authenticated using (true);
+drop policy if exists "authenticated can write favorite_competitions" on favorite_competitions;
+create policy "authenticated can write favorite_competitions" on favorite_competitions
+  for insert to authenticated with check (true);
+drop policy if exists "authenticated can delete favorite_competitions" on favorite_competitions;
+create policy "authenticated can delete favorite_competitions" on favorite_competitions
+  for delete to authenticated using (true);
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see

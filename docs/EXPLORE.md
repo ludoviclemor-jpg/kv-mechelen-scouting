@@ -92,6 +92,31 @@ last-5 average, not an approximation. Wiring up a real provider later
 means populating this one map from a real per-match rating lookup — no
 component changes needed.
 
+## Favorite competitions — pinned first, everywhere favorited
+
+The list page's Country → Competition groups sort favorited competitions
+first (both within a country group and across country groups, falling
+back to alphabetical among ties) instead of pure alphabetical. Backed by
+a small `favorite_competitions` table (`competition_id` primary key,
+`db/schema.sql`/`db/rls_policies.sql`) — shared across all scouts, no
+per-user ownership, same convention as shortlists. A star icon next to
+each competition header (`src/components/matches/MatchList.tsx`) toggles
+it via `addFavoriteCompetition`/`removeFavoriteCompetition`
+(`src/lib/competitions-data/remote.ts`).
+
+`src/app/(app)/explore/page.tsx` loads the favorited set once via
+`useAsync` and layers optimistic toggles on top with a `useMemo`
+derivation (`overrides` record merged over `loadedFavorites`) — the same
+pattern `useEffectiveStatus`/`useEffectiveNotes` use in `app-store.tsx`
+for shortlist status/notes. Deliberately **not** copied into a mirrored
+`useState` synced via `useEffect` (triggers React's
+`react-hooks/set-state-in-effect` warning and is redundant with a pure
+derivation anyway).
+
+Verified live (2026-09-01): table + RLS insert/select/delete round-trip
+confirmed against a real competition (`ATRO`, Austria Regional League
+East) via a throwaway service_role script.
+
 ## Not yet built (scoped out deliberately, not hidden)
 
 The Explore list page now has real, cascading Country → Competition

@@ -195,3 +195,29 @@ export async function fetchCompetitionsSummary(): Promise<CompetitionsSummary> {
     playersInEuropeanCompetitions,
   };
 }
+
+/**
+ * Explore's competition favorites (docs/EXPLORE.md) — shared across all
+ * scouts (no per-user ownership model, same as shortlists), keyed by the
+ * stable competition_id. A small, unbounded table (one row per favorited
+ * competition, realistically dozens at most) — fetched in full, no
+ * pagination needed.
+ */
+export async function fetchFavoriteCompetitionIds(): Promise<Set<string>> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient().from("favorite_competitions").select("competition_id");
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.competition_id as string));
+}
+
+export async function addFavoriteCompetition(competitionId: string): Promise<void> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { error } = await getSupabaseClient().from("favorite_competitions").upsert({ competition_id: competitionId });
+  if (error) throw error;
+}
+
+export async function removeFavoriteCompetition(competitionId: string): Promise<void> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { error } = await getSupabaseClient().from("favorite_competitions").delete().eq("competition_id", competitionId);
+  if (error) throw error;
+}

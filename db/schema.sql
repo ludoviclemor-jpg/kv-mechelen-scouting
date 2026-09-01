@@ -388,6 +388,15 @@ create table if not exists player_scouting_state (
 
 create index if not exists idx_shortlist_players_player on shortlist_players(scoutastic_player_id);
 
+-- Explore's competition favorites (docs/EXPLORE.md) — shared across all
+-- scouts, same "no per-user ownership model" convention as shortlists/
+-- player_scouting_state above (this is an internal club tool, not
+-- multi-tenant). Keyed by the stable SCOUTASTIC competition_id, not name.
+create table if not exists favorite_competitions (
+  competition_id text primary key references scoutastic_competitions(competition_id) on delete cascade,
+  added_at timestamptz not null default now()
+);
+
 -- Real "first call-up" (squad selection), not "first appearance" — see
 -- docs/INTERNATIONAL_CALLUPS.md. One row per (player, level): a player
 -- can have both a U21 row and, later, a separate Senior row. Populated by
