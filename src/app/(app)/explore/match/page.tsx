@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays, MapPin, Users, Flag, Globe2, Bookmark } from "lucide-react";
+import { CalendarDays, MapPin, Users, Flag, Bookmark } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -141,13 +141,10 @@ function MatchContent() {
               Contract expiring within a year
             </span>
             <span className="flex items-center gap-1">
-              <Globe2 size={12} className="rounded-full bg-kvm-yellow p-[1px] text-kvm-ink" aria-hidden="true" />
-              African nationality
-            </span>
-            <span className="flex items-center gap-1">
               <Bookmark size={12} className="rounded-full bg-kvm-red p-[1px] text-white" aria-hidden="true" />
               Shortlisted
             </span>
+            <span className="flex items-center gap-1">⚽ Goals scored / A assists (this match)</span>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

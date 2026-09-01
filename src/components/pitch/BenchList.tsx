@@ -5,6 +5,7 @@ import type { Match, MatchLineupPlayer } from "@/lib/matches-data";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
 import { birthYear, contractStatus, cn } from "@/lib/utils";
+import { flagForNationality } from "@/lib/nationalityFlags";
 
 type MatchEvents = Match["events"];
 
@@ -40,6 +41,7 @@ export function BenchList({
   function Row({ p }: { p: MatchLineupPlayer }) {
     const player = playersById.get(`sc-${p.id}`) ?? null;
     const name = player?.name ?? ([p.firstName, p.lastName].filter(Boolean).join(" ") || "Unknown");
+    const flag = flagForNationality(player?.nationality ?? null);
     const rating = matchRatings.get(p.id) ?? null;
     const inMinute = subInMinute(p.id);
     // Same urgent cutoff (<=12 months) as the pitch chips/Players table — see contractStatus() in src/lib/utils.ts.
@@ -65,11 +67,20 @@ export function BenchList({
             ) : null}
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-kvm-ink">{name}</div>
+            <div className="flex items-center gap-1 truncate text-sm font-medium text-kvm-ink">
+              {flag ? (
+                <span aria-label={player?.nationality ?? undefined} title={player?.nationality ?? undefined}>
+                  {flag}
+                </span>
+              ) : null}
+              <span className="truncate">{name}</span>
+            </div>
             <div className="text-[11px] text-gray-400">
               {birthYear(player?.dateOfBirth ?? null) ?? "—"} · {player ? positionLabel(player.position) : "Unknown"}
               {inMinute !== null ? ` · on ${inMinute}′` : ""}
               {p.minutesPlayed > 0 ? ` · ${p.minutesPlayed}′ played` : ""}
+              {p.goals > 0 ? ` · ⚽ ${p.goals}` : ""}
+              {p.assists > 0 ? ` · A ${p.assists}` : ""}
             </div>
           </div>
         </div>

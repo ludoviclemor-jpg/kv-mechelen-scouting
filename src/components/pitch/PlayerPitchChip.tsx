@@ -1,18 +1,22 @@
 "use client";
 
-import { Globe2, Bookmark, Clock } from "lucide-react";
+import { Bookmark, Clock } from "lucide-react";
 import type { MatchLineupPlayer } from "@/lib/matches-data";
 import type { Player } from "@/lib/players-data";
 import { birthYear, contractStatus, cn } from "@/lib/utils";
+import { flagForNationality } from "@/lib/nationalityFlags";
 
 /**
- * One player marker on the pitch: shirt number, name, birth year, and the
- * match-specific SofaScore rating slot — genuinely "Rating unavailable"
- * today (no real provider connected, see docs/SOFASCORE_PROVIDER.md),
- * never an approximation. `player` (the matched real Player record, when
- * one exists) adds the African/shortlisted accent dots — a lineup player
- * SCOUTASTIC hasn't synced into `players` yet still renders from the
- * match-sheet fields alone, just without those accents.
+ * One player marker on the pitch: nationality flag, shirt number, name,
+ * birth year, the match-specific SofaScore rating slot — genuinely
+ * "Rating unavailable" today (no real provider connected, see
+ * docs/SOFASCORE_PROVIDER.md), never an approximation — and, when this
+ * specific match's real events confirm it, goals/assists actually
+ * scored in this match (`lineupPlayer.goals`/`assists`, straight from
+ * SCOUTASTIC's match sheet). `player` (the matched real Player record,
+ * when one exists) adds the flag/shortlisted/contract accents — a
+ * lineup player SCOUTASTIC hasn't synced into `players` yet still
+ * renders from the match-sheet fields alone, just without those.
  */
 export function PlayerPitchChip({
   lineupPlayer,
@@ -29,10 +33,12 @@ export function PlayerPitchChip({
 }) {
   const name = player?.name ?? ([lineupPlayer.firstName, lineupPlayer.lastName].filter(Boolean).join(" ") || "Unknown");
   const year = birthYear(player?.dateOfBirth ?? null);
+  const flag = flagForNationality(player?.nationality ?? null);
   // "Running out of contract or 1 year left" — same urgent cutoff (<=12
   // months) already used for the Players table's contract column, see
   // contractStatus() in src/lib/utils.ts.
   const contractUrgent = player ? contractStatus(player.contractExpiry).urgent : false;
+  const hasGoalContribution = lineupPlayer.goals > 0 || lineupPlayer.assists > 0;
 
   return (
     <button
@@ -48,13 +54,6 @@ export function PlayerPitchChip({
         title={contractUrgent ? `Contract expires ${contractStatus(player!.contractExpiry).label}` : undefined}
       >
         {lineupPlayer.shirtNumber ?? "–"}
-        {player?.isAfrican ? (
-          <Globe2
-            size={11}
-            className="absolute -right-1 -top-1 rounded-full bg-kvm-yellow p-[1px] text-kvm-ink"
-            aria-label="African nationality"
-          />
-        ) : null}
         {isShortlisted ? (
           <Bookmark
             size={11}
@@ -70,7 +69,14 @@ export function PlayerPitchChip({
           />
         ) : null}
       </span>
-      <span className="w-full truncate text-[11px] font-semibold leading-tight text-white drop-shadow-sm">{name}</span>
+      <span className="flex w-full items-center justify-center gap-1 truncate text-[11px] font-semibold leading-tight text-white drop-shadow-sm">
+        {flag ? (
+          <span aria-label={player?.nationality ?? undefined} title={player?.nationality ?? undefined}>
+            {flag}
+          </span>
+        ) : null}
+        <span className="truncate">{name}</span>
+      </span>
       <span className="flex items-center gap-1 text-[10px] leading-tight text-white/80">
         {year ?? "—"}
         <span
@@ -82,6 +88,20 @@ export function PlayerPitchChip({
           {matchRating !== null ? matchRating.toFixed(1) : "N/A"}
         </span>
       </span>
+      {hasGoalContribution ? (
+        <span className="flex items-center gap-1 text-[10px] font-bold leading-tight">
+          {lineupPlayer.goals > 0 ? (
+            <span className="rounded-sm bg-kvm-yellow px-1 text-kvm-ink" title={`${lineupPlayer.goals} goal${lineupPlayer.goals > 1 ? "s" : ""}`}>
+              ⚽ {lineupPlayer.goals}
+            </span>
+          ) : null}
+          {lineupPlayer.assists > 0 ? (
+            <span className="rounded-sm bg-white/20 px-1 text-white" title={`${lineupPlayer.assists} assist${lineupPlayer.assists > 1 ? "s" : ""}`}>
+              A {lineupPlayer.assists}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
     </button>
   );
 }
