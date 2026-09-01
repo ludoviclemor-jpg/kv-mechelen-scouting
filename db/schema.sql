@@ -398,6 +398,11 @@ create table if not exists player_international_callups (
   player_id text not null references players(id) on delete cascade,
   level text not null, -- the competition's age_category at match time: 'Senior', 'U21', 'U20', 'U19', 'U18', 'U17', or whatever else SCOUTASTIC returns — not a fixed enum, since the real data isn't one either
   team_name text not null, -- e.g. "Belgium", "Belgium U21" — the national team as SCOUTASTIC names it
+  -- team_name with any trailing " U<number>" stripped — "Belgium" for
+  -- both "Belgium" and "Belgium U21" — so the Country filter can group
+  -- every level of a nation together. Same regex as levelFromTeamName()
+  -- in scripts/sync-international-callups.mjs, kept in sync there.
+  country text not null default '',
   team_id text,
   competition_id text references scoutastic_competitions(competition_id) on delete set null,
   first_call_up_date date not null,
@@ -409,7 +414,24 @@ create table if not exists player_international_callups (
   primary key (player_id, level)
 );
 
+-- `country` predates this column on an already-deployed table (see the
+-- scoutastic_competitions comment earlier in this file for why
+-- `create table if not exists` alone can't add it there) — backfilled
+-- from the already-stored team_name for every existing row, so no re-sync
+-- against the SCOUTASTIC API is needed.
+alter table player_international_callups add column if not exists country text not null default '';
+update player_international_callups set country = regexp_replace(team_name, '\s+U-?\d{1,2}$', '', 'i') where country = '';
+
 create index if not exists idx_player_intl_callups_date on player_international_callups(first_call_up_date desc);
+create index if not exists idx_player_intl_callups_country on player_international_callups(country);
+
+-- Country filter dropdown on /call-ups. A plain `.select("country")` with
+-- client-side dedup would need every row (~9k+ and growing) and hit
+-- PostgREST's 1,000-row cap (see docs/SCOUTASTIC_SYNC.md) — same reasoning
+-- as player_nationalities/player_leagues/player_clubs below.
+create or replace view call_up_countries
+  with (security_invoker = true) as
+  select distinct country as value from player_international_callups where country <> '' order by 1;
 
 -- keep updated_at current on write, instead of relying on every caller to set it
 create or replace function set_updated_at() returns trigger as $$

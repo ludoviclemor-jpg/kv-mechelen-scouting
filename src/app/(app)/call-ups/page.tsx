@@ -6,7 +6,7 @@ import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } fro
 import { AgeFilter } from "@/components/ui/AgeFilter";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
-import { fetchFirstCallUps, CALL_UP_LEVELS } from "@/lib/callups-data";
+import { fetchFirstCallUps, fetchCallUpCountries, CALL_UP_LEVELS } from "@/lib/callups-data";
 import { useAsync } from "@/lib/players-data";
 import { ageRangeLabel, matchesAgeRange, type AgeRange } from "@/lib/agePresets";
 import { calculateAge } from "@/lib/utils";
@@ -19,10 +19,14 @@ const ALL_AGES: AgeRange = { min: null, max: null };
 
 export default function CallUpsPage() {
   const [level, setLevel] = useState("all");
+  const [country, setCountry] = useState("all");
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
-  // Bounded fetch (≤200, already the case before this filter) — age
-  // narrows client-side, same convention as Debutants/Top Performers.
-  const { data: callUps, loading, error } = useAsync(() => fetchFirstCallUps({ level, limit: 200 }), [level]);
+
+  const countries = useAsync(() => fetchCallUpCountries(), []);
+  // Level and Country are both filtered server-side (see fetchFirstCallUps'
+  // own comment) — only Age narrows client-side, over the already-bounded
+  // (≤200) fetch, same convention as Debutants/Top Performers.
+  const { data: callUps, loading, error } = useAsync(() => fetchFirstCallUps({ level, country, limit: 200 }), [level, country]);
 
   const filtered = useMemo(
     () => (callUps ?? []).filter((c) => matchesAgeRange(calculateAge(c.dateOfBirth), ageRange)),
@@ -32,9 +36,11 @@ export default function CallUpsPage() {
   const ageLabel = ageRangeLabel(ageRange);
   const chips: ActiveFilterChip[] = [];
   if (level !== "all") chips.push({ key: "level", label: "Level", value: LEVEL_OPTIONS.find((o) => o.value === level)?.label ?? level, onClear: () => setLevel("all") });
+  if (country !== "all") chips.push({ key: "country", label: "Country", value: country, onClear: () => setCountry("all") });
   if (ageLabel) chips.push({ key: "age", label: "Age", value: ageLabel, onClear: () => setAgeRange(ALL_AGES) });
   function clearAll() {
     setLevel("all");
+    setCountry("all");
     setAgeRange(ALL_AGES);
   }
 
@@ -47,6 +53,12 @@ export default function CallUpsPage() {
 
       <FilterBar activeCount={chips.length}>
         <FilterSelect label="Level" value={level} onChange={setLevel} options={LEVEL_OPTIONS} />
+        <FilterSelect
+          label="Country"
+          value={country}
+          onChange={setCountry}
+          options={[{ value: "all", label: "All countries" }, ...(countries.data ?? []).map((c) => ({ value: c, label: c }))]}
+        />
         <AgeFilter range={ageRange} onChange={setAgeRange} />
       </FilterBar>
 

@@ -133,6 +133,11 @@ function deriveLevel(teamName, competitionAgeCategory) {
   return competitionAgeCategory && competitionAgeCategory !== "Senior" ? competitionAgeCategory : "Senior";
 }
 
+/** "Belgium" from both "Belgium" and "Belgium U21" — same regex as the live SQL backfill in db/schema.sql, kept in sync there. Powers the Country filter on /call-ups. */
+function countryFromTeamName(teamName) {
+  return typeof teamName === "string" ? teamName.replace(/\s+U-?\d{1,2}$/i, "").trim() : teamName;
+}
+
 /** Every lineup player on either side who matches a player we already track — never a global crawl of every capped player worldwide. */
 function extractCandidates(rawMatch, competition, knownPlayerIds) {
   const candidates = [];
@@ -156,6 +161,7 @@ function extractCandidates(rawMatch, competition, knownPlayerIds) {
         playerId,
         level: deriveLevel(side.teamName, competition.age_category),
         teamName: side.teamName,
+        country: countryFromTeamName(side.teamName),
         teamId: side.teamId !== undefined && side.teamId !== null ? String(side.teamId) : null,
         competitionId: competition.competition_id,
         date, // full ISO datetime — compares lexically correctly against another ISO datetime
@@ -301,6 +307,7 @@ async function main() {
       player_id: c.playerId,
       level: c.level,
       team_name: c.teamName,
+      country: c.country,
       team_id: c.teamId,
       competition_id: c.competitionId,
       first_call_up_date: newDate,

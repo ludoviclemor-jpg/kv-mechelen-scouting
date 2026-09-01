@@ -16,6 +16,7 @@ export interface FirstCallUp {
   club: string | null;
   level: string; // 'Senior' | 'U21' | 'U20' | 'U19' | 'U18' | 'U17' | occasionally something else SCOUTASTIC returns — not a fixed enum
   teamName: string; // e.g. "Belgium", "Morocco U21"
+  country: string; // teamName with any trailing " U<number>" stripped, e.g. "Belgium" for both "Belgium" and "Belgium U21" — powers the Country filter
   firstCallUpDate: string; // date, "YYYY-MM-DD"
   appeared: boolean; // did they actually play in that first call-up match, or were they an unused squad member
 }
