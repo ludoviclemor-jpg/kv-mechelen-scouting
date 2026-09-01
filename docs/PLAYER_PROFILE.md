@@ -101,6 +101,58 @@ will reach every player over time; a larger one-off batch
 (`--batch-size 3000`) was also run manually to backfill a meaningful
 slice immediately rather than waiting on the schedule alone.
 
+## Career section — market value, injuries, youth clubs (2026-09-01)
+
+Investigated live against real players (Mbappé, Haaland, Lamine Yamal)
+before building anything, per the project's data-integrity rule:
+
+- **Market value history** — `marketValueHistory` is real and confirmed:
+  a dated array of `{marketvalue, date}` points, already requested on
+  every squad crawl (`marketValues: "true"` was already on) but
+  previously discarded entirely. Normalized to `{value, date}` and
+  stored on `players.market_value_history`
+  (`scripts/lib/fieldMap.mjs`'s `extractMarketValueHistory()`). Powers a
+  real trend chart (`CareerHistorySection.tsx`'s `MarketValueTrend`) —
+  never a synthesized curve from just the current value.
+- **Injury history** — `injuryHistory` is real and confirmed: an array
+  of `{season, from, to, injury}` spells (real examples: "Hamstring
+  Injury", "Ankle Joint Injury", "Cruciate Ligament Rupture" with real
+  date ranges). Gated behind `injuryData=true` on the request, which was
+  previously left `false`; now `true` on the squad crawl
+  (`scripts/lib/scoutasticClient.mjs`'s `fetchTeamPlayers`). `to` is
+  genuinely `null` for an ongoing/unresolved injury — not a mapping gap.
+  Stored on `players.injury_history`. Displayed most-recent-first,
+  capped to a "quick recap" of the 8 most recent, with a real total
+  count shown regardless.
+- **Career club history — deliberately NOT built at the senior level.**
+  `teams[]` on the player object only ever contains the player's
+  *current* club + current national team — confirmed by checking Mbappé
+  (Monaco→PSG→Real Madrid in real life) and Haaland (Salzburg→Dortmund→
+  Man City): both show exactly 2 entries, no past clubs, on the live
+  API. Tried several plausible extra query params (`transferHistory`,
+  `transfers`, `careerHistory`, `teamHistory`) — none add anything
+  beyond the baseline response shape. `performanceSummary` rows do carry
+  a `teamId` per season, which could in principle reconstruct a rough
+  season-by-season club history — but `teamId` doesn't resolve to a real
+  name anywhere in this project's data (`scoutastic_teams.name` is never
+  populated, it's a crawl-queue cache, not a name lookup; and many of
+  these `teamId`s — youth teams, national youth teams — aren't even in
+  `scoutastic_teams` at all), so this path was ruled out rather than
+  shipped as a guess. `youthTeams` (confirmed real, e.g. Mbappé: "AS
+  Bondy (2004-2011), INF Clairefontaine (2011-2013), AS Monaco
+  (2013-2016)") is genuinely youth-career-only, stored as-is (raw
+  free-text) on `players.youth_teams`, shown as its own "Youth Clubs"
+  section — never mislabeled as senior transfer history. The current
+  club is already shown in `PlayerHeader`, so it isn't repeated here.
+
+Same backfill situation as `performance_seasons`/`played_positions`:
+existing players only gain these three fields on their *next* crawl — a
+150-team manual batch (2026-09-01) confirmed real values flowing
+end-to-end (e.g. a real player with a genuine multi-point market value
+history including a real drop to €0 and later recovery; a real player
+with a confirmed "Cruciate Ligament Rupture" spell with real dates), the
+rest fills in via the daily scheduled crawl over time.
+
 ## Season / competition selectors
 
 `availableSeasons()`/`competitionsInSeason()` derive their options

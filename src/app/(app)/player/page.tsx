@@ -11,6 +11,7 @@ import { StatsOverview, isGoalkeeperPlayer } from "@/components/player-profile/S
 import { GameTimeSection } from "@/components/player-profile/GameTimeSection";
 import { InternationalStatusSection } from "@/components/player-profile/InternationalStatusSection";
 import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePitch";
+import { CareerHistorySection } from "@/components/player-profile/CareerHistorySection";
 import { FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -55,7 +56,10 @@ function PlayerProfileContent() {
   // The heavier performance/position fields — see PlayerPerformanceDetail's
   // own comment for why this is a separate fetch from fetchPlayerById.
   const { data: detail } = useAsync(
-    () => (id ? fetchPlayerPerformanceDetail(id) : Promise.resolve({ performanceSeasons: [], playedPositions: null })),
+    () =>
+      id
+        ? fetchPlayerPerformanceDetail(id)
+        : Promise.resolve({ performanceSeasons: [], playedPositions: null, marketValueHistory: [], injuryHistory: [], youthTeams: null }),
     [id]
   );
   const { data: callUps } = useAsync(() => (id ? fetchCallUpsForPlayer(id) : Promise.resolve([])), [id]);
@@ -221,6 +225,15 @@ function PlayerProfileContent() {
         <div className="border border-kvm-border bg-white p-5">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Position Usage</h2>
           <PositionUsagePitch playedPositions={detail?.playedPositions ?? null} registeredPosition={player.position} />
+        </div>
+
+        <div className="border border-kvm-border bg-white p-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Career</h2>
+          <CareerHistorySection
+            marketValueHistory={detail?.marketValueHistory ?? []}
+            injuryHistory={detail?.injuryHistory ?? []}
+            youthTeams={detail?.youthTeams ?? null}
+          />
         </div>
       </div>
     </>

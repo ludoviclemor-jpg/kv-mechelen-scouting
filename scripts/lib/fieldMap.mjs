@@ -4,10 +4,12 @@
  * Every field read here — `transfermarktId`, `firstName`, `lastName`,
  * `dateOfBirth`, `height`, `foot`, `agent`, `nationality`,
  * `secondNationality`, `mainPosition`, `secondaryPosition1/2`,
- * `contractExpires`, `marketValue`, `teams[]`, `imageUrlV2`,
- * `performanceSummary`, `debuts` — is confirmed directly against real API
- * responses (see docs/COMPETITIONS.md for the `debuts` confirmation).
- * Fields SCOUTASTIC doesn't return are left `null`, never invented.
+ * `contractExpires`, `marketValue`, `marketValueHistory`, `teams[]`,
+ * `imageUrlV2`, `performanceSummary`, `debuts`, `injuryHistory`,
+ * `youthTeams` — is confirmed directly against real API responses (see
+ * docs/COMPETITIONS.md for the `debuts` confirmation, docs/PLAYER_PROFILE.md
+ * for `marketValueHistory`/`injuryHistory`/`youthTeams`). Fields
+ * SCOUTASTIC doesn't return are left `null`, never invented.
  *
  * Two confirmed things worth calling out because they're easy to get
  * wrong: the player's stable id is `transfermarktId`, not `externalId`
@@ -19,7 +21,13 @@
  *
  * `previousClub` and `secondaryPositions` beyond the two SCOUTASTIC
  * returns are still `null` — no confirmed source for prior clubs, and
- * only two secondary positions are ever provided.
+ * only two secondary positions are ever provided. `teams[]` (current
+ * club + current national team only) and `youthTeams` (a youth-career-only
+ * free-text string) are the full extent of real club-history data — no
+ * senior transfer/career-club-history endpoint or field exists anywhere
+ * in the confirmed API surface (tried `transferHistory`, `transfers`,
+ * `careerHistory`, `teamHistory` as extra query params — none add
+ * anything beyond the baseline shape).
  */
 
 import { readFileSync } from "node:fs";
@@ -277,6 +285,48 @@ function extractPlayedPositions(raw) {
 }
 
 /**
+ * `marketValueHistory` (confirmed real, e.g. a real Kylian Mbappé/Lamine
+ * Yamal response returns a genuine dated progression) — array of
+ * `{marketvalue, date}` rows, normalized to `{value, date}` and sorted
+ * ascending by date (SCOUTASTIC's own order wasn't verified to always be
+ * chronological, so this sorts explicitly rather than assuming). Stored
+ * as-is on `players.market_value_history`. Powers the player-profile
+ * market value trend chart — see docs/PLAYER_PROFILE.md.
+ */
+function extractMarketValueHistory(raw) {
+  const value = raw.marketValueHistory;
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((row) => row && typeof row === "object" && Number.isFinite(row.marketvalue) && typeof row.date === "string")
+    .map((row) => ({ value: row.marketvalue, date: normalizeDate(row.date) }))
+    .filter((row) => row.date !== null)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * `injuryHistory` (confirmed real, gated behind `injuryData=true` — see
+ * scoutasticClient.mjs) — array of `{season, from, to, injury}` rows,
+ * normalized to `{description, from, to, season}` and sorted ascending
+ * by `from`. `to` is `null` for an ongoing/unresolved injury (SCOUTASTIC
+ * genuinely omits it in that case, not a mapping gap). Stored as-is on
+ * `players.injury_history`. Powers the player-profile injury recap.
+ */
+function extractInjuryHistory(raw) {
+  const value = raw.injuryHistory;
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((row) => row && typeof row === "object" && typeof row.injury === "string" && typeof row.from === "string")
+    .map((row) => ({
+      description: row.injury,
+      from: normalizeDate(row.from),
+      to: normalizeDate(row.to),
+      season: typeof row.season === "string" ? row.season : null,
+    }))
+    .filter((row) => row.from !== null)
+    .sort((a, b) => a.from.localeCompare(b.from));
+}
+
+/**
  * @param {object} raw - raw SCOUTASTIC player object (from /player or /players?teamId=)
  * @param {object} context - { externalId, competitionId, competitionCountry, isEasternEuropeanLeague, nowIso, imageBaseUrl, internationalCompetitionIds, competitionAgeCategories }
  * @returns {{ player: object, warnings: string[] }}
@@ -305,6 +355,8 @@ export function mapScoutasticPlayer(raw, context) {
   const seasonStats = currentSeasonStats(raw, context.internationalCompetitionIds);
   const performanceSeasons = extractPerformanceSeasons(raw, context.internationalCompetitionIds, context.competitionAgeCategories);
   const playedPositions = extractPlayedPositions(raw);
+  const marketValueHistory = extractMarketValueHistory(raw);
+  const injuryHistory = extractInjuryHistory(raw);
   const debut = detectDebut(raw.debuts, context, warnings);
 
   const player = {
@@ -338,6 +390,7 @@ export function mapScoutasticPlayer(raw, context) {
     preferredFoot: normalizeFoot(raw.foot, warnings),
     agent: typeof raw.agent === "string" ? raw.agent : null,
     marketValueEUR: normalizeNumber(raw.marketValue, "marketValue", warnings),
+    marketValueHistory,
     contractExpiry: normalizeDate(raw.contractExpires),
 
     appearances: seasonStats.appearances,
@@ -346,6 +399,8 @@ export function mapScoutasticPlayer(raw, context) {
     assists: seasonStats.assists,
     performanceSeasons,
     playedPositions,
+    injuryHistory,
+    youthTeams: typeof raw.youthTeams === "string" && raw.youthTeams.trim() ? raw.youthTeams.trim() : null,
 
     lastSyncedAt: context.nowIso,
     active: true,

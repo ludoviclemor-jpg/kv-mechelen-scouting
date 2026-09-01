@@ -75,17 +75,40 @@ export interface PerformanceSeasonRow {
   opponentGoalsOnThePitch: number | null;
 }
 
+/** A real, dated market-value point (`marketValueHistory`) — see docs/PLAYER_PROFILE.md. */
+export interface MarketValuePoint {
+  value: number; // EUR
+  date: string; // ISO date
+}
+
+/**
+ * A real injury spell (`injuryHistory`, needs injuryData=true on the
+ * crawl). `to` is `null` for an ongoing/unresolved injury — SCOUTASTIC
+ * genuinely omits it in that case, not a mapping gap.
+ */
+export interface InjuryRecord {
+  description: string;
+  from: string; // ISO date
+  to: string | null; // ISO date, or null if still ongoing as of the last sync
+  season: string | null;
+}
+
 /**
  * The heavier, profile-only fields (`players.performance_seasons`,
- * `players.played_positions`) — deliberately kept off the base `Player`
- * type and out of `PLAYER_COLUMNS` (src/lib/players-data/remote.ts) so
- * every paginated list view (Players, Debutants, Top Performers, ...)
- * keeps fetching the same lightweight row it always has. Fetched
- * separately, only by the player-profile page — see fetchPlayerPerformanceDetail().
+ * `players.played_positions`, `players.market_value_history`,
+ * `players.injury_history`, `players.youth_teams`) — deliberately kept
+ * off the base `Player` type and out of `PLAYER_COLUMNS`
+ * (src/lib/players-data/remote.ts) so every paginated list view (Players,
+ * Debutants, Top Performers, ...) keeps fetching the same lightweight row
+ * it always has. Fetched separately, only by the player-profile page —
+ * see fetchPlayerPerformanceDetail().
  */
 export interface PlayerPerformanceDetail {
   performanceSeasons: PerformanceSeasonRow[];
   playedPositions: Record<string, number> | null;
+  marketValueHistory: MarketValuePoint[];
+  injuryHistory: InjuryRecord[];
+  youthTeams: string | null; // raw free-text (e.g. "AS Bondy (2004-2011), ...") — youth career only, no confirmed senior club-history source, see docs/PLAYER_PROFILE.md
 }
 
 /**

@@ -228,7 +228,10 @@ export async function fetchTeamPlayers(apiBase, apiKey, teamId, { gender = "male
         // not "career debut"; needs cross-referencing against known
         // competitions to mean anything (see fieldMap.mjs).
         debuts: debuts ? "true" : "false",
-        injuryData: "false",
+        // Confirmed real (docs/PLAYER_PROFILE.md): gates raw.injuryHistory,
+        // a real array of {season, from, to, injury} spells. Previously left
+        // off; turned on for the player-profile injury recap.
+        injuryData: "true",
         includeMissedMatches: "false",
         limit,
         page,

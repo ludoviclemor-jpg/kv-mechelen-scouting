@@ -106,6 +106,22 @@ create table if not exists players (
 alter table players add column if not exists performance_seasons jsonb not null default '[]';
 alter table players add column if not exists played_positions jsonb;
 
+-- market_value_history: real, confirmed dated market-value points
+-- ({value, date}) from SCOUTASTIC's `marketValueHistory` array — powers
+-- the player-profile market value trend chart. injury_history: real
+-- confirmed injury spells ({description, from, to, season}) from
+-- `injuryHistory` (needs injuryData=true, now on by default in
+-- scripts/lib/scoutasticClient.mjs's fetchTeamPlayers). youth_teams: a
+-- raw free-text string of youth clubs + date ranges (e.g. "AS Bondy
+-- (2004-2011), ..."), confirmed real but youth-career only — SCOUTASTIC
+-- has no confirmed source for senior transfer/club history (teams[] on
+-- the player object only ever carries the *current* club, verified
+-- against real players with well-documented transfer histories). See
+-- docs/PLAYER_PROFILE.md.
+alter table players add column if not exists market_value_history jsonb not null default '[]';
+alter table players add column if not exists injury_history jsonb not null default '[]';
+alter table players add column if not exists youth_teams text;
+
 -- Filters used throughout the app (Players page, Debutants, Top Performers, Reports)
 create index if not exists idx_players_active on players(active) where active = true;
 create index if not exists idx_players_is_african on players(is_african) where is_african = true;

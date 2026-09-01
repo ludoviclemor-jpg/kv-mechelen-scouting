@@ -2,6 +2,8 @@ import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
 import { MINIMUM_RATED_MATCHES } from "./constants";
 import type {
+  InjuryRecord,
+  MarketValuePoint,
   MatchRating,
   PerformanceSeasonRow,
   Player,
@@ -184,13 +186,16 @@ export async function fetchPlayerPerformanceDetail(id: string): Promise<PlayerPe
   if (!isSupabaseConfigured()) notConfigured();
   const { data, error } = await getSupabaseClient()
     .from("players")
-    .select("performance_seasons,played_positions")
+    .select("performance_seasons,played_positions,market_value_history,injury_history,youth_teams")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   return {
     performanceSeasons: (data?.performance_seasons as unknown as PerformanceSeasonRow[]) ?? [],
     playedPositions: (data?.played_positions as unknown as Record<string, number> | null) ?? null,
+    marketValueHistory: (data?.market_value_history as unknown as MarketValuePoint[]) ?? [],
+    injuryHistory: (data?.injury_history as unknown as InjuryRecord[]) ?? [],
+    youthTeams: (data?.youth_teams as string | null) ?? null,
   };
 }
 
