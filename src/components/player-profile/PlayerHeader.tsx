@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { User, Shirt, Banknote } from "lucide-react";
+import { User, Banknote } from "lucide-react";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
 import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
@@ -26,12 +26,12 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function FieldGroup({ icon: Icon, title, children }: { icon: typeof User; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-sm bg-gray-50 p-3.5">
-      <div className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
+    <div className="rounded-sm bg-gray-50 p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
         <Icon size={12} aria-hidden="true" />
         {title}
       </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">{children}</dl>
     </div>
   );
 }
@@ -49,7 +49,7 @@ export function PlayerHeader({ player, competitionName }: { player: Player; comp
   const positions = [player.position, ...(player.secondaryPositions ?? [])].filter((p): p is NonNullable<typeof p> => p !== null);
 
   return (
-    <div className="border border-kvm-border bg-white p-6">
+    <div className="border border-kvm-border bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="flex items-center gap-4">
           <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="lg" className="ring-2 ring-kvm-border ring-offset-2" />
@@ -82,7 +82,10 @@ export function PlayerHeader({ player, competitionName }: { player: Player; comp
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 border-t border-kvm-border pt-5 sm:grid-cols-3">
+      {/* Club/Competition/Position are already in the subtitle above —
+          not repeated here, so this is Personal + Contract only (was 3
+          boxes including a "Club" one that just duplicated the subtitle). */}
+      <div className="mt-5 grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 sm:grid-cols-2">
         <FieldGroup icon={User} title="Personal">
           <Field label="Age">{player.dateOfBirth ? `${calculateAge(player.dateOfBirth)} yrs` : "Unknown"}</Field>
           <Field label="Date of birth">{formatDate(player.dateOfBirth)}</Field>
@@ -97,28 +100,6 @@ export function PlayerHeader({ player, competitionName }: { player: Player; comp
             {player.secondNationality ? ` / ${player.secondNationality}` : ""}
           </Field>
           <Field label="Height">{player.heightCm !== null ? `${player.heightCm} cm` : "Unknown"}</Field>
-        </FieldGroup>
-
-        <FieldGroup icon={Shirt} title="Club">
-          <Field label="Club">
-            {player.club ? (
-              <Link href={`/players?search=${encodeURIComponent(player.club)}`} className={linkClass}>
-                {player.club}
-              </Link>
-            ) : (
-              "Unknown"
-            )}
-          </Field>
-          <Field label="Competition">
-            {player.competitionId ? (
-              <Link href={`/competition?id=${player.competitionId}`} className={linkClass}>
-                {competitionLabel}
-              </Link>
-            ) : (
-              competitionLabel
-            )}
-          </Field>
-          <Field label="Position(s)">{positions.map(positionLabel).join(", ") || "Unknown"}</Field>
           <Field label="Preferred foot">{unk(player.preferredFoot)}</Field>
         </FieldGroup>
 

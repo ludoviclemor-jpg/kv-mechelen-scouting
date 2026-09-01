@@ -31,7 +31,7 @@ import { fetchCompetitionById } from "@/lib/competitions-data";
 import { fetchCallUpsForPlayer } from "@/lib/callups-data";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Overview", "Stats", "Matches", "Scouting"] as const;
+const TABS = ["Overview", "Stats", "Career", "Matches", "Scouting"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -156,7 +156,7 @@ function PlayerProfileContent() {
   return (
     <>
       <PageHeader title={player.name} description="Player profile" />
-      <div className="space-y-6 p-8">
+      <div className="space-y-5 p-8">
         <PlayerHeader player={player} competitionName={competition?.name ?? null} />
 
         <div className="border border-kvm-border bg-white">
@@ -225,29 +225,38 @@ function PlayerProfileContent() {
               </div>
             ) : null}
 
-            {tab === "Matches" ? <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} /> : null}
+            {tab === "Career" ? (
+              <div className="space-y-6">
+                <section>
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Position Usage</h3>
+                  <PositionUsagePitch playedPositions={detail?.playedPositions ?? null} registeredPosition={player.position} />
+                </section>
+                <section>
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Value, Injuries &amp; Youth Career</h3>
+                  <CareerHistorySection
+                    marketValueHistory={detail?.marketValueHistory ?? []}
+                    injuryHistory={detail?.injuryHistory ?? []}
+                    youthTeams={detail?.youthTeams ?? null}
+                  />
+                </section>
+              </div>
+            ) : null}
+
+            {tab === "Matches" ? (
+              <div className="space-y-6">
+                <section>
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Match Performance</h3>
+                  <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} />
+                </section>
+                <section>
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Recent Performance (Sportmonks)</h3>
+                  <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
+                </section>
+              </div>
+            ) : null}
 
             {tab === "Scouting" ? <ScoutingNotesCard player={player} /> : null}
           </div>
-        </div>
-
-        <div className="border border-kvm-border bg-white p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Position Usage</h2>
-          <PositionUsagePitch playedPositions={detail?.playedPositions ?? null} registeredPosition={player.position} />
-        </div>
-
-        <div className="border border-kvm-border bg-white p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Career</h2>
-          <CareerHistorySection
-            marketValueHistory={detail?.marketValueHistory ?? []}
-            injuryHistory={detail?.injuryHistory ?? []}
-            youthTeams={detail?.youthTeams ?? null}
-          />
-        </div>
-
-        <div className="border border-kvm-border bg-white p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Recent Performance</h2>
-          <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
         </div>
       </div>
     </>
