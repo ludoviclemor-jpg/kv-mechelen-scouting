@@ -526,3 +526,125 @@ drop trigger if exists trg_player_international_callups_updated_at on player_int
 create trigger trg_player_international_callups_updated_at
   before update on player_international_callups
   for each row execute function set_updated_at();
+
+-- Sportmonks integration — TEST scope, Danish Superliga + Scottish
+-- Premiership only (docs/SPORTMONKS_INTEGRATION.md). A second, independent
+-- match-ratings source alongside the existing SofaScore/API-Football
+-- provider slot (docs/SOFASCORE_PROVIDER.md) — deliberately its own
+-- tables, not a reuse of players.matches/rating_*, since this is a scoped
+-- trial that must not touch that slot's behavior at all.
+
+-- Maps an existing Scoutastic player (players.id) to an external
+-- provider's own player id. Never creates or overwrites a Scoutastic
+-- player row — purely additive tagging, one row per (player, provider).
+create table if not exists player_external_ids (
+  id uuid primary key default gen_random_uuid(),
+  player_id text not null references players(id) on delete cascade,
+  provider text not null, -- 'sportmonks' today; the column exists so a second provider never needs a schema change
+  external_player_id text not null,
+  external_team_id text,
+  matched_at timestamptz not null default now(),
+  -- 'external_id' (an already-stored mapping reused, no fresh score) |
+  -- 'name_club' | 'normalized_name_club' | 'dob_name' — see
+  -- scripts/sync-sportmonks-ratings.mjs's matching order and
+  -- scripts/lib/sofascoreMatching.mjs's resolveMatch(), reused as-is (its
+  -- name-scoring logic is provider-agnostic despite the filename).
+  match_method text not null,
+  confidence numeric, -- 0-1 from resolveMatch(); null only for 'external_id'
+  unique (player_id, provider),
+  unique (provider, external_player_id)
+);
+
+create index if not exists idx_player_external_ids_provider on player_external_ids(provider);
+
+-- Per-match player ratings from an external provider. The provider column
+-- and the fixture_id+external_player_id+provider unique constraint exist
+-- so a second provider or a wider league scope later never need a schema
+-- change, only a new sync script (see docs/SPORTMONKS_INTEGRATION.md's
+-- "adding more leagues" section).
+create table if not exists player_match_ratings (
+  id uuid primary key default gen_random_uuid(),
+  player_id text not null references players(id) on delete cascade,
+  provider text not null,
+  external_player_id text not null,
+  fixture_id text not null,
+  -- the *external* provider's own competition/league id (Sportmonks
+  -- league_id, e.g. "271") — a different id space from
+  -- scoutastic_competitions.competition_id, never conflated with it.
+  competition_id text,
+  competition_name text,
+  season_id text,
+  match_date date not null,
+  opponent text,
+  home_away text check (home_away in ('home', 'away')),
+  minutes_played integer,
+  starter boolean,
+  rating numeric not null, -- 0-10 scale, exactly as the provider returns it — never recomputed or rescaled
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (fixture_id, external_player_id, provider)
+);
+
+create index if not exists idx_player_match_ratings_player on player_match_ratings(player_id, provider, match_date desc);
+create index if not exists idx_player_match_ratings_provider on player_match_ratings(provider);
+
+drop trigger if exists trg_player_match_ratings_updated_at on player_match_ratings;
+create trigger trg_player_match_ratings_updated_at
+  before update on player_match_ratings
+  for each row execute function set_updated_at();
+
+-- Homepage "Top Rated Players" widget (docs/SPORTMONKS_INTEGRATION.md) —
+-- averages each player's most recent 5 sportmonks ratings ("recent form",
+-- never a full-career average). `security invoker` since this reads
+-- player_match_ratings/players, both RLS-protected.
+create or replace function sportmonks_top_rated_players(
+  min_avg_rating numeric default 0,
+  min_appearances integer default 3,
+  filter_competition_ids text[] default null,
+  result_limit integer default 10
+)
+returns table (
+  player_id text,
+  player_name text,
+  club text,
+  competition_id text,
+  competition_name text,
+  avg_rating numeric,
+  rated_matches bigint
+) as $$
+  with ranked as (
+    select
+      r.*,
+      row_number() over (partition by r.player_id order by r.match_date desc, r.fixture_id desc) as recency_rank
+    from player_match_ratings r
+    where r.provider = 'sportmonks'
+  ),
+  recent as (
+    select * from ranked where recency_rank <= 5
+  ),
+  agg as (
+    select
+      recent.player_id,
+      avg(recent.rating) as avg_rating,
+      count(*) as rated_matches,
+      (array_agg(recent.competition_id order by recent.match_date desc))[1] as latest_competition_id,
+      (array_agg(recent.competition_name order by recent.match_date desc))[1] as latest_competition_name
+    from recent
+    group by recent.player_id
+  )
+  select
+    p.id as player_id,
+    p.name as player_name,
+    p.club,
+    agg.latest_competition_id as competition_id,
+    agg.latest_competition_name as competition_name,
+    round(agg.avg_rating, 2) as avg_rating,
+    agg.rated_matches
+  from agg
+  join players p on p.id = agg.player_id
+  where agg.rated_matches >= min_appearances
+    and agg.avg_rating >= min_avg_rating
+    and (filter_competition_ids is null or agg.latest_competition_id = any(filter_competition_ids))
+  order by agg.avg_rating desc, agg.rated_matches desc
+  limit result_limit;
+$$ language sql stable security invoker;

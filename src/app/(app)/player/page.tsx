@@ -12,6 +12,8 @@ import { GameTimeSection } from "@/components/player-profile/GameTimeSection";
 import { InternationalStatusSection } from "@/components/player-profile/InternationalStatusSection";
 import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePitch";
 import { CareerHistorySection } from "@/components/player-profile/CareerHistorySection";
+import { RecentPerformanceSection } from "@/components/player-profile/RecentPerformanceSection";
+import { fetchPlayerRecentPerformance } from "@/lib/sportmonks-data";
 import { FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -63,6 +65,13 @@ function PlayerProfileContent() {
     [id]
   );
   const { data: callUps } = useAsync(() => (id ? fetchCallUpsForPlayer(id) : Promise.resolve([])), [id]);
+  // TEST integration, Danish Superliga + Scottish Premiership only — see
+  // docs/SPORTMONKS_INTEGRATION.md. Reads Postgres only, never Sportmonks
+  // directly; empty for the vast majority of players (out of scope).
+  const { data: recentPerformance } = useAsync(
+    () => (id ? fetchPlayerRecentPerformance(id) : Promise.resolve({ ratings: [], last5Average: null, seasonAverage: null })),
+    [id]
+  );
 
   const [tab, setTab] = useState<Tab>("Overview");
   const [season, setSeason] = useState("all");
@@ -234,6 +243,11 @@ function PlayerProfileContent() {
             injuryHistory={detail?.injuryHistory ?? []}
             youthTeams={detail?.youthTeams ?? null}
           />
+        </div>
+
+        <div className="border border-kvm-border bg-white p-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Recent Performance</h2>
+          <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
         </div>
       </div>
     </>

@@ -1,0 +1,982 @@
+{
+  "id": 19722800,
+  "sport_id": 1,
+  "league_id": 501,
+  "season_id": 28275,
+  "stage_id": 77482564,
+  "group_id": null,
+  "aggregate_id": null,
+  "round_id": 407970,
+  "state_id": 5,
+  "venue_id": 8879,
+  "name": "St. Mirren vs Motherwell",
+  "starting_at": "2026-08-30 14:00:00",
+  "result_info": "Game ended in draw.",
+  "leg": "1/1",
+  "details": null,
+  "length": 90,
+  "placeholder": false,
+  "has_odds": true,
+  "has_premium_odds": true,
+  "starting_at_timestamp": 1788098400,
+  "lineups": [
+    {
+      "id": 14674516597,
+      "sport_id": 1,
+      "fixture_id": 19722800,
+      "player_id": 24469041,
+      "team_id": 309,
+      "position_id": 24,
+      "formation_field": "1:1",
+      "type_id": 11,
+      "formation_position": 1,
+      "player_name": "Alex Paulsen",
+      "jersey_number": 1,
+      "details": [
+        {
+          "id": 2184254589,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 117172,
+          "data": {
+            "value": 99
+          },
+          "type": {
+            "id": 117172,
+            "name": "Cumulative Minutes Played",
+            "code": "cumulative-minutes-played",
+            "developer_name": "CUMULATIVE_MINUTES_PLAYED",
+            "model_type": "statistic",
+            "stat_group": null
+          }
+        },
+        {
+          "id": 2184254934,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 118,
+          "data": {
+            "value": 7.35
+          },
+          "type": {
+            "id": 118,
+            "name": "Rating",
+            "code": "rating",
+            "developer_name": "RATING",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184263255,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 120,
+          "data": {
+            "value": 54
+          },
+          "type": {
+            "id": 120,
+            "name": "Touches",
+            "code": "touches",
+            "developer_name": "TOUCHES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184264637,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 1584,
+          "data": {
+            "value": 100
+          },
+          "type": {
+            "id": 1584,
+            "name": "Accurate Passes Percentage",
+            "code": "accurate-passes-percentage",
+            "developer_name": "ACCURATE_PASSES_PERCENTAGE",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184263253,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 80,
+          "data": {
+            "value": 43
+          },
+          "type": {
+            "id": 80,
+            "name": "Passes",
+            "code": "passes",
+            "developer_name": "PASSES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184263254,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 116,
+          "data": {
+            "value": 41
+          },
+          "type": {
+            "id": 116,
+            "name": "Accurate Passes",
+            "code": "accurate-passes",
+            "developer_name": "ACCURATE_PASSES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184263722,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 119,
+          "data": {
+            "value": 90
+          },
+          "type": {
+            "id": 119,
+            "name": "Minutes Played",
+            "code": "minutes-played",
+            "developer_name": "MINUTES_PLAYED",
+            "model_type": "statistic",
+            "stat_group": "NULL"
+          }
+        },
+        {
+          "id": 2184289352,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 27271,
+          "data": {
+            "value": 7
+          },
+          "type": {
+            "id": 27271,
+            "name": "Ball Recovery",
+            "code": "ball-recovery",
+            "developer_name": "BALL_RECOVERY",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184298009,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 104,
+          "data": {
+            "value": 5
+          },
+          "type": {
+            "id": 104,
+            "name": "Saves Insidebox",
+            "code": "saves-insidebox",
+            "developer_name": "SAVES_INSIDE_BOX",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184295233,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 57,
+          "data": {
+            "value": 6
+          },
+          "type": {
+            "id": 57,
+            "name": "Saves",
+            "code": "saves",
+            "developer_name": "SAVES",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184303969,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 105,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 105,
+            "name": "Total Duels",
+            "code": "total-duels",
+            "developer_name": "TOTAL_DUELS",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184303967,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 107,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 107,
+            "name": "Aerials Won",
+            "code": "aeriels-won",
+            "developer_name": "AERIALS_WON",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184303968,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 106,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 106,
+            "name": "Duels Won",
+            "code": "duels-won",
+            "developer_name": "DUELS_WON",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184330669,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 1535,
+          "data": {
+            "value": 3
+          },
+          "type": {
+            "id": 1535,
+            "name": "Goalkeeper Goals Conceded",
+            "code": "goalkeeper-goals-conceded",
+            "developer_name": "GOALKEEPER_GOALS_CONCEDED",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184346139,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 88,
+          "data": {
+            "value": 3
+          },
+          "type": {
+            "id": 88,
+            "name": "Goals Conceded",
+            "code": "goals-conceded",
+            "developer_name": "GOALS_CONCEDED",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184434517,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 122,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 122,
+            "name": "Long Balls",
+            "code": "long-balls",
+            "developer_name": "LONG_BALLS",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184434520,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 101,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 101,
+            "name": "Clearances",
+            "code": "clearances",
+            "developer_name": "CLEARANCES",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184434519,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 103,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 103,
+            "name": "Punches",
+            "code": "punches",
+            "developer_name": "PUNCHES",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184435707,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 27269,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 27269,
+            "name": "Passes In Final Third",
+            "code": "passes-in-final-third",
+            "developer_name": "PASSES_IN_FINAL_THIRD",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184435708,
+          "fixture_id": 19722800,
+          "player_id": 24469041,
+          "team_id": 309,
+          "lineup_id": 14674516597,
+          "type_id": 27273,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 27273,
+            "name": "Possession Lost",
+            "code": "possession-lost",
+            "developer_name": "POSSESSION_LOST",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        }
+      ]
+    },
+    {
+      "id": 14674516904,
+      "sport_id": 1,
+      "fixture_id": 19722800,
+      "player_id": 12321,
+      "team_id": 309,
+      "position_id": 25,
+      "formation_field": null,
+      "type_id": 12,
+      "formation_position": null,
+      "player_name": "Stephen O'Donnell",
+      "jersey_number": 2,
+      "details": [
+        {
+          "id": 2184397003,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 122,
+          "data": {
+            "value": 4
+          },
+          "type": {
+            "id": 122,
+            "name": "Long Balls",
+            "code": "long-balls",
+            "developer_name": "LONG_BALLS",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184397002,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 116,
+          "data": {
+            "value": 20
+          },
+          "type": {
+            "id": 116,
+            "name": "Accurate Passes",
+            "code": "accurate-passes",
+            "developer_name": "ACCURATE_PASSES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184397006,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 1491,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 1491,
+            "name": "Duels Lost",
+            "code": "duels-lost",
+            "developer_name": "DUELS_LOST",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184402020,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 106,
+          "data": {
+            "value": 3
+          },
+          "type": {
+            "id": 106,
+            "name": "Duels Won",
+            "code": "duels-won",
+            "developer_name": "DUELS_WON",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184397001,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 80,
+          "data": {
+            "value": 24
+          },
+          "type": {
+            "id": 80,
+            "name": "Passes",
+            "code": "passes",
+            "developer_name": "PASSES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184397004,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 120,
+          "data": {
+            "value": 36
+          },
+          "type": {
+            "id": 120,
+            "name": "Touches",
+            "code": "touches",
+            "developer_name": "TOUCHES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184397005,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 56,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 56,
+            "name": "Fouls",
+            "code": "fouls",
+            "developer_name": "FOULS",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184397007,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27273,
+          "data": {
+            "value": 5
+          },
+          "type": {
+            "id": 27273,
+            "name": "Possession Lost",
+            "code": "possession-lost",
+            "developer_name": "POSSESSION_LOST",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184392427,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 119,
+          "data": {
+            "value": 44
+          },
+          "type": {
+            "id": 119,
+            "name": "Minutes Played",
+            "code": "minutes-played",
+            "developer_name": "MINUTES_PLAYED",
+            "model_type": "statistic",
+            "stat_group": "NULL"
+          }
+        },
+        {
+          "id": 2184397190,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 117172,
+          "data": {
+            "value": 49
+          },
+          "type": {
+            "id": 117172,
+            "name": "Cumulative Minutes Played",
+            "code": "cumulative-minutes-played",
+            "developer_name": "CUMULATIVE_MINUTES_PLAYED",
+            "model_type": "statistic",
+            "stat_group": null
+          }
+        },
+        {
+          "id": 2184402142,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 78,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 78,
+            "name": "Tackles",
+            "code": "tackles",
+            "developer_name": "TACKLES",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184402021,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 105,
+          "data": {
+            "value": 5
+          },
+          "type": {
+            "id": 105,
+            "name": "Total Duels",
+            "code": "total-duels",
+            "developer_name": "TOTAL_DUELS",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184397008,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 1584,
+          "data": {
+            "value": 83
+          },
+          "type": {
+            "id": 1584,
+            "name": "Accurate Passes Percentage",
+            "code": "accurate-passes-percentage",
+            "developer_name": "ACCURATE_PASSES_PERCENTAGE",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184402325,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 118,
+          "data": {
+            "value": 6.91
+          },
+          "type": {
+            "id": 118,
+            "name": "Rating",
+            "code": "rating",
+            "developer_name": "RATING",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184402318,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27271,
+          "data": {
+            "value": 3
+          },
+          "type": {
+            "id": 27271,
+            "name": "Ball Recovery",
+            "code": "ball-recovery",
+            "developer_name": "BALL_RECOVERY",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184415578,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27269,
+          "data": {
+            "value": 4
+          },
+          "type": {
+            "id": 27269,
+            "name": "Passes In Final Third",
+            "code": "passes-in-final-third",
+            "developer_name": "PASSES_IN_FINAL_THIRD",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184418181,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 97,
+          "data": {
+            "value": 2
+          },
+          "type": {
+            "id": 97,
+            "name": "Blocked Shots",
+            "code": "blocked-shots",
+            "developer_name": "BLOCKED_SHOTS",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184418626,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 110,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 110,
+            "name": "Dribbled Past",
+            "code": "dribbled-past",
+            "developer_name": "DRIBBLED_PAST",
+            "model_type": "statistic",
+            "stat_group": "offensive"
+          }
+        },
+        {
+          "id": 2184434514,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27267,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 27267,
+            "name": "Tackles Won",
+            "code": "tackles-won",
+            "developer_name": "TACKLES_WON",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184434515,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27268,
+          "data": {
+            "value": 50
+          },
+          "type": {
+            "id": 27268,
+            "name": "Tacles Won Percentage",
+            "code": "tackles-won-percentage",
+            "developer_name": "TACKLES_WON_PERCENTAGE",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184438941,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 96,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 96,
+            "name": "Fouls Drawn",
+            "code": "fouls-drawn",
+            "developer_name": "FOULS_DRAWN",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184478943,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 123,
+          "data": {
+            "value": 3
+          },
+          "type": {
+            "id": 123,
+            "name": "Long Balls Won",
+            "code": "long-balls-won",
+            "developer_name": "LONG_BALLS_WON",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184479997,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27272,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 27272,
+            "name": "Backward Passes",
+            "code": "backward-passes",
+            "developer_name": "BACKWARD_PASSES",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184479998,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 27270,
+          "data": {
+            "value": 75
+          },
+          "type": {
+            "id": 27270,
+            "name": "Long Balls Won Percentage",
+            "code": "long-balls-won-percentage",
+            "developer_name": "LONG_BALLS_WON_PERCENTAGE",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        },
+        {
+          "id": 2184509689,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 101,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 101,
+            "name": "Clearances",
+            "code": "clearances",
+            "developer_name": "CLEARANCES",
+            "model_type": "statistic",
+            "stat_group": "defensive"
+          }
+        },
+        {
+          "id": 2184510594,
+          "fixture_id": 19722800,
+          "player_id": 12321,
+          "team_id": 309,
+          "lineup_id": 14674516904,
+          "type_id": 84,
+          "data": {
+            "value": 1
+          },
+          "type": {
+            "id": 84,
+            "name": "Yellowcards",
+            "code": "yellowcards",
+            "developer_name": "YELLOWCARDS",
+            "model_type": "statistic",
+            "stat_group": "overall"
+          }
+        }
+      ]
+    },
+    {
+      "id": 14674516907,
+      "sport_id": 1,
+      "fixture_id": 19722800,
+      "player_id": 37541046,
+      "team_id": 309,
+      "position_id": 24,
+      "formation_field": null,
+      "type_id": 12,
+      "formation_position": null,
+      "player_name": "Matty Connelly",
+      "jersey_number": 21,
+      "details": []
+    }
+  ],
+  "participants": [
+    {
+      "id": 309,
+      "sport_id": 1,
+      "country_id": 1161,
+      "venue_id": 8922,
+      "gender": "male",
+      "name": "Motherwell",
+      "short_code": "MOT",
+      "image_path": "https://cdn.sportmonks.com/images/soccer/teams/21/309.png",
+      "founded": 1886,
+      "type": "domestic",
+      "placeholder": false,
+      "last_played_at": "2026-08-30 14:00:00",
+      "meta": {
+        "location": "away",
+        "winner": false,
+        "position": 5
+      }
+    },
+    {
+      "id": 496,
+      "sport_id": 1,
+      "country_id": 1161,
+      "venue_id": 8879,
+      "gender": "male",
+      "name": "St. Mirren",
+      "short_code": "STM",
+      "image_path": "https://cdn.sportmonks.com/images/soccer/teams/16/496.png",
+      "founded": 1877,
+      "type": "domestic",
+      "placeholder": false,
+      "last_played_at": "2026-08-30 14:00:00",
+      "meta": {
+        "location": "home",
+        "winner": false,
+        "position": 4
+      }
+    }
+  ]
+}

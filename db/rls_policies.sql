@@ -117,6 +117,20 @@ drop policy if exists "authenticated can delete favorite_competitions" on favori
 create policy "authenticated can delete favorite_competitions" on favorite_competitions
   for delete to authenticated using (true);
 
+-- Sportmonks integration (TEST scope — docs/SPORTMONKS_INTEGRATION.md).
+-- Read-only for `authenticated`, same as players/matches — written only
+-- by scripts/sync-sportmonks-ratings.mjs's service_role key, never by the
+-- frontend.
+alter table player_external_ids enable row level security;
+drop policy if exists "authenticated can read player_external_ids" on player_external_ids;
+create policy "authenticated can read player_external_ids" on player_external_ids
+  for select to authenticated using (true);
+
+alter table player_match_ratings enable row level security;
+drop policy if exists "authenticated can read player_match_ratings" on player_match_ratings;
+create policy "authenticated can read player_match_ratings" on player_match_ratings
+  for select to authenticated using (true);
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see

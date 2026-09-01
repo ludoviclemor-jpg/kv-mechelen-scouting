@@ -1,0 +1,52 @@
+name: Sync Sportmonks Ratings
+
+# TEST integration — Danish Superliga + Scottish Premiership only (the
+# Sportmonks free-plan league scope, see docs/SPORTMONKS_INTEGRATION.md).
+# Writes straight to Postgres via the service_role key (player_external_ids,
+# player_match_ratings). No git commit, no Pages deploy trigger — ratings
+# live only in Postgres, read by the frontend at runtime, same pattern as
+# the SCOUTASTIC/matches/international-callups syncs.
+#
+# Needs SPORTMONKS_API_TOKEN, SUPABASE_SERVICE_ROLE_KEY (both secrets) and
+# NEXT_PUBLIC_SUPABASE_URL (an existing repository variable). None of
+# these are ever printed, logged, or written to any file.
+#
+# Run the "Sync SCOUTASTIC" workflow at least once first for the Danish/
+# Scottish top-flight teams — player matching needs real Scoutastic
+# players already synced for competition_id DK1/SC1 to match against.
+
+on:
+  schedule:
+    - cron: "30 6 * * *" # 06:30 UTC daily — after the SCOUTASTIC sync's 05:00 run
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days back to fetch finished fixtures for"
+        required: false
+        default: "35"
+
+concurrency:
+  group: "sportmonks-ratings-sync"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Sportmonks ratings sync
+        env:
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-sportmonks-ratings.mjs --days ${{ github.event.inputs.days || '35' }}

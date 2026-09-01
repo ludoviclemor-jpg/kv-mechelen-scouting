@@ -16,6 +16,7 @@ import { CallUpTable } from "@/components/players/CallUpTable";
 import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
 import { LoanWatchList } from "@/components/players/LoanWatchList";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
+import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import {
   fetchScoutingOverview,
   fetchTopPerformers,
@@ -193,6 +194,11 @@ export default function DashboardPage() {
                 )}
               </section>
             </div>
+
+            <section className="border border-kvm-border bg-white pb-2">
+              <SectionHeader title="Top Rated Players (Sportmonks Test — Danish Superliga & Scottish Premiership)" />
+              <TopRatedPlayersWidget />
+            </section>
           </>
         )}
       </div>
