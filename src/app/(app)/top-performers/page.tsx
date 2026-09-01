@@ -8,13 +8,12 @@ import { PlayerCard } from "@/components/players/PlayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
-  fetchTopPerformers,
   useAsync,
-  computeMatchStats,
   MINIMUM_RATED_MATCHES,
   POSITIONS,
   POSITION_LABELS,
 } from "@/lib/players-data";
+import { fetchCombinedTopPerformers, combinedStats } from "@/lib/topPerformersData";
 import { ageRangeLabel, matchesAgeRange, type AgeRange } from "@/lib/agePresets";
 import { calculateAge } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
@@ -35,22 +34,23 @@ export default function TopPerformersPage() {
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
   const [sortBy, setSortBy] = useState<SortOption>("last5");
 
-  // Ratings are only ever populated for a scoped subset once a real
-  // provider exists (see docs/SOFASCORE_PROVIDER.md — none is connected
-  // today, so this is currently empty for every player) — inherently
-  // small even then, fetched once and filtered/sorted client-side, unlike
-  // the full Players list.
-  const { data: rated, loading, error } = useAsync(() => fetchTopPerformers(), []);
+  // Merges the primary ratings slot (empty today — see
+  // docs/SOFASCORE_PROVIDER.md) with the Sportmonks TEST integration
+  // (docs/SPORTMONKS_INTEGRATION.md), never blended per player — each
+  // entry carries its own source. Inherently small, fetched once and
+  // filtered/sorted client-side, unlike the full Players list.
+  const { data: entries, loading, error } = useAsync(() => fetchCombinedTopPerformers(200), []);
 
-  const leagues = useMemo(() => uniqueSorted((rated ?? []).map((p) => p.league)), [rated]);
+  const leagues = useMemo(() => uniqueSorted((entries ?? []).map((e) => e.player.league)), [entries]);
   const nationalities = useMemo(
-    () => uniqueSorted((rated ?? []).map((p) => p.nationality)),
-    [rated]
+    () => uniqueSorted((entries ?? []).map((e) => e.player.nationality)),
+    [entries]
   );
 
   const filtered = useMemo(() => {
-    return (rated ?? [])
-      .filter((p) => {
+    return (entries ?? [])
+      .filter((e) => {
+        const p = e.player;
         if (position !== "all" && p.position !== position) return false;
         if (league !== "all" && p.league !== league) return false;
         if (nationality !== "all" && p.nationality !== nationality) return false;
@@ -58,13 +58,13 @@ export default function TopPerformersPage() {
         return true;
       })
       .sort((a, b) => {
-        const statsA = computeMatchStats(a.matches);
-        const statsB = computeMatchStats(b.matches);
+        const statsA = combinedStats(a);
+        const statsB = combinedStats(b);
         if (sortBy === "last5") return (statsB.average ?? 0) - (statsA.average ?? 0);
         if (sortBy === "latest") return (statsB.latest ?? 0) - (statsA.latest ?? 0);
-        return (calculateAge(a.dateOfBirth) ?? 0) - (calculateAge(b.dateOfBirth) ?? 0);
+        return (calculateAge(a.player.dateOfBirth) ?? 0) - (calculateAge(b.player.dateOfBirth) ?? 0);
       });
-  }, [rated, position, league, nationality, ageRange, sortBy]);
+  }, [entries, position, league, nationality, ageRange, sortBy]);
 
   const ageLabel = ageRangeLabel(ageRange);
   const chips: ActiveFilterChip[] = [];
@@ -145,8 +145,8 @@ export default function TopPerformersPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {filtered.map((player) => (
-              <PlayerCard key={player.id} player={player} />
+            {filtered.map((entry) => (
+              <PlayerCard key={entry.player.id} player={entry.player} ratingOverride={entry.rating ?? undefined} />
             ))}
           </div>
         )}

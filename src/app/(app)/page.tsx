@@ -19,7 +19,6 @@ import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import {
   fetchScoutingOverview,
-  fetchTopPerformers,
   fetchAfricanDebutants,
   fetchRecentlyAdded,
   fetchPriorityPlayers,
@@ -28,6 +27,7 @@ import {
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
 import { fetchFirstCallUps } from "@/lib/callups-data";
+import { fetchCombinedTopPerformers } from "@/lib/topPerformersData";
 
 /**
  * Dashboard grid — with the sidebar gone (Phase 1), there's real
@@ -42,7 +42,10 @@ export default function DashboardPage() {
   const referenceDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const overview = useAsync(() => fetchScoutingOverview(referenceDate), [referenceDate]);
-  const topPerformers = useAsync(() => fetchTopPerformers(5), []);
+  // Merges the primary ratings slot (empty today — see
+  // docs/SOFASCORE_PROVIDER.md) with the Sportmonks TEST integration
+  // (docs/SPORTMONKS_INTEGRATION.md), never blended per player.
+  const topPerformers = useAsync(() => fetchCombinedTopPerformers(5), []);
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
@@ -114,8 +117,8 @@ export default function DashboardPage() {
                   />
                 ) : (
                   <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
-                    {topPerformers.data!.map((player) => (
-                      <PlayerCard key={player.id} player={player} />
+                    {topPerformers.data!.map((entry) => (
+                      <PlayerCard key={entry.player.id} player={entry.player} ratingOverride={entry.rating ?? undefined} />
                     ))}
                   </div>
                 )}

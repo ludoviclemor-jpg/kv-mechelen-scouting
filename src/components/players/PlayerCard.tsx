@@ -8,9 +8,27 @@ import { RatingTrendSparkline } from "@/components/ui/RatingTrend";
 import { ratingTrendSeries } from "@/lib/players-data";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
 
-export function PlayerCard({ player }: { player: Player }) {
-  const stats = computeMatchStats(player.matches);
-  const trend = ratingTrendSeries(player.matches);
+/**
+ * Lets a caller feed in a rating from a different source than
+ * `player.matches` (the primary SofaScore/API-Football slot, see
+ * docs/SOFASCORE_PROVIDER.md) — used by the combined Top Performers view
+ * (src/lib/topPerformersData.ts) to show Sportmonks-sourced players
+ * (docs/SPORTMONKS_INTEGRATION.md) through the same card, clearly
+ * labeled by provider rather than blended into the primary numbers.
+ * Every other caller omits this and gets the original `player.matches`-derived
+ * behavior, unchanged.
+ */
+export interface PlayerCardRatingOverride {
+  average: number | null;
+  latest: number | null;
+  matchesUsed: number;
+  trend: { date: string; rating: number }[];
+  sourceLabel: string;
+}
+
+export function PlayerCard({ player, ratingOverride }: { player: Player; ratingOverride?: PlayerCardRatingOverride }) {
+  const stats = ratingOverride ?? computeMatchStats(player.matches);
+  const trend = ratingOverride?.trend ?? ratingTrendSeries(player.matches);
 
   return (
     <div className="flex flex-col justify-between border border-kvm-border bg-white p-4">
@@ -28,6 +46,11 @@ export function PlayerCard({ player }: { player: Player }) {
               </div>
             </div>
           </Link>
+          {ratingOverride ? (
+            <span className="shrink-0 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
+              via {ratingOverride.sourceLabel}
+            </span>
+          ) : null}
         </div>
 
         <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-500">
