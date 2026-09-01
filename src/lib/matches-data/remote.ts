@@ -171,8 +171,45 @@ export async function fetchMatchById(id: string): Promise<Match | null> {
   return data ? matchFromRow(data as unknown as MatchRow) : null;
 }
 
+/**
+ * Today's matches, ranked so the ones actually worth a scout's attention
+ * come first: KV Mechelen's own fixtures, then matches featuring a
+ * shortlisted/priority-status player, then everything else by kickoff
+ * time — computed server-side by todays_relevant_match_ids() (db/schema.sql)
+ * rather than bulk-fetching every match's lineup to rank client-side (a
+ * busy day can have 200+ matches worldwide). The RPC returns just the
+ * ranked ids; this re-fetches the full MatchSummary rows (same columns/
+ * competition-name join as fetchMatchesByDate) and restores that exact
+ * order, since `.in()` doesn't preserve it.
+ */
 export async function fetchTodaysMatches(limit = 6): Promise<MatchSummary[]> {
+  if (!isSupabaseConfigured()) notConfigured();
   const todayISO = new Date().toISOString().slice(0, 10);
-  const matches = await fetchMatchesByDate(todayISO);
-  return matches.slice(0, limit);
+  const { data: rankedIds, error: rpcError } = await getSupabaseClient().rpc("todays_relevant_match_ids", {
+    match_date: todayISO,
+    result_limit: limit,
+  });
+  if (rpcError) throw rpcError;
+  const ids: string[] = (rankedIds ?? []).map((r: { match_id: string }) => r.match_id);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await getSupabaseClient().from("matches").select(MATCH_SUMMARY_COLUMNS).in("id", ids);
+  if (error) throw error;
+  const byId = new Map<string, MatchSummary>();
+  for (const row of data ?? []) {
+    const embedded = row.scoutastic_competitions as unknown;
+    const comp = (Array.isArray(embedded) ? embedded[0] : embedded) as { name: string | null; area: string | null } | null;
+    byId.set(row.id as string, {
+      id: row.id as string,
+      competitionId: row.competition_id as string | null,
+      competitionName: comp?.name ?? null,
+      competitionArea: comp?.area ?? null,
+      date: row.date as string | null,
+      status: row.status as string | null,
+      score: row.score as string | null,
+      homeTeamName: row.home_team_name as string | null,
+      awayTeamName: row.away_team_name as string | null,
+    });
+  }
+  return ids.map((id: string) => byId.get(id)).filter((m): m is MatchSummary => m !== undefined);
 }

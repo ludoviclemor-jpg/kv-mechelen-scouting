@@ -433,6 +433,37 @@ create or replace view call_up_countries
   with (security_invoker = true) as
   select distinct country as value from player_international_callups where country <> '' order by 1;
 
+-- Dashboard "Today's Matches" widget — real KV Mechelen fixtures (their
+-- own matches are genuinely in `matches`, same as any other crawled club
+-- — confirmed live, e.g. real "KV Mechelen vs Royal Antwerp FC" rows)
+-- and matches featuring a shortlisted/priority-status player should
+-- surface before an arbitrary early-kickoff match nobody's tracking.
+-- Ranks server-side rather than bulk-fetching every match's lineup to
+-- the client to check relevance — a busy day can have 200+ matches
+-- worldwide (confirmed live), the exact bulk-lineup-fetch cost
+-- docs/EXPLORE.md already ruled out for the list-level African/
+-- Shortlisted filters. `security invoker` since this reads `matches`/
+-- `shortlist_players`/`player_scouting_state`, all RLS-protected.
+create or replace function todays_relevant_match_ids(match_date date, result_limit integer default 6)
+returns table(match_id text) as $$
+  with relevant_players as (
+    select scoutastic_player_id from shortlist_players
+    union
+    select scoutastic_player_id from player_scouting_state where status = 'priority'
+  )
+  select m.id
+  from matches m
+  where m.date >= match_date::timestamptz and m.date < (match_date + 1)::timestamptz
+  order by
+    (m.home_team_name = 'KV Mechelen' or m.away_team_name = 'KV Mechelen') desc,
+    (
+      exists (select 1 from jsonb_array_elements(m.home_team_players) e where (e ->> 'id') in (select scoutastic_player_id from relevant_players))
+      or exists (select 1 from jsonb_array_elements(m.away_team_players) e where (e ->> 'id') in (select scoutastic_player_id from relevant_players))
+    ) desc,
+    m.date asc
+  limit result_limit;
+$$ language sql stable security invoker;
+
 -- keep updated_at current on write, instead of relying on every caller to set it
 create or replace function set_updated_at() returns trigger as $$
 begin
