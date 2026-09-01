@@ -9,7 +9,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
-import { PlayerCard } from "@/components/players/PlayerCard";
+import { TopPerformersLeaderboard } from "@/components/players/TopPerformersLeaderboard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
@@ -45,7 +45,7 @@ export default function DashboardPage() {
   // Merges the primary ratings slot (empty today — see
   // docs/SOFASCORE_PROVIDER.md) with the Sportmonks TEST integration
   // (docs/SPORTMONKS_INTEGRATION.md), never blended per player.
-  const topPerformers = useAsync(() => fetchCombinedTopPerformers(5), []);
+  const topPerformers = useAsync(() => fetchCombinedTopPerformers(8), []);
   const debutants = useAsync(() => fetchAfricanDebutants(4), []);
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
@@ -116,11 +116,7 @@ export default function DashboardPage() {
                     description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
                   />
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
-                    {topPerformers.data!.map((entry) => (
-                      <PlayerCard key={entry.player.id} player={entry.player} ratingOverride={entry.rating ?? undefined} />
-                    ))}
-                  </div>
+                  <TopPerformersLeaderboard entries={topPerformers.data!} />
                 )}
               </section>
 
