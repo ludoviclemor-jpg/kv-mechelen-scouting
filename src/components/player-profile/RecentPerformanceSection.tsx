@@ -1,4 +1,4 @@
-import { Radar } from "lucide-react";
+import { Radar, House, Plane } from "lucide-react";
 import type { PlayerRecentPerformance } from "@/lib/sportmonks-data";
 import { ratingTier } from "@/lib/sportmonks-data";
 import { formatDateShort, cn } from "@/lib/utils";
@@ -79,8 +79,14 @@ export function RecentPerformanceSection({ performance }: { performance: PlayerR
             {ratings.map((r) => (
               <tr key={r.fixtureId}>
                 <td className="font-medium text-kvm-ink">
-                  {r.homeAway === "home" ? "vs " : r.homeAway === "away" ? "@ " : ""}
-                  {r.opponent ?? "Unknown opponent"}
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.homeAway === "home" ? (
+                      <House size={13} className="shrink-0 text-gray-400" aria-label="Home game" />
+                    ) : r.homeAway === "away" ? (
+                      <Plane size={13} className="shrink-0 text-gray-400" aria-label="Away game" />
+                    ) : null}
+                    {r.opponent ?? "Unknown opponent"}
+                  </span>
                 </td>
                 <td className="text-gray-500">{r.competitionName ?? "Unknown"}</td>
                 <td className="text-gray-500">{formatDateShort(r.matchDate)}</td>
