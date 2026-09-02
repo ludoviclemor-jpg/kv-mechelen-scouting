@@ -19,7 +19,7 @@ export function DebutantTable({ players }: { players: Player[] }) {
       <EmptyState
         icon={Globe2}
         title="No debutants recorded yet"
-        description="African debutants from Eastern European leagues will appear here as SCOUTASTIC detects them."
+        description="African debutants worldwide will appear here as SCOUTASTIC detects them."
       />
     );
   }

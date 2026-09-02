@@ -427,7 +427,7 @@ export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
 
-/** Debut candidates are inherently rare (this season's debuts, African, Eastern European leagues only) — safe to fetch in full. */
+/** Debut candidates are inherently rare (this season's debuts, African, worldwide) — safe to fetch in full. */
 /**
  * African Debutants is U23-only by definition (see the page's own
  * description) — not merely the default filter, an eligibility rule.
@@ -435,6 +435,11 @@ export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
  * other U23 filter in the app uses (`agePresets.ts`'s U23 preset =
  * age <= 22), so a non-U23 debutant can never appear regardless of
  * whatever the page's own (further-narrowing) AgeFilter is set to.
+ *
+ * Worldwide scope (2026-09-02): previously restricted to
+ * `is_eastern_european_league` (an initial, narrower product decision);
+ * that filter is intentionally no longer applied here — every African
+ * U23 debutant across every crawled league/country now qualifies.
  */
 const U23_RANGE: AgeRange = { min: null, max: 22 };
 
@@ -447,7 +452,6 @@ export async function fetchAfricanDebutants(limit = 500): Promise<Player[]> {
     .eq("active", true)
     .eq("is_debutant", true)
     .eq("is_african", true)
-    .eq("is_eastern_european_league", true)
     .eq("is_youth_or_reserve", false);
   if (dobAfter) query = query.gt("date_of_birth", dobAfter);
   const { data, error } = await query.order("debut_date", { ascending: false, nullsFirst: false }).limit(limit);
@@ -677,7 +681,6 @@ export async function fetchScoutingOverview(referenceDateISO: string): Promise<S
       .eq("active", true)
       .eq("is_debutant", true)
       .eq("is_african", true)
-      .eq("is_eastern_european_league", true)
       .eq("is_youth_or_reserve", false),
     db
       .from("player_scouting_state")
