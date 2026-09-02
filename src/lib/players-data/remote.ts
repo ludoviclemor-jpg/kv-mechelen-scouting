@@ -427,32 +427,41 @@ export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
 
-/** Debut candidates are inherently rare (this season's debuts, African, worldwide) — safe to fetch in full. */
+/** Debut candidates are inherently rare (this season's debuts, African, worldwide, top 2 divisions) — safe to fetch in full. */
 /**
- * African Debutants is U23-only by definition (see the page's own
- * description) — not merely the default filter, an eligibility rule.
- * Enforced here, server-side, via the same DOB-based U23 cutoff every
- * other U23 filter in the app uses (`agePresets.ts`'s U23 preset =
- * age <= 22), so a non-U23 debutant can never appear regardless of
- * whatever the page's own (further-narrowing) AgeFilter is set to.
+ * African Debutants is U23-only, top-2-divisions-only by definition (see
+ * the page's own description) — not merely default filters, eligibility
+ * rules. U23 is enforced via the same DOB-based cutoff every other U23
+ * filter in the app uses (`agePresets.ts`'s U23 preset = age <= 22); the
+ * division cap reuses `fetchProfessionalCompetitionIds` (built for Loan
+ * Watch, same real `level_definition`-based tier data, see
+ * docs/LOAN_WATCH.md) at maxLevel=2. Both are enforced here, server-side,
+ * so neither can be bypassed by whatever the page's own (further-
+ * narrowing) filters are set to.
  *
  * Worldwide scope (2026-09-02): previously restricted to
  * `is_eastern_european_league` (an initial, narrower product decision);
- * that filter is intentionally no longer applied here — every African
- * U23 debutant across every crawled league/country now qualifies.
+ * that filter is intentionally no longer applied — every African U23
+ * debutant in a genuine top-2-division league, in any country, qualifies.
  */
 const U23_RANGE: AgeRange = { min: null, max: 22 };
+const DEBUTANTS_MAX_TIER_LEVEL = 2;
 
 export async function fetchAfricanDebutants(limit = 500): Promise<Player[]> {
   if (!isSupabaseConfigured()) notConfigured();
   const { gt: dobAfter } = ageRangeToDobRange(U23_RANGE);
+
+  const topDivisionCompetitionIds = await fetchProfessionalCompetitionIds(DEBUTANTS_MAX_TIER_LEVEL);
+  if (topDivisionCompetitionIds.length === 0) return []; // no top-2-division competitions found — correct empty result, not an error
+
   let query = getSupabaseClient()
     .from("players")
     .select(PLAYER_COLUMNS)
     .eq("active", true)
     .eq("is_debutant", true)
     .eq("is_african", true)
-    .eq("is_youth_or_reserve", false);
+    .eq("is_youth_or_reserve", false)
+    .in("competition_id", topDivisionCompetitionIds);
   if (dobAfter) query = query.gt("date_of_birth", dobAfter);
   const { data, error } = await query.order("debut_date", { ascending: false, nullsFirst: false }).limit(limit);
   if (error) throw error;
@@ -668,6 +677,11 @@ export async function fetchScoutingOverview(referenceDateISO: string): Promise<S
   // uses Postgres's own fast statistics-based row estimate instead of a
   // real scan — perfectly fine for a rough dashboard KPI tile, and
   // consistently fast regardless of table size.
+  // Debutants count uses the same top-2-division scope as
+  // fetchAfricanDebutants — resolved once, reused for the `.in()` below,
+  // so this KPI tile never disagrees with the actual African Debutants page.
+  const topDivisionCompetitionIds = await fetchProfessionalCompetitionIds(DEBUTANTS_MAX_TIER_LEVEL);
+
   const [total, fresh, debutants, monitored, shortlists] = await Promise.all([
     db.from("players").select("id", { count: "planned", head: true }).eq("active", true),
     db
@@ -675,13 +689,16 @@ export async function fetchScoutingOverview(referenceDateISO: string): Promise<S
       .select("id", { count: "planned", head: true })
       .eq("active", true)
       .gte("created_at", fourteenDaysAgo.toISOString()),
-    db
-      .from("players")
-      .select("id", { count: "exact", head: true })
-      .eq("active", true)
-      .eq("is_debutant", true)
-      .eq("is_african", true)
-      .eq("is_youth_or_reserve", false),
+    topDivisionCompetitionIds.length === 0
+      ? Promise.resolve({ count: 0, error: null })
+      : db
+          .from("players")
+          .select("id", { count: "exact", head: true })
+          .eq("active", true)
+          .eq("is_debutant", true)
+          .eq("is_african", true)
+          .eq("is_youth_or_reserve", false)
+          .in("competition_id", topDivisionCompetitionIds),
     db
       .from("player_scouting_state")
       .select("scoutastic_player_id", { count: "exact", head: true })
