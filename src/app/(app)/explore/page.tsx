@@ -5,7 +5,8 @@ import { CalendarDays } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DateNav } from "@/components/matches/DateNav";
 import { MatchList, groupMatches } from "@/components/matches/MatchList";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -134,58 +135,72 @@ export default function ExplorePage() {
 
       <DateNav date={date} onChange={setDate} />
 
-      <div className="flex items-center justify-between gap-4 border-b border-kvm-border bg-white px-8 py-3">
-        <SearchBar value={clubSearch} onChange={setClubSearch} placeholder="Search club..." />
-      </div>
-
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={handleCountryChange}
-          options={[{ value: "all", label: "All countries" }, ...countries.map((c) => ({ value: c, label: c }))]}
-        />
-        <FilterSelect
-          label="Competition"
-          value={competitionId}
-          onChange={setCompetitionId}
-          disabled={country === "all"}
-          options={[
-            { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
-            ...competitionsInCountry.map((c) => ({ value: c.id, label: c.name })),
-          ]}
-        />
-        <FilterSelect
-          label="Status"
-          value={status}
-          onChange={setStatus}
-          options={[{ value: "all", label: "All statuses" }, ...statuses.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s }))]}
-        />
-        <FilterSelect label="Kick-off" value={kickoffBand} onChange={setKickoffBand} options={KICKOFF_BANDS} />
-      </FilterBar>
-
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
-
-      <div className="p-8">
-        {error ? (
-          <div className="border border-kvm-border bg-white">
-            <ErrorState message={error.message} />
-          </div>
-        ) : loading ? (
-          <div className="border border-kvm-border bg-white">
-            <LoadingState label="Loading matches…" />
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="border border-kvm-border bg-white">
-            <EmptyState
-              icon={CalendarDays}
-              title="No matches match these filters"
-              description="Try a different date, or clear a filter."
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Club">
+            <SearchBar value={clubSearch} onChange={setClubSearch} placeholder="Search club..." />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={country}
+              onChange={handleCountryChange}
+              options={[{ value: "all", label: "All countries" }, ...countries.map((c) => ({ value: c, label: c }))]}
             />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Competition">
+            <FilterSelect
+              stacked
+              label=""
+              value={competitionId}
+              onChange={setCompetitionId}
+              disabled={country === "all"}
+              options={[
+                { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
+                ...competitionsInCountry.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Status">
+            <FilterSelect
+              stacked
+              label=""
+              value={status}
+              onChange={setStatus}
+              options={[{ value: "all", label: "All statuses" }, ...statuses.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Kick-off">
+            <FilterSelect stacked label="" value={kickoffBand} onChange={setKickoffBand} options={KICKOFF_BANDS} />
+          </FilterSidebarSection>
+        </FilterSidebar>
+
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+
+          <div className="p-4">
+            {error ? (
+              <div className="border border-kvm-border bg-white">
+                <ErrorState message={error.message} />
+              </div>
+            ) : loading ? (
+              <div className="border border-kvm-border bg-white">
+                <LoadingState label="Loading matches…" />
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="border border-kvm-border bg-white">
+                <EmptyState
+                  icon={CalendarDays}
+                  title="No matches match these filters"
+                  description="Try a different date, or clear a filter."
+                />
+              </div>
+            ) : (
+              <MatchList groups={groups} favoriteCompetitionIds={favoriteIds} onToggleFavorite={toggleFavorite} />
+            )}
           </div>
-        ) : (
-          <MatchList groups={groups} favoriteCompetitionIds={favoriteIds} onToggleFavorite={toggleFavorite} />
-        )}
+        </div>
       </div>
     </>
   );

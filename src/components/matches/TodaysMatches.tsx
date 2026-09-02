@@ -45,7 +45,7 @@ function MatchRow({ match, shortlistedIds }: { match: MatchSummary; shortlistedI
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">
-        {isKvMechelen ? <span className="rounded-sm bg-kvm-yellow px-1.5 py-0.5 text-kvm-ink">KV Mechelen</span> : null}
+        {isKvMechelen ? <span className="rounded-sm bg-kvm-red px-1.5 py-0.5 text-white">KV Mechelen</span> : null}
         {u21Count > 0 ? <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 text-blue-700">{u21Count} U21</span> : null}
         {shortlistedCount > 0 ? (
           <span className="rounded-sm bg-kvm-red/10 px-1.5 py-0.5 text-kvm-red">{shortlistedCount} shortlisted</span>
