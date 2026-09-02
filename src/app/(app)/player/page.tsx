@@ -31,7 +31,7 @@ import { fetchCompetitionById } from "@/lib/competitions-data";
 import { fetchCallUpsForPlayer } from "@/lib/callups-data";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Overview", "Stats", "Career", "Matches", "Scouting"] as const;
+const TABS = ["Overview", "Stats", "Matches", "Ratings", "Career", "Scouting"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -242,17 +242,13 @@ function PlayerProfileContent() {
               </div>
             ) : null}
 
-            {tab === "Matches" ? (
-              <div className="space-y-6">
-                <section>
-                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Match Performance</h3>
-                  <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} />
-                </section>
-                <section>
-                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Recent Performance (Sportmonks)</h3>
-                  <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
-                </section>
-              </div>
+            {tab === "Matches" ? <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} /> : null}
+
+            {tab === "Ratings" ? (
+              <section>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Sportmonks Ratings (Test)</h3>
+                <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
+              </section>
             ) : null}
 
             {tab === "Scouting" ? <ScoutingNotesCard player={player} /> : null}
