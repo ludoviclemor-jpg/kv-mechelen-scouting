@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
-import { AgeFilter } from "@/components/ui/AgeFilter";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
+import { AgeRangeSlider } from "@/components/ui/AgeFilter";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -84,56 +85,74 @@ export default function DebutantsPage() {
         description="U23 senior first-team debuts by African players across Eastern European leagues (youth &amp; reserve teams excluded)."
       />
 
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={setCountry}
-          options={[{ value: "all", label: "All countries" }, ...countries.map((c) => ({ value: c, label: c }))]}
-        />
-        <FilterSelect
-          label="League"
-          value={league}
-          onChange={setLeague}
-          options={[{ value: "all", label: "All leagues" }, ...leagues.map((l) => ({ value: l, label: l }))]}
-        />
-        <FilterSelect
-          label="Position"
-          value={position}
-          onChange={setPosition}
-          options={[
-            { value: "all", label: "All positions" },
-            ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
-          ]}
-        />
-        <AgeFilter range={ageRange} onChange={setAgeRange} />
-        <FilterSelect
-          label="Debut date"
-          value={sortByDebutDate}
-          onChange={(v) => setSortByDebutDate(v as "newest" | "oldest")}
-          options={[
-            { value: "newest", label: "Newest first" },
-            { value: "oldest", label: "Oldest first" },
-          ]}
-        />
-      </FilterBar>
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={country}
+              onChange={setCountry}
+              options={[{ value: "all", label: "All countries" }, ...countries.map((c) => ({ value: c, label: c }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="League">
+            <FilterSelect
+              stacked
+              label=""
+              value={league}
+              onChange={setLeague}
+              options={[{ value: "all", label: "All leagues" }, ...leagues.map((l) => ({ value: l, label: l }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Position">
+            <FilterSelect
+              stacked
+              label=""
+              value={position}
+              onChange={setPosition}
+              options={[
+                { value: "all", label: "All positions" },
+                ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
+              ]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Age">
+            <AgeRangeSlider range={ageRange} onChange={setAgeRange} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Debut Date">
+            <FilterSelect
+              stacked
+              label=""
+              value={sortByDebutDate}
+              onChange={(v) => setSortByDebutDate(v as "newest" | "oldest")}
+              options={[
+                { value: "newest", label: "Newest first" },
+                { value: "oldest", label: "Oldest first" },
+              ]}
+            />
+          </FilterSidebarSection>
+        </FilterSidebar>
 
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-      <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {error ? (
-          <ErrorState message={error.message} />
-        ) : loading ? (
-          <LoadingState label="Loading debutants…" />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={Globe2}
-            title="No debutants match these filters"
-            description="Adjust the filters above, or check back after the next sync."
-          />
-        ) : (
-          <DebutantTable players={filtered} />
-        )}
+          <div className="m-4 border border-kvm-border bg-white">
+            {error ? (
+              <ErrorState message={error.message} />
+            ) : loading ? (
+              <LoadingState label="Loading debutants…" />
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                icon={Globe2}
+                title="No debutants match these filters"
+                description="Adjust the filters, or check back after the next sync."
+              />
+            ) : (
+              <DebutantTable players={filtered} />
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

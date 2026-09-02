@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
-import { AgeFilter } from "@/components/ui/AgeFilter";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
+import { AgeRangeSlider } from "@/components/ui/AgeFilter";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { fetchFirstCallUps, fetchCallUpCountries, CALL_UP_LEVELS } from "@/lib/callups-data";
@@ -51,27 +52,38 @@ export default function CallUpsPage() {
         description="Players called up to a national team for the first time — a genuinely different signal than a first appearance/cap. See docs/INTERNATIONAL_CALLUPS.md."
       />
 
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect label="Level" value={level} onChange={setLevel} options={LEVEL_OPTIONS} />
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={setCountry}
-          options={[{ value: "all", label: "All countries" }, ...(countries.data ?? []).map((c) => ({ value: c, label: c }))]}
-        />
-        <AgeFilter range={ageRange} onChange={setAgeRange} />
-      </FilterBar>
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Level">
+            <FilterSelect stacked label="" value={level} onChange={setLevel} options={LEVEL_OPTIONS} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={country}
+              onChange={setCountry}
+              options={[{ value: "all", label: "All countries" }, ...(countries.data ?? []).map((c) => ({ value: c, label: c }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Age">
+            <AgeRangeSlider range={ageRange} onChange={setAgeRange} />
+          </FilterSidebarSection>
+        </FilterSidebar>
 
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-      <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {error ? (
-          <ErrorState message={error.message} />
-        ) : loading ? (
-          <LoadingState label="Loading call-ups…" />
-        ) : (
-          <CallUpTable callUps={filtered} />
-        )}
+          <div className="m-4 border border-kvm-border bg-white">
+            {error ? (
+              <ErrorState message={error.message} />
+            ) : loading ? (
+              <LoadingState label="Loading call-ups…" />
+            ) : (
+              <CallUpTable callUps={filtered} />
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

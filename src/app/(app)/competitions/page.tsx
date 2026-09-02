@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Trophy, Globe2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -74,92 +75,104 @@ export default function CompetitionsPage() {
         description={result.data ? `${result.data.length} competitions across ${grouped.length} countries — sourced from SCOUTASTIC` : undefined}
       />
 
-      <div className="flex items-center justify-between gap-4 border-b border-kvm-border bg-white px-8 py-3">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search competition or country..." />
-      </div>
-
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect
-          label="Country"
-          value={area}
-          onChange={setArea}
-          options={[{ value: "all", label: "All countries" }, ...(countries.data ?? []).map((c) => ({ value: c, label: c }))]}
-        />
-        <FilterSelect
-          label="Type / Tier"
-          value={levelDefinition}
-          onChange={setLevelDefinition}
-          options={[{ value: "all", label: "All types" }, ...levelDefinitions.map((l) => ({ value: l, label: l }))]}
-        />
-        <FilterSelect
-          label="Status"
-          value={activeOnly ? "active" : "all"}
-          onChange={(v) => setActiveOnly(v === "active")}
-          options={[
-            { value: "active", label: "Active only" },
-            { value: "all", label: "Include inactive" },
-          ]}
-        />
-      </FilterBar>
-
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
-
-      <div className="p-8">
-        {result.error ? (
-          <div className="border border-kvm-border bg-white">
-            <ErrorState message={result.error.message} />
-          </div>
-        ) : result.loading ? (
-          <div className="border border-kvm-border bg-white">
-            <LoadingState label="Loading competitions…" />
-          </div>
-        ) : grouped.length === 0 ? (
-          <div className="border border-kvm-border bg-white">
-            <EmptyState
-              icon={Globe2}
-              title="No competitions match these filters"
-              description="Try widening your search or clearing a filter."
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Search">
+            <SearchBar value={search} onChange={setSearch} placeholder="Competition or country..." />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={area}
+              onChange={setArea}
+              options={[{ value: "all", label: "All countries" }, ...(countries.data ?? []).map((c) => ({ value: c, label: c }))]}
             />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {grouped.map(([country, competitions]) => (
-              <section key={country} className="border border-kvm-border bg-white">
-                <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
-                  {country}
-                </h2>
-                <ul className="divide-y divide-kvm-border">
-                  {competitions.map((c) => (
-                    <li key={c.id}>
-                      <Link
-                        href={`/competition?id=${c.id}`}
-                        className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-gray-50"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-400">
-                            <Trophy size={15} aria-hidden="true" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-kvm-ink">{c.name ?? "Unnamed competition"}</div>
-                            <div className="text-xs text-gray-400">
-                              {c.levelDefinition ?? "Unknown tier"}
-                              {c.teamCount > 0 ? ` · ${c.teamCount} teams` : ""}
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Type / Tier">
+            <FilterSelect
+              stacked
+              label=""
+              value={levelDefinition}
+              onChange={setLevelDefinition}
+              options={[{ value: "all", label: "All types" }, ...levelDefinitions.map((l) => ({ value: l, label: l }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Status">
+            <FilterSelect
+              stacked
+              label=""
+              value={activeOnly ? "active" : "all"}
+              onChange={(v) => setActiveOnly(v === "active")}
+              options={[
+                { value: "active", label: "Active only" },
+                { value: "all", label: "Include inactive" },
+              ]}
+            />
+          </FilterSidebarSection>
+        </FilterSidebar>
+
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+
+          <div className="p-4">
+            {result.error ? (
+              <div className="border border-kvm-border bg-white">
+                <ErrorState message={result.error.message} />
+              </div>
+            ) : result.loading ? (
+              <div className="border border-kvm-border bg-white">
+                <LoadingState label="Loading competitions…" />
+              </div>
+            ) : grouped.length === 0 ? (
+              <div className="border border-kvm-border bg-white">
+                <EmptyState
+                  icon={Globe2}
+                  title="No competitions match these filters"
+                  description="Try widening your search or clearing a filter."
+                />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {grouped.map(([country, competitions]) => (
+                  <section key={country} className="border border-kvm-border bg-white">
+                    <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
+                      {country}
+                    </h2>
+                    <ul className="divide-y divide-kvm-border">
+                      {competitions.map((c) => (
+                        <li key={c.id}>
+                          <Link
+                            href={`/competition?id=${c.id}`}
+                            className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-gray-50"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-400">
+                                <Trophy size={15} aria-hidden="true" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-kvm-ink">{c.name ?? "Unnamed competition"}</div>
+                                <div className="text-xs text-gray-400">
+                                  {c.levelDefinition ?? "Unknown tier"}
+                                  {c.teamCount > 0 ? ` · ${c.teamCount} teams` : ""}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                        {!c.isActive ? (
-                          <span className="shrink-0 rounded-sm bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
-                            Inactive
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+                            {!c.isActive ? (
+                              <span className="shrink-0 rounded-sm bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+                                Inactive
+                              </span>
+                            ) : null}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </>
   );

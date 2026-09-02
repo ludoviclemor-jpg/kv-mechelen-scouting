@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
-import { AgeFilter } from "@/components/ui/AgeFilter";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
+import { AgeRangeSlider } from "@/components/ui/AgeFilter";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -86,70 +87,88 @@ export default function TopPerformersPage() {
         description={`Players with at least ${MINIMUM_RATED_MATCHES} rated matches, ranked by recent form.`}
       />
 
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect
-          label="Sort by"
-          value={sortBy}
-          onChange={(v) => setSortBy(v as SortOption)}
-          options={[
-            { value: "last5", label: "Last 5 average" },
-            { value: "latest", label: "Latest rating" },
-            { value: "age", label: "Age" },
-          ]}
-        />
-        <FilterSelect
-          label="Position"
-          value={position}
-          onChange={setPosition}
-          options={[
-            { value: "all", label: "All positions" },
-            ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
-          ]}
-        />
-        <FilterSelect
-          label="League"
-          value={league}
-          onChange={setLeague}
-          options={[{ value: "all", label: "All leagues" }, ...leagues.map((l) => ({ value: l, label: l }))]}
-        />
-        <FilterSelect
-          label="Nationality"
-          value={nationality}
-          onChange={setNationality}
-          options={[
-            { value: "all", label: "All nationalities" },
-            ...nationalities.map((n) => ({ value: n, label: n })),
-          ]}
-        />
-        <AgeFilter range={ageRange} onChange={setAgeRange} />
-      </FilterBar>
-
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
-
-      <div className="p-8">
-        {error ? (
-          <div className="border border-kvm-border bg-white">
-            <ErrorState message={error.message} />
-          </div>
-        ) : loading ? (
-          <div className="border border-kvm-border bg-white">
-            <LoadingState label="Loading top performers…" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="border border-kvm-border bg-white">
-            <EmptyState
-              icon={TrendingUp}
-              title="No players match these filters"
-              description="Try widening your search or clearing a filter."
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Sort By">
+            <FilterSelect
+              stacked
+              label=""
+              value={sortBy}
+              onChange={(v) => setSortBy(v as SortOption)}
+              options={[
+                { value: "last5", label: "Last 5 average" },
+                { value: "latest", label: "Latest rating" },
+                { value: "age", label: "Age" },
+              ]}
             />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Position">
+            <FilterSelect
+              stacked
+              label=""
+              value={position}
+              onChange={setPosition}
+              options={[
+                { value: "all", label: "All positions" },
+                ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
+              ]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Age">
+            <AgeRangeSlider range={ageRange} onChange={setAgeRange} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="League">
+            <FilterSelect
+              stacked
+              label=""
+              value={league}
+              onChange={setLeague}
+              options={[{ value: "all", label: "All leagues" }, ...leagues.map((l) => ({ value: l, label: l }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Nationality">
+            <FilterSelect
+              stacked
+              label=""
+              value={nationality}
+              onChange={setNationality}
+              options={[
+                { value: "all", label: "All nationalities" },
+                ...nationalities.map((n) => ({ value: n, label: n })),
+              ]}
+            />
+          </FilterSidebarSection>
+        </FilterSidebar>
+
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+
+          <div className="m-4">
+            {error ? (
+              <div className="border border-kvm-border bg-white">
+                <ErrorState message={error.message} />
+              </div>
+            ) : loading ? (
+              <div className="border border-kvm-border bg-white">
+                <LoadingState label="Loading top performers…" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="border border-kvm-border bg-white">
+                <EmptyState
+                  icon={TrendingUp}
+                  title="No players match these filters"
+                  description="Try widening your search or clearing a filter."
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {filtered.map((entry) => (
+                  <PlayerCard key={entry.player.id} player={entry.player} ratingOverride={entry.rating ?? undefined} />
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {filtered.map((entry) => (
-              <PlayerCard key={entry.player.id} player={entry.player} ratingOverride={entry.rating ?? undefined} />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     </>
   );

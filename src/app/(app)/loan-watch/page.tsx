@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
-import { AgeFilter } from "@/components/ui/AgeFilter";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
+import { AgeRangeSlider } from "@/components/ui/AgeFilter";
 import { LoanWatchTable } from "@/components/players/LoanWatchTable";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
@@ -163,61 +164,88 @@ export default function LoanWatchPage() {
         description="Players with limited game time this season — a real signal for a possible loan move. Built entirely from real minutes/appearances data; SCOUTASTIC has no transfer-rumour data, so nothing here is based on speculation. Defaults to the top 2 divisions per country (Level filter) to exclude amateur/cup-context noise — widen it, or pick a region, if you want a different pool."
       />
 
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect label="Minutes" value={maxMinutes} onChange={setMaxMinutes} options={MINUTES_OPTIONS} />
-        <FilterSelect label="Level" value={level} onChange={handleLevelChange} options={LEVEL_OPTIONS} />
-        <FilterSelect
-          label="Position"
-          value={position}
-          onChange={setPosition}
-          options={[{ value: "all", label: "All positions" }, ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] }))]}
-        />
-        <FilterSelect
-          label="Nationality"
-          value={nationality}
-          onChange={setNationality}
-          options={[{ value: "all", label: "All nationalities" }, ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n }))]}
-        />
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={handleCountryChange}
-          options={[{ value: "all", label: "All countries" }, ...(filterOptions.data?.leagues ?? []).map((l) => ({ value: l, label: l }))]}
-        />
-        <FilterSelect
-          label="Competition"
-          value={competitionId}
-          onChange={handleCompetitionChange}
-          disabled={country === "all"}
-          options={[
-            { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
-            ...(competitionOptions.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-          ]}
-        />
-        <FilterSelect
-          label="Club"
-          value={club}
-          onChange={setClub}
-          disabled={competitionId === "all"}
-          options={[
-            { value: "all", label: competitionId === "all" ? "Pick a competition first" : "All clubs" },
-            ...(clubOptions.data ?? []).map((c) => ({ value: c, label: c })),
-          ]}
-        />
-        <AgeFilter range={ageRange} onChange={setAgeRange} />
-        <FilterSelect label="Market Value" value={valueBand} onChange={setValueBand} options={VALUE_BANDS} />
-      </FilterBar>
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Minutes">
+            <FilterSelect stacked label="" value={maxMinutes} onChange={setMaxMinutes} options={MINUTES_OPTIONS} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Level">
+            <FilterSelect stacked label="" value={level} onChange={handleLevelChange} options={LEVEL_OPTIONS} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Position">
+            <FilterSelect
+              stacked
+              label=""
+              value={position}
+              onChange={setPosition}
+              options={[{ value: "all", label: "All positions" }, ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Age">
+            <AgeRangeSlider range={ageRange} onChange={setAgeRange} />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Nationality">
+            <FilterSelect
+              stacked
+              label=""
+              value={nationality}
+              onChange={setNationality}
+              options={[{ value: "all", label: "All nationalities" }, ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={country}
+              onChange={handleCountryChange}
+              options={[{ value: "all", label: "All countries" }, ...(filterOptions.data?.leagues ?? []).map((l) => ({ value: l, label: l }))]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Competition">
+            <FilterSelect
+              stacked
+              label=""
+              value={competitionId}
+              onChange={handleCompetitionChange}
+              disabled={country === "all"}
+              options={[
+                { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
+                ...(competitionOptions.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Club">
+            <FilterSelect
+              stacked
+              label=""
+              value={club}
+              onChange={setClub}
+              disabled={competitionId === "all"}
+              options={[
+                { value: "all", label: competitionId === "all" ? "Pick a competition first" : "All clubs" },
+                ...(clubOptions.data ?? []).map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Market Value">
+            <FilterSelect stacked label="" value={valueBand} onChange={setValueBand} options={VALUE_BANDS} />
+          </FilterSidebarSection>
+        </FilterSidebar>
 
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-      <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {error ? (
-          <ErrorState message={error.message} />
-        ) : loading ? (
-          <LoadingState label="Loading loan-watch candidates…" />
-        ) : (
-          <LoanWatchTable players={players ?? []} />
-        )}
+          <div className="m-4 border border-kvm-border bg-white">
+            {error ? (
+              <ErrorState message={error.message} />
+            ) : loading ? (
+              <LoadingState label="Loading loan-watch candidates…" />
+            ) : (
+              <LoanWatchTable players={players ?? []} />
+            )}
+          </div>
+        </div>
       </div>
     </>
   );
