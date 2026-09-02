@@ -35,6 +35,7 @@ export {
   DEBUTANT_REGION_GROUPS,
   fetchScoutingOverview,
   fetchSyncMeta,
+  fetchDebutMatchMinutes,
   type PlayerSortKey,
   type PlayersQueryParams,
   type FilterOptions,

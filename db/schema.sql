@@ -648,3 +648,35 @@ returns table (
   order by agg.avg_rating desc, agg.rated_matches desc
   limit result_limit;
 $$ language sql stable security invoker;
+
+-- African Debutants' "Debut Minutes" column (docs/DEBUTANTS_MINUTES.md
+-- if this grows a doc; for now see the feature's own git history) — real
+-- per-match minutes played in the specific debut fixture, cross-
+-- referenced from `matches`' full lineup JSON by matching the debutant's
+-- own competition_id + debut_date against a match in that competition on
+-- that day, then finding their scoutastic_player_id in that match's
+-- combined home+away lineup. Confirmed live (2026-09-02): only ~10.6% of
+-- current debutants have a real match synced for their exact debut date
+-- (`matches` isn't an exhaustive historical archive — see docs/EXPLORE.md) —
+-- genuinely partial, so this returns no row (never a fabricated 0) for
+-- the rest; the frontend shows "—" for those. Takes the caller's already-
+-- filtered player id list rather than scanning every debutant, reusing
+-- the real idx_matches_competition/idx_matches_date indexes.
+create or replace function debutant_match_minutes(player_ids text[])
+returns table (player_id text, minutes_played integer)
+language sql stable security invoker as $$
+  select distinct on (p.id)
+    p.id as player_id,
+    (elem->>'minutesPlayed')::integer as minutes_played
+  from players p
+  join matches m
+    on m.competition_id = p.competition_id
+   and m.date >= p.debut_date::timestamptz
+   and m.date < (p.debut_date + 1)::timestamptz
+  cross join lateral jsonb_array_elements(m.home_team_players || m.away_team_players) as elem
+  where p.id = any(player_ids)
+    and p.debut_date is not null
+    and p.competition_id is not null
+    and elem->>'id' = p.scoutastic_player_id
+  order by p.id, m.date desc;
+$$;

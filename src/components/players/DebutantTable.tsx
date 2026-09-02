@@ -13,7 +13,7 @@ import { Globe2 } from "lucide-react";
 // the U23 eligibility isn't already enforced server-side.
 const U23 = { min: null, max: 22 } as const;
 
-export function DebutantTable({ players }: { players: Player[] }) {
+export function DebutantTable({ players, debutMinutes = {} }: { players: Player[]; debutMinutes?: Record<string, number> }) {
   if (players.length === 0) {
     return (
       <EmptyState
@@ -36,6 +36,7 @@ export function DebutantTable({ players }: { players: Player[] }) {
             <th>Club</th>
             <th>League</th>
             <th>Debut date</th>
+            <th>Debut min</th>
             <th>Latest</th>
             <th>Last 5 avg</th>
           </tr>
@@ -45,6 +46,7 @@ export function DebutantTable({ players }: { players: Player[] }) {
             const stats = computeMatchStats(player.matches);
             const age = calculateAge(player.dateOfBirth);
             const isU23 = matchesAgeRange(age, U23);
+            const debutMins = debutMinutes[player.id];
             return (
               <tr key={player.id}>
                 <td>
@@ -68,6 +70,9 @@ export function DebutantTable({ players }: { players: Player[] }) {
                 <td className="text-gray-500">{player.league}</td>
                 <td className="text-gray-500">
                   {player.debutDate ? formatDate(player.debutDate) : "—"}
+                </td>
+                <td className="tabular-nums text-gray-700" title={debutMins !== undefined ? undefined : "No match synced for this exact debut date yet"}>
+                  {debutMins !== undefined ? `${debutMins}'` : "—"}
                 </td>
                 <td>
                   <RatingBadge rating={stats.latest} size="sm" />

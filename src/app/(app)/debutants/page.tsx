@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import {
   fetchAfricanDebutants,
+  fetchDebutMatchMinutes,
   useAsync,
   POSITIONS,
   POSITION_LABELS,
@@ -58,6 +59,11 @@ export default function DebutantsPage() {
   // the Players list this doesn't need server-side filtering: fetched once,
   // filtered/sorted in the browser exactly as it always has been.
   const { data: allDebutants, loading, error } = useAsync(() => fetchAfricanDebutants(), []);
+  // Real per-match minutes played in the debut fixture itself — genuinely
+  // partial coverage (see fetchDebutMatchMinutes' own comment), fetched
+  // once for the whole bounded debutants pool rather than per row.
+  const debutantIds = useMemo(() => (allDebutants ?? []).map((p) => p.id), [allDebutants]);
+  const { data: debutMinutes } = useAsync(() => fetchDebutMatchMinutes(debutantIds), [debutantIds.join(",")]);
 
   const countries = useMemo(
     () => uniqueSorted((allDebutants ?? []).map((p) => p.nationality)),
@@ -180,7 +186,7 @@ export default function DebutantsPage() {
                 description="Adjust the filters, or check back after the next sync."
               />
             ) : (
-              <DebutantTable players={filtered} />
+              <DebutantTable players={filtered} debutMinutes={debutMinutes ?? {}} />
             )}
           </div>
         </div>

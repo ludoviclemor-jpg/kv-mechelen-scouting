@@ -784,3 +784,27 @@ export async function fetchSyncMeta(): Promise<SyncMeta> {
     activePlayersCount: row.active_players_count,
   };
 }
+
+/**
+ * Real per-match minutes played in a debutant's specific debut fixture —
+ * a thin wrapper around the `debutant_match_minutes` Postgres function
+ * (db/schema.sql), which cross-references `matches`' full lineup JSON by
+ * competition+date+scoutastic_player_id. Confirmed live (2026-09-02):
+ * genuinely partial coverage (~11% of current debutants have a real
+ * match synced for their exact debut date, `matches` isn't an
+ * exhaustive historical archive) — a missing entry in the returned map
+ * means "unavailable," never a fabricated 0. Kept off the base `Player`
+ * type since it's specific to this one page, same convention as
+ * `PlayerPerformanceDetail`.
+ */
+export async function fetchDebutMatchMinutes(playerIds: string[]): Promise<Record<string, number>> {
+  if (playerIds.length === 0) return {};
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient().rpc("debutant_match_minutes", { player_ids: playerIds });
+  if (error) throw error;
+  const result: Record<string, number> = {};
+  for (const row of (data as unknown as { player_id: string; minutes_played: number | null }[]) ?? []) {
+    if (row.minutes_played !== null) result[row.player_id] = row.minutes_played;
+  }
+  return result;
+}
