@@ -447,6 +447,34 @@ export async function fetchTopPerformers(limit = 200): Promise<Player[]> {
 const U23_RANGE: AgeRange = { min: null, max: 22 };
 const DEBUTANTS_MAX_TIER_LEVEL = 2;
 
+/**
+ * African Debutants' "Region" filter — geographic groupings of
+ * `players.league` (the playing country, not the debutant's own African
+ * nationality — that's the separate "Country" filter). Real country
+ * names, confirmed live (2026-09-02) against the actual top-2-division
+ * African-debutant pool (53 distinct countries across 788 real rows) —
+ * not guessed. Same pattern/style as `LOAN_WATCH_LEAGUE_GROUPS` below.
+ * A handful of real countries in the data don't fit any of these
+ * (Türkiye, Israel, Kazakhstan, Malta, Cyprus, Gibraltar, Andorra) —
+ * left ungrouped rather than forced into a geographically wrong bucket;
+ * reachable via the page's "Other / Ungrouped" option.
+ */
+export const DEBUTANT_REGION_GROUPS: Record<string, string[]> = {
+  westernEurope: [
+    "France", "Belgium", "Netherlands", "England", "Germany", "Spain", "Italy",
+    "Switzerland", "Austria", "Ireland", "Scotland", "Wales", "Northern Ireland",
+    "Luxembourg", "Portugal",
+  ],
+  scandinavia: ["Sweden", "Denmark", "Norway", "Finland", "Iceland", "Faroe Islands"],
+  balkans: [
+    "Serbia", "Croatia", "Slovenia", "Bosnia-Herzegovina", "Albania",
+    "North Macedonia", "Kosovo", "Montenegro", "Bulgaria", "Romania", "Greece",
+  ],
+  easternEurope: ["Czech Republic", "Slovakia", "Poland", "Hungary", "Ukraine", "Belarus", "Moldova", "Russia"],
+  baltics: ["Latvia", "Lithuania", "Estonia"],
+  caucasus: ["Armenia", "Georgia", "Azerbaijan"],
+};
+
 export async function fetchAfricanDebutants(limit = 500): Promise<Player[]> {
   if (!isSupabaseConfigured()) notConfigured();
   const { gt: dobAfter } = ageRangeToDobRange(U23_RANGE);

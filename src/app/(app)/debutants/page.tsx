@@ -13,12 +13,29 @@ import {
   useAsync,
   POSITIONS,
   POSITION_LABELS,
+  DEBUTANT_REGION_GROUPS,
 } from "@/lib/players-data";
 import { ageRangeLabel, matchesAgeRange, type AgeRange } from "@/lib/agePresets";
 import { calculateAge } from "@/lib/utils";
 import { Globe2 } from "lucide-react";
 
 const ALL_AGES: AgeRange = { min: null, max: null };
+
+const REGION_LABELS: Record<string, string> = {
+  westernEurope: "Western Europe",
+  scandinavia: "Scandinavia",
+  balkans: "Balkans",
+  easternEurope: "Eastern Europe",
+  baltics: "Baltics",
+  caucasus: "Caucasus",
+  others: "Other / Ungrouped",
+};
+const REGION_OPTIONS = [
+  { value: "all", label: "All regions" },
+  ...Object.keys(DEBUTANT_REGION_GROUPS).map((key) => ({ value: key, label: REGION_LABELS[key] })),
+  { value: "others", label: REGION_LABELS.others },
+];
+const ALL_GROUPED_REGION_COUNTRIES = Object.values(DEBUTANT_REGION_GROUPS).flat();
 
 function uniqueSorted(values: (string | null)[]) {
   return Array.from(new Set(values.filter((v): v is string => v !== null))).sort((a, b) =>
@@ -29,6 +46,7 @@ function uniqueSorted(values: (string | null)[]) {
 export default function DebutantsPage() {
   const [country, setCountry] = useState("all");
   const [league, setLeague] = useState("all");
+  const [region, setRegion] = useState("all");
   const [position, setPosition] = useState("all");
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
   const [sortByDebutDate, setSortByDebutDate] = useState<"newest" | "oldest">(
@@ -55,6 +73,14 @@ export default function DebutantsPage() {
       .filter((p) => {
         if (country !== "all" && p.nationality !== country) return false;
         if (league !== "all" && p.league !== league) return false;
+        if (region !== "all") {
+          if (region === "others") {
+            if (p.league && ALL_GROUPED_REGION_COUNTRIES.includes(p.league)) return false;
+          } else {
+            const regionCountries = DEBUTANT_REGION_GROUPS[region];
+            if (!regionCountries || !p.league || !regionCountries.includes(p.league)) return false;
+          }
+        }
         if (position !== "all" && p.position !== position) return false;
         if (!matchesAgeRange(calculateAge(p.dateOfBirth), ageRange)) return false;
         return true;
@@ -63,17 +89,19 @@ export default function DebutantsPage() {
         const cmp = (a.debutDate ?? "").localeCompare(b.debutDate ?? "");
         return sortByDebutDate === "newest" ? -cmp : cmp;
       });
-  }, [allDebutants, country, league, position, ageRange, sortByDebutDate]);
+  }, [allDebutants, country, league, region, position, ageRange, sortByDebutDate]);
 
   const ageLabel = ageRangeLabel(ageRange);
   const chips: ActiveFilterChip[] = [];
   if (country !== "all") chips.push({ key: "country", label: "Nationality", value: country, onClear: () => setCountry("all") });
   if (league !== "all") chips.push({ key: "league", label: "League", value: league, onClear: () => setLeague("all") });
+  if (region !== "all") chips.push({ key: "region", label: "Region", value: REGION_LABELS[region], onClear: () => setRegion("all") });
   if (position !== "all") chips.push({ key: "position", label: "Position", value: POSITION_LABELS[position as keyof typeof POSITION_LABELS], onClear: () => setPosition("all") });
   if (ageLabel) chips.push({ key: "age", label: "Age", value: ageLabel, onClear: () => setAgeRange(ALL_AGES) });
   function clearAll() {
     setCountry("all");
     setLeague("all");
+    setRegion("all");
     setPosition("all");
     setAgeRange(ALL_AGES);
   }
@@ -104,6 +132,9 @@ export default function DebutantsPage() {
               onChange={setLeague}
               options={[{ value: "all", label: "All leagues" }, ...leagues.map((l) => ({ value: l, label: l }))]}
             />
+          </FilterSidebarSection>
+          <FilterSidebarSection label="Region">
+            <FilterSelect stacked label="" value={region} onChange={setRegion} options={REGION_OPTIONS} />
           </FilterSidebarSection>
           <FilterSidebarSection label="Position">
             <FilterSelect

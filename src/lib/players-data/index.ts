@@ -32,6 +32,7 @@ export {
   fetchLoanWatchCandidates,
   LOAN_WATCH_DEFAULT_MAX_MINUTES,
   LOAN_WATCH_LEAGUE_GROUPS,
+  DEBUTANT_REGION_GROUPS,
   fetchScoutingOverview,
   fetchSyncMeta,
   type PlayerSortKey,
