@@ -62,9 +62,11 @@ function NavLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center whitespace-nowrap rounded-sm font-medium transition-colors",
-        compact ? "gap-2 px-2.5 py-2 text-sm" : "gap-1.5 px-2.5 py-1.5 text-[13px]",
-        active ? "bg-kvm-yellow text-kvm-ink" : "text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
+        "flex items-center whitespace-nowrap border-b-2 font-medium transition-colors",
+        compact ? "gap-2 rounded-sm px-2.5 py-2 text-sm" : "gap-1.5 px-2.5 py-1.5 text-[13px]",
+        active
+          ? "border-kvm-red text-white"
+          : "border-transparent text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
       )}
     >
       <Icon size={compact ? 16 : 15} strokeWidth={2} aria-hidden="true" />
@@ -100,7 +102,7 @@ export function Header() {
           <ClubCrest className="h-8 w-8 text-sm" />
           <div className="hidden leading-tight sm:block">
             <div className="text-xs font-bold tracking-wide">KV MECHELEN</div>
-            <div className="text-[9px] font-medium tracking-widest text-kvm-yellow">SCOUTING HUB</div>
+            <div className="text-[9px] font-medium tracking-widest text-kvm-red">SCOUTING HUB</div>
           </div>
         </Link>
 
@@ -122,7 +124,7 @@ export function Header() {
             className={cn(
               "hidden rounded-sm p-2 xl:block",
               isActive(pathname, "/settings")
-                ? "bg-kvm-yellow text-kvm-ink"
+                ? "bg-kvm-red text-white"
                 : "text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
             )}
           >

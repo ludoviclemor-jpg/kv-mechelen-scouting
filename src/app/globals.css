@@ -1,21 +1,28 @@
 @import "tailwindcss";
 
 /*
- * KV Mechelen brand tokens.
- * Yellow/red are the club's primary identity colours ("Malinwa"); the
- * interface itself stays charcoal/white so the accents read as branding,
- * not decoration — this is a recruitment tool, not a fan site.
+ * KV Mechelen brand tokens — professional scouting-software palette
+ * (2026-09-02 rebrand pass). Red is the sole interactive accent (active
+ * nav, selected states, links, sliders, key buttons) against a mostly
+ * neutral navy/white/grey interface — this is a recruitment tool used
+ * for hours at a time by scouts, not a fan-facing surface, so the
+ * branding stays restrained rather than covering the UI in club colour.
+ * kvm-yellow is kept defined (still used for a few pre-existing
+ * semantic, non-brand meanings like "starred") but is no longer the
+ * primary accent — that's kvm-red now.
  */
 @theme {
   --color-kvm-yellow: #ffd400;
   --color-kvm-yellow-dark: #e0b400;
-  --color-kvm-red: #d0021b;
-  --color-kvm-red-dark: #a80115;
-  --color-kvm-charcoal: #161616;
-  --color-kvm-charcoal-light: #232323;
-  --color-kvm-ink: #0c0c0c;
-  --color-kvm-border: #e4e4e4;
-  --color-kvm-border-dark: #333333;
+  --color-kvm-red: #e30613;
+  --color-kvm-red-dark: #b8050f;
+  /* "charcoal" names are kept (used throughout the header/dark surfaces)
+     but now hold the club's navy secondary colour, not a true black. */
+  --color-kvm-charcoal: #101820;
+  --color-kvm-charcoal-light: #1b2530;
+  --color-kvm-ink: #111827;
+  --color-kvm-border: #e5e7eb;
+  --color-kvm-border-dark: #253241;
   /* Muted, professional pitch green for the Explore match-sheet view —
      deliberately subdued, not a saturated "video game" green. */
   --color-kvm-pitch: #2f5233;
@@ -26,8 +33,8 @@
 }
 
 :root {
-  --background: #f7f7f6;
-  --foreground: #161616;
+  --background: #f6f7f9;
+  --foreground: #111827;
 }
 
 body {
@@ -111,7 +118,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-kvm-yellow);
+  background: #fbd0d5;
   color: var(--color-kvm-ink);
 }
 

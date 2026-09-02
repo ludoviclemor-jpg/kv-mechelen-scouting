@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FilterBar, FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
-import { AgeFilter } from "@/components/ui/AgeFilter";
+import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
+import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
+import { AgeRangeSlider } from "@/components/ui/AgeFilter";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -181,107 +182,125 @@ function PlayersPageContent() {
         description={result.data ? `${total.toLocaleString()} players` : undefined}
       />
 
-      <div className="flex items-center justify-between gap-4 border-b border-kvm-border bg-white px-8 py-3">
-        <SearchBar
-          value={search}
-          onChange={resetPage(setSearch)}
-          placeholder="Search player, club or nationality..."
-        />
-      </div>
+      <div className="flex min-h-0 flex-1">
+        <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Search">
+            <SearchBar value={search} onChange={resetPage(setSearch)} placeholder="Player, club, nationality..." />
+          </FilterSidebarSection>
 
-      <FilterBar activeCount={chips.length}>
-        <FilterSelect
-          label="Position"
-          value={position}
-          onChange={resetPage(setPosition)}
-          options={[
-            { value: "all", label: "All positions" },
-            ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
-          ]}
-        />
-        <AgeFilter range={ageRange} onChange={resetPage(setAgeRange)} />
-        <FilterSelect
-          label="Nationality"
-          value={nationality}
-          onChange={resetPage(setNationality)}
-          options={[
-            { value: "all", label: "All nationalities" },
-            ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n })),
-          ]}
-        />
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={handleCountryChange}
-          options={[
-            { value: "all", label: "All countries" },
-            ...(filterOptions.data?.leagues ?? []).map((l) => ({ value: l, label: l })),
-          ]}
-        />
-        <FilterSelect
-          label="Competition"
-          value={competitionId}
-          onChange={handleCompetitionChange}
-          disabled={country === "all"}
-          options={[
-            { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
-            ...(competitionOptions.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-          ]}
-        />
-        <FilterSelect
-          label="Club"
-          value={club}
-          onChange={resetPage(setClub)}
-          disabled={competitionId === "all"}
-          options={[
-            { value: "all", label: competitionId === "all" ? "Pick a competition first" : "All clubs" },
-            ...(clubOptions.data ?? []).map((c) => ({ value: c, label: c })),
-          ]}
-        />
-        <FilterSelect
-          label="Market Value"
-          value={valueBand}
-          onChange={resetPage(setValueBand)}
-          options={VALUE_BANDS}
-        />
-        <FilterSelect
-          label="Contract"
-          value={contractBand}
-          onChange={resetPage(setContractBand)}
-          options={CONTRACT_BANDS}
-        />
-      </FilterBar>
-
-      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
-
-      <div className="mx-8 my-6 border border-kvm-border bg-white">
-        {result.error ? (
-          <ErrorState message={result.error.message} />
-        ) : result.loading && !result.data ? (
-          <LoadingState label="Loading players…" />
-        ) : (result.data?.players.length ?? 0) === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="No players match these filters"
-            description="Try widening your search or clearing a filter."
-          />
-        ) : (
-          <>
-            <PlayerTable
-              players={result.data!.players}
-              sortKey={sortKey}
-              sortDirection={sortDirection}
-              onSort={handleSort}
+          <FilterSidebarSection label="Position">
+            <FilterSelect
+              stacked
+              label=""
+              value={position}
+              onChange={resetPage(setPosition)}
+              options={[
+                { value: "all", label: "All positions" },
+                ...POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] })),
+              ]}
             />
-            <Pagination
-              page={page}
-              pageCount={pageCount}
-              onChange={setPage}
-              totalItems={total}
-              pageSize={PAGE_SIZE}
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Age">
+            <AgeRangeSlider range={ageRange} onChange={resetPage(setAgeRange)} />
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Nationality">
+            <FilterSelect
+              stacked
+              label=""
+              value={nationality}
+              onChange={resetPage(setNationality)}
+              options={[
+                { value: "all", label: "All nationalities" },
+                ...(filterOptions.data?.nationalities ?? []).map((n) => ({ value: n, label: n })),
+              ]}
             />
-          </>
-        )}
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Country">
+            <FilterSelect
+              stacked
+              label=""
+              value={country}
+              onChange={handleCountryChange}
+              options={[
+                { value: "all", label: "All countries" },
+                ...(filterOptions.data?.leagues ?? []).map((l) => ({ value: l, label: l })),
+              ]}
+            />
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Competition">
+            <FilterSelect
+              stacked
+              label=""
+              value={competitionId}
+              onChange={handleCompetitionChange}
+              disabled={country === "all"}
+              options={[
+                { value: "all", label: country === "all" ? "Pick a country first" : "All competitions" },
+                ...(competitionOptions.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Club">
+            <FilterSelect
+              stacked
+              label=""
+              value={club}
+              onChange={resetPage(setClub)}
+              disabled={competitionId === "all"}
+              options={[
+                { value: "all", label: competitionId === "all" ? "Pick a competition first" : "All clubs" },
+                ...(clubOptions.data ?? []).map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Market Value">
+            <FilterSelect stacked label="" value={valueBand} onChange={resetPage(setValueBand)} options={VALUE_BANDS} />
+          </FilterSidebarSection>
+
+          <FilterSidebarSection label="Contract Expiry">
+            <FilterSelect stacked label="" value={contractBand} onChange={resetPage(setContractBand)} options={CONTRACT_BANDS} />
+          </FilterSidebarSection>
+        </FilterSidebar>
+
+        <div className="min-w-0 flex-1">
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
+
+          <div className="m-4 border border-kvm-border bg-white">
+            {result.error ? (
+              <ErrorState message={result.error.message} />
+            ) : result.loading && !result.data ? (
+              <LoadingState label="Loading players…" />
+            ) : (result.data?.players.length ?? 0) === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No players match these filters"
+                description="Try widening your search or clearing a filter."
+              />
+            ) : (
+              <>
+                <PlayerTable
+                  players={result.data!.players}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <Pagination
+                  page={page}
+                  pageCount={pageCount}
+                  onChange={setPage}
+                  totalItems={total}
+                  pageSize={PAGE_SIZE}
+                />
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

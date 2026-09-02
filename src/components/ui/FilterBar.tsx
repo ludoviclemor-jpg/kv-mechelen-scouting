@@ -71,22 +71,33 @@ export function FilterSelect({
   options,
   onChange,
   disabled = false,
+  stacked = false,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Label above a full-width select, for FilterSidebar — vs. the default inline "Label [select]" used in a horizontal FilterBar row. */
+  stacked?: boolean;
 }) {
   return (
-    <label className={cn("inline-flex items-center gap-1.5 text-sm", disabled ? "text-gray-300" : "text-gray-600")}>
-      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</span>
+    <label
+      className={cn(
+        stacked ? "flex flex-col gap-1 text-xs" : "inline-flex items-center gap-1.5 text-sm",
+        disabled ? "text-gray-300" : "text-gray-600"
+      )}
+    >
+      {label ? (
+        <span className={cn("font-medium uppercase tracking-wide text-gray-400", stacked ? "text-[10px]" : "text-xs")}>{label}</span>
+      ) : null}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className={cn(
-          "rounded-sm border border-kvm-border bg-white px-2 py-1 text-sm focus-visible:outline-none",
+          "rounded-sm border border-kvm-border bg-white text-sm focus-visible:outline-none",
+          stacked ? "w-full px-2 py-1.5 text-xs" : "px-2 py-1",
           disabled ? "cursor-not-allowed bg-gray-50 text-gray-300" : "text-kvm-ink"
         )}
       >

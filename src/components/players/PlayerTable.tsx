@@ -4,8 +4,10 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
-import { calculateAge, contractStatus, formatCurrency } from "@/lib/utils";
+import { calculateAge, formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { ContractBadge } from "@/components/ui/ContractBadge";
+import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { useEffectiveStatus } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
 
@@ -39,15 +41,12 @@ const COLUMNS: Column[] = [
 
 function Row({ player }: { player: Player }) {
   const status = useEffectiveStatus(player.id, player.status);
-  const contract = contractStatus(player.contractExpiry);
 
   return (
     <tr>
       <td>
-        <Link
-          href={`/player?id=${player.id}`}
-          className="font-semibold text-kvm-ink hover:text-kvm-red hover:underline"
-        >
+        <Link href={`/player?id=${player.id}`} className="flex items-center gap-2 font-semibold text-kvm-ink hover:text-kvm-red hover:underline">
+          <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="sm" />
           {player.name}
         </Link>
       </td>
@@ -57,10 +56,8 @@ function Row({ player }: { player: Player }) {
       <td>{player.club ?? "Unknown"}</td>
       <td className="text-gray-500">{player.league ?? "Unknown"}</td>
       <td className="tabular-nums">{formatCurrency(player.marketValueEUR)}</td>
-      <td
-        className={cn("tabular-nums", contract.urgent && "font-semibold text-kvm-red")}
-      >
-        {contract.label}
+      <td>
+        <ContractBadge expiryIso={player.contractExpiry} />
       </td>
       <td>
         <StatusBadge status={status} />

@@ -40,7 +40,7 @@ export default function LoginPage() {
           <ClubCrest className="h-14 w-14 text-lg" />
           <div>
             <div className="text-sm font-bold tracking-wide text-white">KV MECHELEN</div>
-            <div className="text-xs font-medium tracking-widest text-kvm-yellow">SCOUTING HUB</div>
+            <div className="text-xs font-medium tracking-widest text-kvm-red">SCOUTING HUB</div>
           </div>
         </div>
 

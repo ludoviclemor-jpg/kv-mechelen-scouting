@@ -58,19 +58,26 @@ export function birthYear(dateOfBirth: string | null): number | null {
   return new Date(dateOfBirth).getFullYear();
 }
 
+export type ContractTier = "expired" | "urgent" | "soon" | "neutral" | "unknown";
+
 export function contractStatus(expiryIso: string | null): {
-  label: string;
-  urgent: boolean;
+  label: string; // full formatted date, e.g. "15 Jun 2027"
+  year: string | null; // e.g. "2027" — for the compact ContractBadge
+  tier: ContractTier;
+  urgent: boolean; // true for "expired"/"urgent" — kept for existing callers
 } {
-  if (expiryIso === null) return { label: "Unknown", urgent: false };
+  if (expiryIso === null) return { label: "Unknown", year: null, tier: "unknown", urgent: false };
   const expiry = new Date(expiryIso);
   const now = new Date();
   const monthsLeft =
     (expiry.getFullYear() - now.getFullYear()) * 12 +
     (expiry.getMonth() - now.getMonth());
+  const tier: ContractTier = monthsLeft < 0 ? "expired" : monthsLeft <= 6 ? "urgent" : monthsLeft <= 12 ? "soon" : "neutral";
   return {
     label: formatDate(expiryIso),
-    urgent: monthsLeft <= 12,
+    year: String(expiry.getFullYear()),
+    tier,
+    urgent: tier === "expired" || tier === "urgent",
   };
 }
 
