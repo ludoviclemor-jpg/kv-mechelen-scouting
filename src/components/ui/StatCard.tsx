@@ -26,7 +26,7 @@ export function StatCard({
       <div
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-sm",
-          accent ? "bg-kvm-red text-white" : "bg-kvm-charcoal text-white"
+          accent ? "bg-kvm-red text-white" : "bg-kvm-yellow text-kvm-ink"
         )}
       >
         <Icon size={18} strokeWidth={2} aria-hidden="true" />

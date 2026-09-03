@@ -71,7 +71,7 @@ function NavLink({
         "flex items-center whitespace-nowrap border-b-2 font-medium transition-colors",
         compact ? "gap-2 rounded-sm px-2.5 py-2 text-sm" : "gap-1.5 px-2.5 py-1.5 text-[13px]",
         active
-          ? "border-kvm-red text-white"
+          ? "border-kvm-yellow text-kvm-yellow"
           : "border-transparent text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
       )}
     >
@@ -130,7 +130,7 @@ export function Header() {
             className={cn(
               "hidden rounded-sm p-2 xl:block",
               isActive(pathname, "/settings")
-                ? "bg-kvm-red text-white"
+                ? "bg-kvm-yellow text-kvm-ink"
                 : "text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
             )}
           >
