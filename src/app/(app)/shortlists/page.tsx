@@ -128,7 +128,7 @@ export default function ShortlistsPage() {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 border border-kvm-border bg-white">
+        <section className="min-w-0 flex-1 border border-kvm-border bg-white shadow-sm">
           {!selected ? (
             <EmptyState
               icon={ListChecks}

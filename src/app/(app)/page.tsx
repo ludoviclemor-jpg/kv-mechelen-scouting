@@ -11,13 +11,9 @@ import { TopPerformersLeaderboard } from "@/components/players/TopPerformersLead
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
-import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
-import { LoanWatchList } from "@/components/players/LoanWatchList";
-import { ContractWatchList } from "@/components/players/ContractWatchList";
-import { InjuryTrackerList } from "@/components/players/InjuryTrackerList";
-import { MarketMoversList } from "@/components/players/MarketMoversList";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
+import { ScoutingRadarWidget } from "@/components/dashboard/ScoutingRadarWidget";
 import {
   fetchAfricanDebutants,
   fetchRecentlyAdded,
@@ -70,12 +66,12 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <section className="border border-kvm-border bg-white pb-2">
+              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
                 <SectionHeader title="Today's Matches" viewAllHref="/explore" />
                 <TodaysMatches />
               </section>
 
-              <section className="border border-kvm-border bg-white pb-2">
+              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
                 <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
                 <div className="pt-3">
                   <CallUpTable callUps={callUps.data ?? []} />
@@ -84,7 +80,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <section className="border border-kvm-border bg-white pb-4 xl:col-span-2">
+              <section className="border border-kvm-border bg-white pb-4 shadow-sm xl:col-span-2">
                 <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
                 {topPerformers.data!.length === 0 ? (
                   <EmptyState
@@ -97,39 +93,31 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              <div className="space-y-6">
-                <section className="border border-kvm-border bg-white pb-2">
-                  <SectionHeader title="Priority Players" viewAllHref="/shortlists" />
-                  <div className="pt-1">
-                    <PriorityPlayersList players={priorityPlayers.data ?? []} />
-                  </div>
-                </section>
-
-                <section className="border border-kvm-border bg-white pb-2">
-                  <SectionHeader title="Loan Watch" viewAllHref="/loan-watch" />
-                  <div className="pt-1">
-                    <LoanWatchList players={loanWatch.data ?? []} />
-                  </div>
-                </section>
-              </div>
+              <ScoutingRadarWidget
+                priorityPlayers={priorityPlayers.data ?? []}
+                loanWatch={loanWatch.data ?? []}
+                contractWatch={contractWatch.data ?? []}
+                injuries={(injuryTracker.data ?? []).slice(0, 5)}
+                marketMovers={marketMovers.data ?? []}
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <section className="border border-kvm-border bg-white pb-2">
+              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
                 <SectionHeader title="African Debutants" viewAllHref="/debutants" />
                 <div className="pt-3">
                   <DebutantTable players={debutants.data!} />
                 </div>
               </section>
 
-              <section className="border border-kvm-border bg-white pb-2">
+              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
                 <SectionHeader title="Recently Added Players" viewAllHref="/players" />
                 <div className="pt-3">
                   <RecentlyAddedTable players={recentlyAdded.data!} />
                 </div>
               </section>
 
-              <section className="border border-kvm-border bg-white pb-2">
+              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
                 <SectionHeader title="European Competitions" viewAllHref="/competitions" />
                 {competitionsSummary.error ? (
                   <div className="p-5 text-xs text-gray-400">Competition data unavailable.</div>
@@ -171,30 +159,7 @@ export default function DashboardPage() {
               </section>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <section className="border border-kvm-border bg-white pb-2">
-                <SectionHeader title="Contract Watch" viewAllHref="/contract-watch" />
-                <div className="pt-1">
-                  <ContractWatchList players={contractWatch.data ?? []} />
-                </div>
-              </section>
-
-              <section className="border border-kvm-border bg-white pb-2">
-                <SectionHeader title="Injury Tracker" viewAllHref="/injuries" />
-                <div className="pt-1">
-                  <InjuryTrackerList injured={(injuryTracker.data ?? []).slice(0, 5)} />
-                </div>
-              </section>
-
-              <section className="border border-kvm-border bg-white pb-2">
-                <SectionHeader title="Market Value Movers" viewAllHref="/market-movers" />
-                <div className="pt-1">
-                  <MarketMoversList movers={marketMovers.data ?? []} />
-                </div>
-              </section>
-            </div>
-
-            <section className="border border-kvm-border bg-white pb-2">
+            <section className="border border-kvm-border bg-white pb-2 shadow-sm">
               <SectionHeader title="Top Rated Players (Sportmonks Test — Danish Superliga & Scottish Premiership)" />
               <TopRatedPlayersWidget />
             </section>

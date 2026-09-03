@@ -117,15 +117,15 @@ export default function CompetitionsPage() {
 
           <div className="p-4">
             {result.error ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <ErrorState message={result.error.message} />
               </div>
             ) : result.loading ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <LoadingState label="Loading competitions…" />
               </div>
             ) : grouped.length === 0 ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <EmptyState
                   icon={Globe2}
                   title="No competitions match these filters"
@@ -135,7 +135,7 @@ export default function CompetitionsPage() {
             ) : (
               <div className="space-y-4">
                 {grouped.map(([country, competitions]) => (
-                  <section key={country} className="border border-kvm-border bg-white">
+                  <section key={country} className="border border-kvm-border bg-white shadow-sm">
                     <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
                       {country}
                     </h2>

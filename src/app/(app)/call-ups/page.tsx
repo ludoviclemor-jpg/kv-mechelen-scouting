@@ -74,7 +74,7 @@ export default function CallUpsPage() {
         <div className="min-w-0 flex-1">
           <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-          <div className="m-4 border border-kvm-border bg-white">
+          <div className="m-4 border border-kvm-border bg-white shadow-sm">
             {error ? (
               <ErrorState message={error.message} />
             ) : loading ? (

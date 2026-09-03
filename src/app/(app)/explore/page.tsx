@@ -181,15 +181,15 @@ export default function ExplorePage() {
 
           <div className="p-4">
             {error ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <ErrorState message={error.message} />
               </div>
             ) : loading ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <LoadingState label="Loading matches…" />
               </div>
             ) : groups.length === 0 ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <EmptyState
                   icon={CalendarDays}
                   title="No matches match these filters"

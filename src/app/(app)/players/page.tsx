@@ -271,7 +271,7 @@ function PlayersPageContent() {
         <div className="min-w-0 flex-1">
           <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-          <div className="m-4 border border-kvm-border bg-white">
+          <div className="m-4 border border-kvm-border bg-white shadow-sm">
             {result.error ? (
               <ErrorState message={result.error.message} />
             ) : result.loading && !result.data ? (

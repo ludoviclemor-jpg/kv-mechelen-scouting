@@ -145,15 +145,15 @@ export default function TopPerformersPage() {
 
           <div className="m-4">
             {error ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <ErrorState message={error.message} />
               </div>
             ) : loading ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <LoadingState label="Loading top performers…" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="border border-kvm-border bg-white">
+              <div className="border border-kvm-border bg-white shadow-sm">
                 <EmptyState
                   icon={TrendingUp}
                   title="No players match these filters"

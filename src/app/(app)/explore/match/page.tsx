@@ -53,7 +53,7 @@ function MatchContent() {
       <>
         <PageHeader title="Match" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="No match selected" description="Open a match from Explore." />
           </div>
         </div>
@@ -66,7 +66,7 @@ function MatchContent() {
       <>
         <PageHeader title="Match" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <LoadingState label="Loading match…" />
           </div>
         </div>
@@ -79,7 +79,7 @@ function MatchContent() {
       <>
         <PageHeader title="Match" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <ErrorState message={error.message} />
           </div>
         </div>
@@ -92,7 +92,7 @@ function MatchContent() {
       <>
         <PageHeader title="Match" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="Match not found" description="It may not have been synced yet." />
           </div>
         </div>

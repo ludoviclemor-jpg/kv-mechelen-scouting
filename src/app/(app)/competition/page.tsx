@@ -129,7 +129,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Trophy} title="No competition selected" description="Open a competition from the Competitions page." />
           </div>
         </div>
@@ -142,7 +142,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <LoadingState label="Loading competition…" />
           </div>
         </div>
@@ -155,7 +155,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <ErrorState message={competitionResult.error.message} />
           </div>
         </div>
@@ -169,7 +169,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Trophy} title="Competition not found" description="It may no longer be part of the SCOUTASTIC catalog." />
           </div>
         </div>
@@ -230,7 +230,7 @@ function CompetitionContent() {
 
       <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-      <div className="mx-8 my-6 border border-kvm-border bg-white">
+      <div className="mx-8 my-6 border border-kvm-border bg-white shadow-sm">
         {playersResult.error ? (
           <ErrorState message={playersResult.error.message} />
         ) : playersResult.loading && !playersResult.data ? (

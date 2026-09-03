@@ -104,7 +104,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="No player selected" description="Open a player from the Players list." />
           </div>
         </div>
@@ -117,7 +117,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <LoadingState label="Loading player…" />
           </div>
         </div>
@@ -130,7 +130,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <ErrorState message={error.message} />
           </div>
         </div>
@@ -143,7 +143,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white">
+          <div className="border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="Player not found" description="This player may have been deactivated by the last sync." />
           </div>
         </div>
@@ -159,7 +159,7 @@ function PlayerProfileContent() {
       <div className="space-y-5 p-8">
         <PlayerHeader player={player} competitionName={competition?.name ?? null} />
 
-        <div className="border border-kvm-border bg-white">
+        <div className="border border-kvm-border bg-white shadow-sm">
           <div role="tablist" aria-label="Player profile sections" className="flex border-b border-kvm-border">
             {TABS.map((t) => (
               <button
