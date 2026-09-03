@@ -680,3 +680,109 @@ language sql stable security invoker as $$
     and elem->>'id' = p.scoutastic_player_id
   order by p.id, m.date desc;
 $$;
+
+-- Partial indexes so the two JSONB-heavy functions below don't need to
+-- scan the whole 190k+ row `players` table — confirmed live (2026-09-03):
+-- an unindexed `injury_history != '[]'` scan took 8-18s / timed out;
+-- with this index, well under 1s. Same "index matches the exact WHERE
+-- clause" pattern already proven for idx_players_loan_watch.
+create index if not exists idx_players_has_injury_history on players(id) where active = true and injury_history != '[]'::jsonb;
+create index if not exists idx_players_has_market_value_history on players(id) where active = true and market_value_history != '[]'::jsonb;
+
+-- Injury Tracker (dashboard tool, 2026-09-03) — real currently-injured
+-- players, from the same injury_history synced for the Career tab
+-- (docs/PLAYER_PROFILE.md's "Career section"). "Currently injured" =
+-- their most recent injury entry has no `to` date (still ongoing per
+-- SCOUTASTIC, confirmed real — see that doc) or a `to` date that hasn't
+-- passed yet. Coverage is genuinely sparse today (injury_history only
+-- backfills on a player's next crawl, same as performance_seasons/
+-- market_value_history) — this returns exactly what's real, nothing
+-- padded to look more complete.
+create or replace function currently_injured_players(filter_competition_ids text[] default null)
+returns table (
+  player_id text,
+  injury_description text,
+  injury_from date,
+  injury_to date
+) as $$
+  select p.id as player_id, latest.description, latest.from_date, latest.to_date
+  from players p
+  cross join lateral (
+    select
+      elem->>'description' as description,
+      (elem->>'from')::date as from_date,
+      nullif(elem->>'to', '')::date as to_date
+    from jsonb_array_elements(p.injury_history) as elem
+    order by (elem->>'from')::date desc nulls last
+    limit 1
+  ) as latest
+  where p.active = true
+    and p.injury_history != '[]'::jsonb
+    and (filter_competition_ids is null or p.competition_id = any(filter_competition_ids))
+    and (latest.to_date is null or latest.to_date >= current_date)
+  order by latest.from_date desc nulls last;
+$$ language sql stable security invoker;
+
+-- Market Value Movers (dashboard tool, 2026-09-03) — real biggest
+-- risers/fallers, from the same market_value_history synced for the
+-- Career tab. `direction` controls whether only positive or only
+-- negative changes are returned (a "fallers" list showing risers mixed
+-- in wouldn't make sense) — 'risers' or 'fallers'. Baseline is the
+-- oldest dated point still within `lookback_days` of today; a player
+-- needs a real point that old to get a comparison at all (never
+-- fabricates a baseline).
+create or replace function market_value_movers(
+  filter_competition_ids text[] default null,
+  lookback_days integer default 180,
+  direction text default 'risers',
+  result_limit integer default 20
+)
+returns table (
+  player_id text,
+  baseline_value numeric,
+  baseline_date date,
+  latest_value numeric,
+  latest_date date,
+  change_pct numeric
+) as $$
+  with points as (
+    select
+      p.id as player_id,
+      (elem->>'value')::numeric as value,
+      (elem->>'date')::date as date
+    from players p
+    cross join lateral jsonb_array_elements(p.market_value_history) as elem
+    where p.active = true
+      and p.market_value_history != '[]'::jsonb
+      and (filter_competition_ids is null or p.competition_id = any(filter_competition_ids))
+  ),
+  latest as (
+    select distinct on (player_id) player_id, value as latest_value, date as latest_date
+    from points
+    order by player_id, date desc
+  ),
+  baseline as (
+    select distinct on (player_id) player_id, value as baseline_value, date as baseline_date
+    from points
+    where date <= current_date - lookback_days
+    order by player_id, date desc
+  ),
+  changes as (
+    select
+      l.player_id,
+      b.baseline_value,
+      b.baseline_date,
+      l.latest_value,
+      l.latest_date,
+      round(((l.latest_value - b.baseline_value) / nullif(b.baseline_value, 0)) * 100, 1) as change_pct
+    from latest l
+    join baseline b using (player_id)
+    where b.baseline_value > 0 and l.latest_date > b.baseline_date
+  )
+  select player_id, baseline_value, baseline_date, latest_value, latest_date, change_pct
+  from changes
+  where (direction = 'risers' and change_pct > 0) or (direction = 'fallers' and change_pct < 0)
+  order by case when direction = 'risers' then change_pct end desc nulls last,
+           case when direction = 'fallers' then change_pct end asc nulls last
+  limit result_limit;
+$$ language sql stable security invoker;

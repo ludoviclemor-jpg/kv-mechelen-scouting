@@ -36,11 +36,18 @@ export {
   fetchScoutingOverview,
   fetchSyncMeta,
   fetchDebutMatchMinutes,
+  fetchContractWatchCandidates,
+  fetchCurrentlyInjuredPlayers,
+  fetchMarketValueMovers,
   type PlayerSortKey,
   type PlayersQueryParams,
   type FilterOptions,
   type CompetitionOption,
   type ScoutingOverview,
+  type ContractWatchWindow,
+  type ContractWatchQueryParams,
+  type InjuredPlayer,
+  type MarketValueMover,
 } from "./remote";
 
 export function getShortlists() {

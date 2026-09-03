@@ -13,6 +13,9 @@ import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { PriorityPlayersList } from "@/components/players/PriorityPlayersList";
 import { LoanWatchList } from "@/components/players/LoanWatchList";
+import { ContractWatchList } from "@/components/players/ContractWatchList";
+import { InjuryTrackerList } from "@/components/players/InjuryTrackerList";
+import { MarketMoversList } from "@/components/players/MarketMoversList";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import {
@@ -20,6 +23,9 @@ import {
   fetchRecentlyAdded,
   fetchPriorityPlayers,
   fetchLoanWatchCandidates,
+  fetchContractWatchCandidates,
+  fetchCurrentlyInjuredPlayers,
+  fetchMarketValueMovers,
   useAsync,
 } from "@/lib/players-data";
 import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
@@ -42,6 +48,9 @@ export default function DashboardPage() {
   const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
   const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 2 }), []); // top-2-divisions default, same as the /loan-watch page — see fetchProfessionalCompetitionIds' own comment for why
+  const contractWatch = useAsync(() => fetchContractWatchCandidates({ window: "expiring12", maxTierLevel: 2, limit: 5 }), []);
+  const injuryTracker = useAsync(() => fetchCurrentlyInjuredPlayers(null), []);
+  const marketMovers = useAsync(() => fetchMarketValueMovers("risers", 180, 2, 5), []);
   const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
   const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
@@ -159,6 +168,29 @@ export default function DashboardPage() {
                     ) : null}
                   </>
                 )}
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Contract Watch" viewAllHref="/contract-watch" />
+                <div className="pt-1">
+                  <ContractWatchList players={contractWatch.data ?? []} />
+                </div>
+              </section>
+
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Injury Tracker" viewAllHref="/injuries" />
+                <div className="pt-1">
+                  <InjuryTrackerList injured={(injuryTracker.data ?? []).slice(0, 5)} />
+                </div>
+              </section>
+
+              <section className="border border-kvm-border bg-white pb-2">
+                <SectionHeader title="Market Value Movers" viewAllHref="/market-movers" />
+                <div className="pt-1">
+                  <MarketMoversList movers={marketMovers.data ?? []} />
+                </div>
               </section>
             </div>
 

@@ -808,3 +808,199 @@ export async function fetchDebutMatchMinutes(playerIds: string[]): Promise<Recor
   }
   return result;
 }
+
+// ============================================================
+// Contract Watch — dashboard tool (2026-09-03)
+// ============================================================
+
+/**
+ * Real free-agent/expiring-contract signal, `players.contract_expiry`
+ * (already indexed, `idx_players_contract_expiry`). Top-2-division
+ * restriction reuses `fetchProfessionalCompetitionIds` (same as Loan
+ * Watch/African Debutants) — confirmed live (2026-09-03) this matters a
+ * lot here: unrestricted, the soonest-expiring contracts are dominated
+ * by stale, years-old dates on amateur-club rows (Scoutastic's contract
+ * field for obscure clubs is rarely refreshed) — e.g. "2011-12-31" for
+ * a still-`active` row. Tier-restricted, the same query returns real,
+ * current, actionable dates (an AIK Sweden player's contract genuinely
+ * expiring 2026-09-01, for real). `window` bounds both directions so a
+ * lingering stale date still can't leak in even within the tier
+ * restriction: "expired" = the last 12 months only (a real, still-
+ * useful free-agent signal), never unbounded history.
+ */
+export type ContractWatchWindow = "expiring6" | "expiring12" | "expired";
+
+export interface ContractWatchQueryParams {
+  window?: ContractWatchWindow;
+  position?: string;
+  nationality?: string;
+  league?: string;
+  competitionId?: string;
+  club?: string;
+  ageRange?: AgeRange;
+  valueBand?: string;
+  maxTierLevel?: number | null;
+  limit?: number;
+}
+
+export async function fetchContractWatchCandidates(options: ContractWatchQueryParams = {}): Promise<Player[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const window = options.window ?? "expiring12";
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  let query = getSupabaseClient()
+    .from("players")
+    .select(PLAYER_COLUMNS)
+    .eq("active", true)
+    .eq("is_youth_or_reserve", false)
+    .not("contract_expiry", "is", null);
+
+  if (window === "expired") {
+    const twelveMonthsAgo = new Date(today);
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    query = query.lt("contract_expiry", todayStr).gte("contract_expiry", twelveMonthsAgo.toISOString().slice(0, 10));
+  } else {
+    const monthsAhead = window === "expiring6" ? 6 : 12;
+    const cutoff = new Date(today);
+    cutoff.setMonth(cutoff.getMonth() + monthsAhead);
+    query = query.gte("contract_expiry", todayStr).lte("contract_expiry", cutoff.toISOString().slice(0, 10));
+  }
+
+  if (options.position && options.position !== "all") query = query.eq("position", options.position);
+  if (options.nationality && options.nationality !== "all") query = query.eq("nationality", options.nationality);
+  if (options.league && options.league !== "all") query = query.eq("league", options.league);
+  if (options.competitionId && options.competitionId !== "all") query = query.eq("competition_id", options.competitionId);
+  if (options.club && options.club !== "all") query = query.eq("club", options.club);
+  if (options.ageRange) {
+    const { gt, lte } = ageRangeToDobRange(options.ageRange);
+    if (gt) query = query.gt("date_of_birth", gt);
+    if (lte) query = query.lte("date_of_birth", lte);
+  }
+  const { gte: valueGte, lt: valueLt } = valueBandToRange(options.valueBand);
+  if (valueGte !== undefined) query = query.gte("market_value_eur", valueGte);
+  if (valueLt !== undefined) query = query.lt("market_value_eur", valueLt);
+
+  if (options.maxTierLevel !== undefined && options.maxTierLevel !== null) {
+    const topDivisionIds = await fetchProfessionalCompetitionIds(options.maxTierLevel);
+    if (topDivisionIds.length === 0) return [];
+    query = query.in("competition_id", topDivisionIds);
+  }
+
+  const { data, error } = await query.order("contract_expiry", { ascending: window !== "expired" }).limit(options.limit ?? 300);
+  if (error) throw error;
+  return (data as unknown as PlayerRow[]).map(playerFromRow);
+}
+
+// ============================================================
+// Injury Tracker — dashboard tool (2026-09-03)
+// ============================================================
+
+/**
+ * Real currently-injured players, cross-referenced from `injury_history`
+ * (synced for the player-profile Career tab) via the
+ * `currently_injured_players` Postgres function — see db/schema.sql for
+ * the "currently injured" definition. Coverage is genuinely sparse today
+ * (injury_history only backfills on a player's next crawl); this returns
+ * exactly the real rows, never padded. Top-2-division restriction is
+ * optional here (unlike Loan Watch/Contract Watch) since the underlying
+ * pool is already small and real — `maxTierLevel` narrows it further
+ * when set, same fetchProfessionalCompetitionIds reuse as elsewhere.
+ */
+export interface InjuredPlayer {
+  player: Player;
+  description: string | null;
+  from: string | null;
+  to: string | null; // null = still ongoing per SCOUTASTIC
+}
+
+export async function fetchCurrentlyInjuredPlayers(maxTierLevel: number | null = null): Promise<InjuredPlayer[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const db = getSupabaseClient();
+
+  let competitionIds: string[] | null = null;
+  if (maxTierLevel !== null) {
+    competitionIds = await fetchProfessionalCompetitionIds(maxTierLevel);
+    if (competitionIds.length === 0) return [];
+  }
+
+  const { data, error } = await db.rpc("currently_injured_players", { filter_competition_ids: competitionIds });
+  if (error) throw error;
+  const rows = (data as unknown as { player_id: string; injury_description: string | null; injury_from: string | null; injury_to: string | null }[]) ?? [];
+  if (rows.length === 0) return [];
+
+  const players = await fetchPlayersByIds(rows.map((r) => r.player_id));
+  const playerById = new Map(players.map((p) => [p.id, p]));
+
+  return rows
+    .filter((r) => playerById.has(r.player_id))
+    .map((r) => ({
+      player: playerById.get(r.player_id)!,
+      description: r.injury_description,
+      from: r.injury_from,
+      to: r.injury_to,
+    }));
+}
+
+// ============================================================
+// Market Value Movers — dashboard tool (2026-09-03)
+// ============================================================
+
+/**
+ * Real biggest risers/fallers in market value, from `market_value_history`
+ * (synced for the player-profile Career tab) via the `market_value_movers`
+ * Postgres function — see db/schema.sql for the baseline/comparison
+ * logic. Note confirmed live: a "faller" landing at exactly €0 often
+ * reflects an expired/unlisted status rather than a pure market
+ * reassessment — shown as-is (real data), not filtered out, since it's
+ * still a genuine, useful signal either way.
+ */
+export interface MarketValueMover {
+  player: Player;
+  baselineValue: number;
+  baselineDate: string;
+  latestValue: number;
+  latestDate: string;
+  changePct: number;
+}
+
+export async function fetchMarketValueMovers(
+  direction: "risers" | "fallers" = "risers",
+  lookbackDays = 180,
+  maxTierLevel: number | null = 2,
+  limit = 20
+): Promise<MarketValueMover[]> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const db = getSupabaseClient();
+
+  let competitionIds: string[] | null = null;
+  if (maxTierLevel !== null) {
+    competitionIds = await fetchProfessionalCompetitionIds(maxTierLevel);
+    if (competitionIds.length === 0) return [];
+  }
+
+  const { data, error } = await db.rpc("market_value_movers", {
+    filter_competition_ids: competitionIds,
+    lookback_days: lookbackDays,
+    direction,
+    result_limit: limit,
+  });
+  if (error) throw error;
+  const rows =
+    (data as unknown as { player_id: string; baseline_value: number; baseline_date: string; latest_value: number; latest_date: string; change_pct: number }[]) ?? [];
+  if (rows.length === 0) return [];
+
+  const players = await fetchPlayersByIds(rows.map((r) => r.player_id));
+  const playerById = new Map(players.map((p) => [p.id, p]));
+
+  return rows
+    .filter((r) => playerById.has(r.player_id))
+    .map((r) => ({
+      player: playerById.get(r.player_id)!,
+      baselineValue: r.baseline_value,
+      baselineDate: r.baseline_date,
+      latestValue: r.latest_value,
+      latestDate: r.latest_date,
+      changePct: r.change_pct,
+    }));
+}
