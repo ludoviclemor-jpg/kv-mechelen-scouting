@@ -1,21 +1,42 @@
+"use client";
+
 import Link from "next/link";
 import type { InjuredPlayer } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
-import { formatDate } from "@/lib/utils";
+import { formatDate, compareStrings } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useSortableList } from "@/lib/useSortableList";
 import { HeartPulse } from "lucide-react";
 
-function daysOut(from: string | null, to: string | null): string {
-  if (!from) return "—";
+function daysOutValue(from: string | null, to: string | null): number {
+  if (!from) return -1;
   const start = new Date(from).getTime();
   const end = to ? new Date(to).getTime() : Date.now();
-  const days = Math.round((end - start) / 86_400_000);
+  return Math.round((end - start) / 86_400_000);
+}
+
+function daysOut(from: string | null, to: string | null): string {
+  const days = daysOutValue(from, to);
   return days >= 0 ? `${days}d` : "—";
 }
 
+type SortKey = "name" | "since" | "daysOut";
+
 /** Injury Tracker — real currently-injured players, from injury_history (see fetchCurrentlyInjuredPlayers' own comment on coverage). */
 export function InjuryTrackerTable({ injured }: { injured: InjuredPlayer[] }) {
+  const { sorted, sortKey, direction, onSort } = useSortableList<InjuredPlayer, SortKey>(
+    injured,
+    {
+      name: (a, b) => compareStrings(a.player.name, b.player.name),
+      since: (a, b) => compareStrings(a.from, b.from),
+      daysOut: (a, b) => daysOutValue(a.from, a.to) - daysOutValue(b.from, b.to),
+    },
+    "since",
+    "desc"
+  );
+
   if (injured.length === 0) {
     return (
       <EmptyState
@@ -31,18 +52,18 @@ export function InjuryTrackerTable({ injured }: { injured: InjuredPlayer[] }) {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Player</th>
+            <SortableHeader label="Player" sortKey="name" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Position</th>
             <th>Club</th>
             <th>League</th>
             <th>Injury</th>
-            <th>Since</th>
+            <SortableHeader label="Since" sortKey="since" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Expected Return</th>
-            <th>Days Out</th>
+            <SortableHeader label="Days Out" sortKey="daysOut" activeKey={sortKey} direction={direction} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
-          {injured.map(({ player: p, description, from, to }) => (
+          {sorted.map(({ player: p, description, from, to }) => (
             <tr key={p.id}>
               <td>
                 <Link href={`/player?id=${p.id}`} className="flex items-center gap-2 font-semibold text-kvm-ink hover:text-kvm-red hover:underline">

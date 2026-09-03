@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import type { Player } from "@/lib/players-data";
 import { computeMatchStats } from "@/lib/players-data";
-import { formatDate, calculateAge } from "@/lib/utils";
+import { formatDate, calculateAge, compareNumbers, compareStrings } from "@/lib/utils";
 import { matchesAgeRange } from "@/lib/agePresets";
 import { RatingBadge } from "@/components/ui/RatingBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SortableHeader } from "@/components/ui/SortableHeader";
+import { useSortableList } from "@/lib/useSortableList";
 import { Globe2 } from "lucide-react";
 
 // Same DOB-based U23 cutoff as everywhere else (agePresets.ts) — computed
@@ -13,7 +17,23 @@ import { Globe2 } from "lucide-react";
 // the U23 eligibility isn't already enforced server-side.
 const U23 = { min: null, max: 22 } as const;
 
+type SortKey = "name" | "age" | "debutDate" | "debutMinutes" | "latest" | "last5Avg";
+
 export function DebutantTable({ players, debutMinutes = {} }: { players: Player[]; debutMinutes?: Record<string, number> }) {
+  const { sorted, sortKey, direction, onSort } = useSortableList<Player, SortKey>(
+    players,
+    {
+      name: (a, b) => compareStrings(a.name, b.name),
+      age: (a, b) => compareNumbers(calculateAge(a.dateOfBirth), calculateAge(b.dateOfBirth)),
+      debutDate: (a, b) => compareStrings(a.debutDate, b.debutDate),
+      debutMinutes: (a, b) => compareNumbers(debutMinutes[a.id] ?? null, debutMinutes[b.id] ?? null),
+      latest: (a, b) => compareNumbers(computeMatchStats(a.matches).latest, computeMatchStats(b.matches).latest),
+      last5Avg: (a, b) => compareNumbers(computeMatchStats(a.matches).average, computeMatchStats(b.matches).average),
+    },
+    "debutDate",
+    "desc"
+  );
+
   if (players.length === 0) {
     return (
       <EmptyState
@@ -29,20 +49,20 @@ export function DebutantTable({ players, debutMinutes = {} }: { players: Player[
       <table className="data-table">
         <thead>
           <tr>
-            <th>Player</th>
+            <SortableHeader label="Player" sortKey="name" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th />
             <th>Nationality</th>
-            <th>Age</th>
+            <SortableHeader label="Age" sortKey="age" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Club</th>
             <th>League</th>
-            <th>Debut date</th>
-            <th>Debut min</th>
-            <th>Latest</th>
-            <th>Last 5 avg</th>
+            <SortableHeader label="Debut date" sortKey="debutDate" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Debut min" sortKey="debutMinutes" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Latest" sortKey="latest" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Last 5 avg" sortKey="last5Avg" activeKey={sortKey} direction={direction} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
-          {players.map((player) => {
+          {sorted.map((player) => {
             const stats = computeMatchStats(player.matches);
             const age = calculateAge(player.dateOfBirth);
             const isU23 = matchesAgeRange(age, U23);

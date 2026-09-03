@@ -87,3 +87,17 @@ export function average(values: number[]): number | null {
   const sum = values.reduce((a, b) => a + b, 0);
   return Math.round((sum / values.length) * 100) / 100;
 }
+
+/** Ascending numeric compare for useSortableList comparators — `null`/`undefined` sort first (lowest), consistent across every sortable table. */
+export function compareNumbers(a: number | null | undefined, b: number | null | undefined): number {
+  if (a === null || a === undefined) return b === null || b === undefined ? 0 : -1;
+  if (b === null || b === undefined) return 1;
+  return a - b;
+}
+
+/** Ascending string compare for useSortableList comparators — `null`/`undefined` sort first (lowest). */
+export function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
+  if (a === null || a === undefined) return b === null || b === undefined ? 0 : -1;
+  if (b === null || b === undefined) return 1;
+  return a.localeCompare(b);
+}

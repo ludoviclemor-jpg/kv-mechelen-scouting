@@ -1,14 +1,31 @@
+"use client";
+
 import Link from "next/link";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
-import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
+import { calculateAge, formatCurrency, formatDate, compareNumbers, compareStrings } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { ContractBadge } from "@/components/ui/ContractBadge";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useSortableList } from "@/lib/useSortableList";
 import { FileClock } from "lucide-react";
+
+type SortKey = "name" | "age" | "marketValueEUR" | "contractExpiry";
 
 /** Contract Watch — real free-agent/expiring-contract signal (see fetchContractWatchCandidates' own comment for why this is tier-restricted by default). */
 export function ContractWatchTable({ players }: { players: Player[] }) {
+  const { sorted, sortKey, direction, onSort } = useSortableList<Player, SortKey>(
+    players,
+    {
+      name: (a, b) => compareStrings(a.name, b.name),
+      age: (a, b) => compareNumbers(calculateAge(a.dateOfBirth), calculateAge(b.dateOfBirth)),
+      marketValueEUR: (a, b) => compareNumbers(a.marketValueEUR, b.marketValueEUR),
+      contractExpiry: (a, b) => compareStrings(a.contractExpiry, b.contractExpiry),
+    },
+    "contractExpiry"
+  );
+
   if (players.length === 0) {
     return (
       <EmptyState
@@ -24,17 +41,17 @@ export function ContractWatchTable({ players }: { players: Player[] }) {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Player</th>
+            <SortableHeader label="Player" sortKey="name" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Position</th>
             <th>Club</th>
             <th>League</th>
-            <th>Age</th>
-            <th>Market Value</th>
-            <th>Contract</th>
+            <SortableHeader label="Age" sortKey="age" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Market Value" sortKey="marketValueEUR" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Contract" sortKey="contractExpiry" activeKey={sortKey} direction={direction} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
-          {players.map((p) => (
+          {sorted.map((p) => (
             <tr key={p.id}>
               <td>
                 <Link href={`/player?id=${p.id}`} className="flex items-center gap-2 font-semibold text-kvm-ink hover:text-kvm-red hover:underline">

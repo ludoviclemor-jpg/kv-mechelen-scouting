@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
 import { calculateAge, formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ContractBadge } from "@/components/ui/ContractBadge";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { useEffectiveStatus } from "@/lib/app-store";
-import { cn } from "@/lib/utils";
 
 export type PlayerSortKey =
   | "name"
@@ -82,29 +81,9 @@ export function PlayerTable({
       <table className="data-table">
         <thead>
           <tr>
-            {COLUMNS.map((col) => {
-              const active = col.key === sortKey;
-              const Icon = active
-                ? sortDirection === "asc"
-                  ? ArrowUp
-                  : ArrowDown
-                : ArrowUpDown;
-              return (
-                <th key={col.key}>
-                  <button
-                    type="button"
-                    onClick={() => onSort(col.key)}
-                    className={cn(
-                      "flex items-center gap-1 uppercase tracking-wide hover:text-kvm-ink",
-                      active && "text-kvm-ink"
-                    )}
-                  >
-                    {col.label}
-                    <Icon size={11} aria-hidden="true" />
-                  </button>
-                </th>
-              );
-            })}
+            {COLUMNS.map((col) => (
+              <SortableHeader key={col.key} label={col.label} sortKey={col.key} activeKey={sortKey} direction={sortDirection} onSort={onSort} />
+            ))}
             <th>Status</th>
           </tr>
         </thead>

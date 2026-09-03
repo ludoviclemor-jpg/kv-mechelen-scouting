@@ -128,7 +128,7 @@ export default function MarketMoversPage() {
             ) : loading ? (
               <LoadingState label="Loading market movers…" />
             ) : (
-              <MarketMoversTable movers={filtered} direction={direction} />
+              <MarketMoversTable key={direction} movers={filtered} direction={direction} />
             )}
           </div>
         </div>

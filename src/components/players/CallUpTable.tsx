@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import type { FirstCallUp } from "@/lib/callups-data";
 import { positionLabel } from "@/lib/players-data";
-import { formatDate, calculateAge, cn } from "@/lib/utils";
+import { formatDate, calculateAge, compareNumbers, compareStrings, cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SortableHeader } from "@/components/ui/SortableHeader";
+import { useSortableList } from "@/lib/useSortableList";
 import { Flag } from "lucide-react";
 
 /** Senior gets the strongest visual weight — per the spec's own example, "FIRST SENIOR CALL-UP" should read as the headline signal, youth levels as secondary context. */
@@ -20,7 +24,20 @@ function LevelBadge({ level }: { level: string }) {
   );
 }
 
+type SortKey = "name" | "age" | "callUpDate";
+
 export function CallUpTable({ callUps }: { callUps: FirstCallUp[] }) {
+  const { sorted, sortKey, direction, onSort } = useSortableList<FirstCallUp, SortKey>(
+    callUps,
+    {
+      name: (a, b) => compareStrings(a.playerName, b.playerName),
+      age: (a, b) => compareNumbers(calculateAge(a.dateOfBirth), calculateAge(b.dateOfBirth)),
+      callUpDate: (a, b) => compareStrings(a.firstCallUpDate, b.firstCallUpDate),
+    },
+    "callUpDate",
+    "desc"
+  );
+
   if (callUps.length === 0) {
     return (
       <EmptyState
@@ -36,18 +53,18 @@ export function CallUpTable({ callUps }: { callUps: FirstCallUp[] }) {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Player</th>
+            <SortableHeader label="Player" sortKey="name" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Level</th>
             <th>National team</th>
             <th>Position</th>
             <th>Club</th>
-            <th>Age</th>
-            <th>Call-up date</th>
+            <SortableHeader label="Age" sortKey="age" activeKey={sortKey} direction={direction} onSort={onSort} />
+            <SortableHeader label="Call-up date" sortKey="callUpDate" activeKey={sortKey} direction={direction} onSort={onSort} />
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          {callUps.map((c) => (
+          {sorted.map((c) => (
             <tr key={`${c.playerId}::${c.level}`}>
               <td>
                 <Link

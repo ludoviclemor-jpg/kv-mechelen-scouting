@@ -50,9 +50,6 @@ export default function DebutantsPage() {
   const [region, setRegion] = useState("all");
   const [position, setPosition] = useState("all");
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
-  const [sortByDebutDate, setSortByDebutDate] = useState<"newest" | "oldest">(
-    "newest"
-  );
 
   // The full pool of African-debutant candidates — inherently small (this
   // season's debuts, one nationality group, one league region), so unlike
@@ -90,12 +87,8 @@ export default function DebutantsPage() {
         if (position !== "all" && p.position !== position) return false;
         if (!matchesAgeRange(calculateAge(p.dateOfBirth), ageRange)) return false;
         return true;
-      })
-      .sort((a, b) => {
-        const cmp = (a.debutDate ?? "").localeCompare(b.debutDate ?? "");
-        return sortByDebutDate === "newest" ? -cmp : cmp;
       });
-  }, [allDebutants, country, league, region, position, ageRange, sortByDebutDate]);
+  }, [allDebutants, country, league, region, position, ageRange]);
 
   const ageLabel = ageRangeLabel(ageRange);
   const chips: ActiveFilterChip[] = [];
@@ -156,18 +149,6 @@ export default function DebutantsPage() {
           </FilterSidebarSection>
           <FilterSidebarSection label="Age">
             <AgeRangeSlider range={ageRange} onChange={setAgeRange} />
-          </FilterSidebarSection>
-          <FilterSidebarSection label="Debut Date">
-            <FilterSelect
-              stacked
-              label=""
-              value={sortByDebutDate}
-              onChange={(v) => setSortByDebutDate(v as "newest" | "oldest")}
-              options={[
-                { value: "newest", label: "Newest first" },
-                { value: "oldest", label: "Oldest first" },
-              ]}
-            />
           </FilterSidebarSection>
         </FilterSidebar>
 
