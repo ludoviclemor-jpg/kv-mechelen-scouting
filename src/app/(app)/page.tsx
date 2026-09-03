@@ -1,22 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { Users, Globe2, TrendingUp, Trophy, MapPin, ArrowRight } from "lucide-react";
-import { StatCard } from "@/components/ui/StatCard";
+import { TrendingUp } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
 import { TopPerformersLeaderboard } from "@/components/players/TopPerformersLeaderboard";
 import { DebutantTable } from "@/components/players/DebutantTable";
-import { RecentlyAddedTable } from "@/components/players/RecentlyAddedTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import { ScoutingRadarWidget } from "@/components/dashboard/ScoutingRadarWidget";
 import {
   fetchAfricanDebutants,
-  fetchRecentlyAdded,
   fetchPriorityPlayers,
   fetchLoanWatchCandidates,
   fetchContractWatchCandidates,
@@ -24,162 +20,114 @@ import {
   fetchMarketValueMovers,
   useAsync,
 } from "@/lib/players-data";
-import { fetchCompetitionsSummary, fetchRecentlyUpdatedCompetitions } from "@/lib/competitions-data";
 import { fetchFirstCallUps } from "@/lib/callups-data";
 import { fetchCombinedTopPerformers } from "@/lib/topPerformersData";
 
+const STADIUM_BG_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/stadium-bg.webp`;
+
 /**
- * Dashboard grid — with the sidebar gone (Phase 1), there's real
- * horizontal room to give the highest-signal widgets (today's matches,
- * first call-ups, top performers) more space and let the lower-priority
- * ones (debutants/recently-added/competitions) share a row, instead of
- * stacking six full-width sections top to bottom (item 21/22).
+ * Dashboard grid — trimmed to the widgets that carry a real, distinct
+ * scouting signal (2026-09-03 pass): "Recently Added Players" (just the
+ * newest DB rows, no actual signal) and "European Competitions" (a
+ * browse utility already covered by /competitions, not a dashboard-worthy
+ * signal) were dropped so the page is shorter and every remaining card
+ * earns its place.
  */
 export default function DashboardPage() {
   // Merges the primary ratings slot (empty today — see
   // docs/SOFASCORE_PROVIDER.md) with the Sportmonks TEST integration
   // (docs/SPORTMONKS_INTEGRATION.md), never blended per player.
   const topPerformers = useAsync(() => fetchCombinedTopPerformers(8), []);
-  const debutants = useAsync(() => fetchAfricanDebutants(4), []);
-  const recentlyAdded = useAsync(() => fetchRecentlyAdded(8), []);
+  const debutants = useAsync(() => fetchAfricanDebutants(6), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
   const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 2 }), []); // top-2-divisions default, same as the /loan-watch page — see fetchProfessionalCompetitionIds' own comment for why
   const contractWatch = useAsync(() => fetchContractWatchCandidates({ window: "expiring12", maxTierLevel: 2, limit: 5 }), []);
   const injuryTracker = useAsync(() => fetchCurrentlyInjuredPlayers(null), []);
   const marketMovers = useAsync(() => fetchMarketValueMovers("risers", 180, 2, 5), []);
-  const competitionsSummary = useAsync(() => fetchCompetitionsSummary(), []);
-  const recentCompetitions = useAsync(() => fetchRecentlyUpdatedCompetitions(5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
 
-  const loading = topPerformers.loading || debutants.loading || recentlyAdded.loading;
-  const error = topPerformers.error ?? debutants.error ?? recentlyAdded.error;
+  const loading = topPerformers.loading || debutants.loading;
+  const error = topPerformers.error ?? debutants.error;
 
   return (
-    <>
-      {/* AFAS Stadion, faded into the background — texture, not imagery
-          competing with the dense data on top. Fixed so it doesn't scroll
-          with the (much taller) page content, and scoped to the Dashboard
-          only — every other page stays plain so a background image never
-          competes with a data-dense table. Opacity bumped from an initial
-          5% to 14% — with white cards covering most of the viewport, only
-          the page's own gaps/padding ever show the image at all, so 5%
-          read as effectively invisible in practice. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-[0.14]"
-        style={{ backgroundImage: `url(${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/stadium-bg.webp)` }}
-      />
+    /* AFAS Stadion, faded well into the background — texture, not
+       imagery competing with the dense data on top. Applied as a plain
+       background-image on the page's own normal-flow wrapper (not a
+       separate `fixed`/negative-z-index overlay — that was reported as
+       invisible; this is the simpler, harder-to-get-wrong technique:
+       every child paints on top of its own parent's background by
+       definition, no stacking-context ambiguity). `bg-fixed`
+       (background-attachment: fixed) keeps the image sized/positioned
+       relative to the *viewport*, not this wrapper's full scrollable
+       height — without it, `bg-cover` on a very tall stacked-cards page
+       would scale the photo to an enormous, near-unrecognizable crop.
+       Scoped to the Dashboard only — every other page stays plain so a
+       background image never competes with a data-dense table. Opacity
+       has gone 5% -> 14% -> 22% (via the ivory linear-gradient tint
+       over the photo, which also keeps card content legible) after
+       repeated "still don't see it" reports. */
+    <div
+      className="space-y-6 bg-cover bg-center bg-no-repeat bg-fixed p-8"
+      style={{ backgroundImage: `linear-gradient(rgba(250, 246, 236, 0.78), rgba(250, 246, 236, 0.78)), url(${STADIUM_BG_URL})` }}
+    >
+      <SyncStatusBanner />
 
-      <div className="space-y-6 p-8">
-        <SyncStatusBanner />
-
-        {error ? (
-          <ErrorState message={error.message} />
-        ) : loading ? (
-          <LoadingState label="Loading dashboard…" />
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-                <SectionHeader title="Today's Matches" viewAllHref="/explore" />
-                <TodaysMatches />
-              </section>
-
-              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-                <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
-                <div className="pt-3">
-                  <CallUpTable callUps={callUps.data ?? []} />
-                </div>
-              </section>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-              <section className="border border-kvm-border bg-white pb-4 shadow-sm xl:col-span-2">
-                <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
-                {topPerformers.data!.length === 0 ? (
-                  <EmptyState
-                    icon={TrendingUp}
-                    title="No top performers yet"
-                    description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
-                  />
-                ) : (
-                  <TopPerformersLeaderboard entries={topPerformers.data!} />
-                )}
-              </section>
-
-              <ScoutingRadarWidget
-                priorityPlayers={priorityPlayers.data ?? []}
-                loanWatch={loanWatch.data ?? []}
-                contractWatch={contractWatch.data ?? []}
-                injuries={(injuryTracker.data ?? []).slice(0, 5)}
-                marketMovers={marketMovers.data ?? []}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-                <SectionHeader title="African Debutants" viewAllHref="/debutants" />
-                <div className="pt-3">
-                  <DebutantTable players={debutants.data!} />
-                </div>
-              </section>
-
-              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-                <SectionHeader title="Recently Added Players" viewAllHref="/players" />
-                <div className="pt-3">
-                  <RecentlyAddedTable players={recentlyAdded.data!} />
-                </div>
-              </section>
-
-              <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-                <SectionHeader title="European Competitions" viewAllHref="/competitions" />
-                {competitionsSummary.error ? (
-                  <div className="p-5 text-xs text-gray-400">Competition data unavailable.</div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 p-5">
-                      <StatCard
-                        label="Competitions"
-                        value={competitionsSummary.data?.totalEuropean ?? "—"}
-                        icon={Trophy}
-                      />
-                      <StatCard label="Countries" value={competitionsSummary.data?.countriesCovered ?? "—"} icon={MapPin} />
-                      <StatCard label="Active" value={competitionsSummary.data?.activeEuropean ?? "—"} icon={Globe2} />
-                      <StatCard
-                        label="Players Covered"
-                        value={competitionsSummary.data?.playersInEuropeanCompetitions ?? "—"}
-                        icon={Users}
-                      />
-                    </div>
-                    {recentCompetitions.data && recentCompetitions.data.length > 0 ? (
-                      <ul className="divide-y divide-kvm-border border-t border-kvm-border">
-                        {recentCompetitions.data.slice(0, 3).map((c) => (
-                          <li key={c.id}>
-                            <Link
-                              href={`/competition?id=${c.id}`}
-                              className="flex items-center justify-between px-5 py-2.5 text-sm hover:bg-gray-50"
-                            >
-                              <span className="truncate font-medium text-kvm-ink">
-                                {c.name} <span className="font-normal text-gray-400">· {c.area}</span>
-                              </span>
-                              <ArrowRight size={13} className="shrink-0 text-gray-300" aria-hidden="true" />
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </>
-                )}
-              </section>
-            </div>
+      {error ? (
+        <ErrorState message={error.message} />
+      ) : loading ? (
+        <LoadingState label="Loading dashboard…" />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <section className="border border-kvm-border bg-white pb-2 shadow-sm">
+              <SectionHeader title="Today's Matches" viewAllHref="/explore" />
+              <TodaysMatches />
+            </section>
 
             <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-              <SectionHeader title="Top Rated Players (Sportmonks Test — Danish Superliga & Scottish Premiership)" />
-              <TopRatedPlayersWidget />
+              <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
+              <div className="pt-3">
+                <CallUpTable callUps={callUps.data ?? []} />
+              </div>
             </section>
-          </>
-        )}
-      </div>
-    </>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <section className="border border-kvm-border bg-white pb-4 shadow-sm xl:col-span-2">
+              <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
+              {topPerformers.data!.length === 0 ? (
+                <EmptyState
+                  icon={TrendingUp}
+                  title="No top performers yet"
+                  description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
+                />
+              ) : (
+                <TopPerformersLeaderboard entries={topPerformers.data!} />
+              )}
+            </section>
+
+            <ScoutingRadarWidget
+              priorityPlayers={priorityPlayers.data ?? []}
+              loanWatch={loanWatch.data ?? []}
+              contractWatch={contractWatch.data ?? []}
+              injuries={(injuryTracker.data ?? []).slice(0, 5)}
+              marketMovers={marketMovers.data ?? []}
+            />
+          </div>
+
+          <section className="border border-kvm-border bg-white pb-2 shadow-sm">
+            <SectionHeader title="African Debutants" viewAllHref="/debutants" />
+            <div className="pt-3">
+              <DebutantTable players={debutants.data!} />
+            </div>
+          </section>
+
+          <section className="border border-kvm-border bg-white pb-2 shadow-sm">
+            <SectionHeader title="Top Rated Players (Sportmonks Test — Danish Superliga & Scottish Premiership)" />
+            <TopRatedPlayersWidget />
+          </section>
+        </>
+      )}
+    </div>
   );
 }
