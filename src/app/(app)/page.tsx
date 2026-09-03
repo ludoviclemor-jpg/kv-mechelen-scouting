@@ -56,6 +56,17 @@ export default function DashboardPage() {
 
   return (
     <>
+      {/* AFAS Stadion, faded well into the background — texture, not
+          imagery competing with the dense data on top. Fixed so it
+          doesn't scroll with the (much taller) page content, and scoped
+          to the Dashboard only — every other page stays plain so a
+          background image never competes with a data-dense table. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-[0.05]"
+        style={{ backgroundImage: `url(${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/stadium-bg.webp)` }}
+      />
+
       <div className="space-y-6 p-8">
         <SyncStatusBanner />
 
