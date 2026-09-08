@@ -29,6 +29,7 @@ export function TopRatedPlayersWidget() {
     data: players,
     loading,
     error,
+    reload,
   } = useAsync(
     () =>
       fetchTopRatedPlayers({
@@ -64,7 +65,7 @@ export function TopRatedPlayersWidget() {
       </div>
 
       {error ? (
-        <ErrorState message={error.message} />
+        <ErrorState message={error.message} onRetry={reload} />
       ) : loading ? (
         <LoadingState label="Loading top rated players…" />
       ) : !players || players.length === 0 ? (

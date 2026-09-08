@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AsyncState<T> {
   data: T | null;
   loading: boolean;
   error: Error | null;
+  /** Re-runs the fetch without needing a `deps` change — powers per-widget "Try again" buttons. */
+  reload: () => void;
 }
 
 /**
@@ -21,7 +23,8 @@ export interface AsyncState<T> {
  * (usually-new-every-render) identity.
  */
 export function useAsync<T>(fetcher: () => Promise<T>, deps: unknown[]): AsyncState<T> {
-  const [state, setState] = useState<AsyncState<T>>({ data: null, loading: true, error: null });
+  const [state, setState] = useState<Omit<AsyncState<T>, "reload">>({ data: null, loading: true, error: null });
+  const [reloadNonce, setReloadNonce] = useState(0);
   // Keeping "the fetcher to call" in a ref (updated inside the effect
   // below, never during render — react-hooks/refs) lets the effect always
   // call the latest closure without needing the fetcher's own,
@@ -31,6 +34,8 @@ export function useAsync<T>(fetcher: () => Promise<T>, deps: unknown[]): AsyncSt
   useEffect(() => {
     fetcherRef.current = fetcher;
   });
+
+  const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +60,7 @@ export function useAsync<T>(fetcher: () => Promise<T>, deps: unknown[]): AsyncSt
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [...deps, reloadNonce]);
 
-  return state;
+  return { ...state, reload };
 }

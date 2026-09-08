@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarDays, ArrowRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LoadingState } from "@/components/ui/LoadingState";
+import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { fetchMatchById, fetchTodaysMatches, type MatchSummary } from "@/lib/matches-data";
 import { fetchPlayersByIds, useAsync } from "@/lib/players-data";
 import { useAppStore } from "@/lib/app-store";
@@ -45,10 +45,10 @@ function MatchRow({ match, shortlistedIds }: { match: MatchSummary; shortlistedI
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">
-        {isKvMechelen ? <span className="rounded-sm bg-kvm-red px-1.5 py-0.5 text-white">KV Mechelen</span> : null}
-        {u21Count > 0 ? <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 text-blue-700">{u21Count} U21</span> : null}
+        {isKvMechelen ? <span className="rounded-md bg-kvm-red px-1.5 py-0.5 text-white">KV Mechelen</span> : null}
+        {u21Count > 0 ? <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-blue-700">{u21Count} U21</span> : null}
         {shortlistedCount > 0 ? (
-          <span className="rounded-sm bg-kvm-red/10 px-1.5 py-0.5 text-kvm-red">{shortlistedCount} shortlisted</span>
+          <span className="rounded-md bg-kvm-red/10 px-1.5 py-0.5 text-kvm-red">{shortlistedCount} shortlisted</span>
         ) : null}
         {match.status === "played" ? <span className="tabular-nums text-kvm-ink">{match.score}</span> : null}
       </div>
@@ -57,10 +57,11 @@ function MatchRow({ match, shortlistedIds }: { match: MatchSummary; shortlistedI
 }
 
 export function TodaysMatches({ limit = 5 }: { limit?: number }) {
-  const { data: matches, loading } = useAsync(() => fetchTodaysMatches(limit), [limit]);
+  const { data: matches, loading, error, reload } = useAsync(() => fetchTodaysMatches(limit), [limit]);
   const { shortlists } = useAppStore();
   const shortlistedIds = useMemo(() => new Set(shortlists.flatMap((s) => s.playerIds)), [shortlists]);
 
+  if (error) return <ErrorState message={error.message} onRetry={reload} />;
   if (loading) return <LoadingState label="Loading today's matches…" />;
 
   if (!matches || matches.length === 0) {

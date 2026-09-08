@@ -1,16 +1,19 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, ListChecks, ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { SyncStatusBanner } from "@/components/ui/SyncStatusBanner";
+import { AsyncSection } from "@/components/dashboard/AsyncSection";
 import { TopPerformersLeaderboard } from "@/components/players/TopPerformersLeaderboard";
 import { DebutantTable } from "@/components/players/DebutantTable";
 import { CallUpTable } from "@/components/players/CallUpTable";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import { ScoutingRadarWidget } from "@/components/dashboard/ScoutingRadarWidget";
+import { NextActionsWidget } from "@/components/dashboard/NextActionsWidget";
+import { useAppStore } from "@/lib/app-store";
 import {
   fetchAfricanDebutants,
   fetchPriorityPlayers,
@@ -23,111 +26,169 @@ import {
 import { fetchFirstCallUps } from "@/lib/callups-data";
 import { fetchCombinedTopPerformers } from "@/lib/topPerformersData";
 
-const STADIUM_BG_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/stadium-bg.webp`;
+const CREST_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/branding/crest.png`;
 
 /**
- * Dashboard grid — trimmed to the widgets that carry a real, distinct
- * scouting signal (2026-09-03 pass): "Recently Added Players" (just the
- * newest DB rows, no actual signal) and "European Competitions" (a
- * browse utility already covered by /competitions, not a dashboard-worthy
- * signal) were dropped so the page is shorter and every remaining card
- * earns its place.
+ * My Shortlists — compact preview of the scout's own shortlists (real data
+ * already loaded in bulk by AppStoreProvider, no extra fetch needed here).
+ * Kept small and link-out only; full editing stays on /shortlists.
+ */
+function MyShortlistsPreview() {
+  const { shortlists, isLoading } = useAppStore();
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse space-y-2 px-5 py-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-5 rounded bg-gray-100" />
+        ))}
+      </div>
+    );
+  }
+
+  if (shortlists.length === 0) {
+    return (
+      <EmptyState
+        icon={ListChecks}
+        title="No shortlists yet"
+        description="Create one from the Shortlists page to start tracking candidates."
+      />
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-kvm-border">
+      {shortlists.slice(0, 5).map((s) => (
+        <li key={s.id}>
+          <Link href="/shortlists" className="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-gray-50">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-kvm-ink">{s.name}</div>
+              {s.description ? <div className="truncate text-xs text-gray-400">{s.description}</div> : null}
+            </div>
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-400">
+              {s.playerIds.length} {s.playerIds.length === 1 ? "player" : "players"}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Dashboard grid (2026-09-07 redesign pass). Every widget below owns its
+ * own load/error/empty state via `AsyncSection` — one slow or failing
+ * source (e.g. the Sportmonks TEST integration) can no longer block the
+ * rest of the page, and each has its own "Try again". Ordered per the
+ * requested priority: relevant matches, own shortlists, then broader
+ * scouting signals. "My Next Actions" lands once the owner-scoped
+ * action_items table exists (see the in-progress DB migration) — not
+ * added here yet since there's no real data to back it.
+ *
+ * The previous stadium-photo background was reported as visually
+ * competing with the dense widgets and is dropped here per the redesign
+ * brief ("rustigere basis... clubidentiteit mag subtiel terugkomen") —
+ * replaced with a single, very low-opacity crest watermark, not tiled
+ * across the page.
  */
 export default function DashboardPage() {
-  // Merges the primary ratings slot (empty today — see
-  // docs/SOFASCORE_PROVIDER.md) with the Sportmonks TEST integration
-  // (docs/SPORTMONKS_INTEGRATION.md), never blended per player.
   const topPerformers = useAsync(() => fetchCombinedTopPerformers(8), []);
   const debutants = useAsync(() => fetchAfricanDebutants(6), []);
   const priorityPlayers = useAsync(() => fetchPriorityPlayers(6), []);
-  const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 2 }), []); // top-2-divisions default, same as the /loan-watch page — see fetchProfessionalCompetitionIds' own comment for why
+  const loanWatch = useAsync(() => fetchLoanWatchCandidates({ limit: 5, maxTierLevel: 2 }), []);
   const contractWatch = useAsync(() => fetchContractWatchCandidates({ window: "expiring12", maxTierLevel: 2, limit: 5 }), []);
   const injuryTracker = useAsync(() => fetchCurrentlyInjuredPlayers(null), []);
   const marketMovers = useAsync(() => fetchMarketValueMovers("risers", 180, 2, 5), []);
   const callUps = useAsync(() => fetchFirstCallUps({ limit: 6 }), []);
 
-  const loading = topPerformers.loading || debutants.loading;
-  const error = topPerformers.error ?? debutants.error;
-
   return (
-    /* AFAS Stadion, faded well into the background — texture, not
-       imagery competing with the dense data on top. Applied as a plain
-       background-image on the page's own normal-flow wrapper (not a
-       separate `fixed`/negative-z-index overlay — that was reported as
-       invisible; this is the simpler, harder-to-get-wrong technique:
-       every child paints on top of its own parent's background by
-       definition, no stacking-context ambiguity). `bg-fixed`
-       (background-attachment: fixed) keeps the image sized/positioned
-       relative to the *viewport*, not this wrapper's full scrollable
-       height — without it, `bg-cover` on a very tall stacked-cards page
-       would scale the photo to an enormous, near-unrecognizable crop.
-       Scoped to the Dashboard only — every other page stays plain so a
-       background image never competes with a data-dense table. Opacity
-       has gone 5% -> 14% -> 22% (via the ivory linear-gradient tint
-       over the photo, which also keeps card content legible) after
-       repeated "still don't see it" reports. */
-    <div
-      className="space-y-6 bg-cover bg-center bg-no-repeat bg-fixed p-8"
-      style={{ backgroundImage: `linear-gradient(rgba(250, 246, 236, 0.78), rgba(250, 246, 236, 0.78)), url(${STADIUM_BG_URL})` }}
-    >
-      <SyncStatusBanner />
+    <div className="relative overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export has no Image Optimization server, same convention as ClubCrest.tsx */}
+      <img
+        src={CREST_URL}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-12 -top-12 h-72 w-72 object-contain opacity-[0.05] grayscale select-none"
+      />
 
-      {error ? (
-        <ErrorState message={error.message} />
-      ) : loading ? (
-        <LoadingState label="Loading dashboard…" />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-              <SectionHeader title="Today's Matches" viewAllHref="/explore" />
-              <TodaysMatches />
-            </section>
+      <div className="relative space-y-6 p-8">
+        <SyncStatusBanner />
 
-            <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-              <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
-              <div className="pt-3">
-                <CallUpTable callUps={callUps.data ?? []} />
-              </div>
-            </section>
-          </div>
+        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <SectionHeader title="My Next Actions" />
+          <NextActionsWidget />
+        </section>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <section className="border border-kvm-border bg-white pb-4 shadow-sm xl:col-span-2">
-              <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
-              {topPerformers.data!.length === 0 ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+            <SectionHeader title="Today's Matches" viewAllHref="/explore" />
+            <TodaysMatches />
+          </section>
+
+          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+            <SectionHeader title="My Shortlists" viewAllHref="/shortlists" />
+            <MyShortlistsPreview />
+          </section>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+            <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
+            <div className="pt-3">
+              <AsyncSection loading={callUps.loading} error={callUps.error} data={callUps.data} onRetry={callUps.reload} skeletonRows={5}>
+                {(data) => <CallUpTable callUps={data} />}
+              </AsyncSection>
+            </div>
+          </section>
+
+          <ScoutingRadarWidget
+            priorityPlayers={priorityPlayers.data ?? []}
+            loanWatch={loanWatch.data ?? []}
+            contractWatch={contractWatch.data ?? []}
+            injuries={(injuryTracker.data ?? []).slice(0, 5)}
+            marketMovers={marketMovers.data ?? []}
+          />
+        </div>
+
+        <section className="rounded-lg border border-kvm-border bg-white pb-4 shadow-sm">
+          <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
+          <AsyncSection loading={topPerformers.loading} error={topPerformers.error} data={topPerformers.data} onRetry={topPerformers.reload} skeletonRows={5}>
+            {(data) =>
+              data.length === 0 ? (
                 <EmptyState
                   icon={TrendingUp}
                   title="No top performers yet"
                   description="Players need at least 3 rated matches to appear here — see Settings for ratings provider status."
                 />
               ) : (
-                <TopPerformersLeaderboard entries={topPerformers.data!} />
-              )}
-            </section>
+                <TopPerformersLeaderboard entries={data} />
+              )
+            }
+          </AsyncSection>
+        </section>
 
-            <ScoutingRadarWidget
-              priorityPlayers={priorityPlayers.data ?? []}
-              loanWatch={loanWatch.data ?? []}
-              contractWatch={contractWatch.data ?? []}
-              injuries={(injuryTracker.data ?? []).slice(0, 5)}
-              marketMovers={marketMovers.data ?? []}
-            />
+        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <SectionHeader title="African Debutants" viewAllHref="/debutants" />
+          <div className="pt-3">
+            <AsyncSection loading={debutants.loading} error={debutants.error} data={debutants.data} onRetry={debutants.reload} skeletonRows={5}>
+              {(data) => <DebutantTable players={data} />}
+            </AsyncSection>
           </div>
+        </section>
 
-          <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-            <SectionHeader title="African Debutants" viewAllHref="/debutants" />
-            <div className="pt-3">
-              <DebutantTable players={debutants.data!} />
-            </div>
-          </section>
-
-          <section className="border border-kvm-border bg-white pb-2 shadow-sm">
-            <SectionHeader title="Top Rated Players (Sportmonks Test — Danish Superliga & Scottish Premiership)" />
-            <TopRatedPlayersWidget />
-          </section>
-        </>
-      )}
+        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <div className="flex items-center justify-between px-5 pt-4">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Top Rated Players — Sportmonks TEST (Danish Superliga &amp; Scottish Premiership)
+            </h2>
+            <Link href="/settings" className="flex items-center gap-1 text-xs font-semibold text-kvm-red hover:underline">
+              Provider status
+              <ArrowRight size={12} aria-hidden="true" />
+            </Link>
+          </div>
+          <TopRatedPlayersWidget />
+        </section>
+      </div>
     </div>
   );
 }
