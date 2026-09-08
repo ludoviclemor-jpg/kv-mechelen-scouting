@@ -34,6 +34,17 @@ function parseArgs(argv) {
     else if (a === "--retries") args.retries = Number(argv[++i]);
     else if (a === "--api-key") args.apiKey = argv[++i];
     else if (a === "--club-subdomain") args.clubSubdomain = argv[++i];
+    // --season overrides every competition's own current_season with one
+    // fixed value — for a one-off historical backfill (e.g. "2025" =
+    // the 2025-2026 season, confirmed real against
+    // scoutastic_competitions.available_seasons' single-year-per-season
+    // convention), not used by the regular current-season sync.
+    else if (a === "--season") args.seasonOverride = argv[++i];
+    // --level-definitions restricts the competition query to specific
+    // real level_definition values (comma-separated, e.g.
+    // "First Tier,Second Tier") instead of every senior/male/European
+    // competition — also only for a scoped one-off run.
+    else if (a === "--level-definitions") args.levelDefinitions = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--only-competition") args.onlyCompetition = argv[++i]; // testing: one competition only
   }
   return args;
@@ -129,21 +140,24 @@ async function main() {
 
   let competitions;
   if (args.onlyCompetition) {
-    // Testing convenience: season is required by the API, but we don't
-    // know a specific competition's current_season without the database —
-    // default to the current calendar year, overridable isn't needed for
-    // a quick manual test.
-    competitions = [{ competition_id: args.onlyCompetition, current_season: String(new Date().getFullYear()) }];
+    // Testing convenience: season is required by the API. Uses
+    // --season when given (e.g. a specific competition + a specific
+    // historical season, like the Youth League backfill), otherwise
+    // falls back to the current calendar year for a quick manual test.
+    competitions = [{ competition_id: args.onlyCompetition, current_season: args.seasonOverride ?? String(new Date().getFullYear()) }];
   } else {
-    const res = await fetchAllRows(db, "scoutastic_competitions", "competition_id,current_season", (q) =>
-      q.eq("is_european", true).eq("is_active", true).eq("age_category", "Senior").eq("gender", "male").not("current_season", "is", null)
-    );
+    let query = (q) => q.eq("is_european", true).eq("is_active", true).eq("age_category", "Senior").eq("gender", "male").not("current_season", "is", null);
+    if (args.levelDefinitions) {
+      const base = query;
+      query = (q) => base(q).in("level_definition", args.levelDefinitions);
+    }
+    const res = await fetchAllRows(db, "scoutastic_competitions", "competition_id,current_season", query);
     if (!res.ok) {
       console.error(`Failed to load competitions: ${res.error.message}`);
       process.exitCode = 1;
       return;
     }
-    competitions = res.data;
+    competitions = args.seasonOverride ? res.data.map((c) => ({ ...c, current_season: args.seasonOverride })) : res.data;
   }
 
   console.log(`Competitions to sync: ${competitions.length}`);
