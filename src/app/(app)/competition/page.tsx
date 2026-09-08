@@ -129,7 +129,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <EmptyState icon={Trophy} title="No competition selected" description="Open a competition from the Competitions page." />
           </div>
         </div>
@@ -142,7 +142,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <LoadingState label="Loading competition…" />
           </div>
         </div>
@@ -155,7 +155,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <ErrorState message={competitionResult.error.message} />
           </div>
         </div>
@@ -169,7 +169,7 @@ function CompetitionContent() {
       <>
         <PageHeader title="Competition" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <EmptyState icon={Trophy} title="Competition not found" description="It may no longer be part of the SCOUTASTIC catalog." />
           </div>
         </div>
@@ -230,7 +230,7 @@ function CompetitionContent() {
 
       <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-      <div className="mx-8 my-6 rounded-lg border border-kvm-border bg-white shadow-sm">
+      <div className="mx-8 my-6 rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
         {playersResult.error ? (
           <ErrorState message={playersResult.error.message} />
         ) : playersResult.loading && !playersResult.data ? (

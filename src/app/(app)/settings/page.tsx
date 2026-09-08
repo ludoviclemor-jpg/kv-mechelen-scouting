@@ -43,7 +43,7 @@ function IntegrationCard({
   badgeLabel?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border border-kvm-border bg-white p-5">
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-kvm-border bg-white p-5">
       <div className="flex gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
           <Icon size={18} aria-hidden="true" />
@@ -112,12 +112,12 @@ export default function SettingsPage() {
         description="Integration status and synchronization configuration."
       />
 
-      <div className="space-y-6 p-8">
+      <div className="space-y-8 p-8">
         <section>
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Account
           </h2>
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-kvm-border bg-white p-5">
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-kvm-border bg-white p-5">
             <div className="flex gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
                 <UserCircle size={18} aria-hidden="true" />
@@ -141,7 +141,7 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Data Synchronization
           </h2>
-          <div className="rounded-lg border border-kvm-border bg-white p-5">
+          <div className="rounded-xl border border-kvm-border bg-white p-5">
             <div className="flex items-center justify-between gap-4">
               <div className="flex gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
@@ -236,7 +236,7 @@ export default function SettingsPage() {
             System Status
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-kvm-border bg-white p-4">
+            <div className="rounded-xl border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Frontend
               </div>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                 <CircleCheck size={15} /> Live
               </div>
             </div>
-            <div className="rounded-lg border border-kvm-border bg-white p-4">
+            <div className="rounded-xl border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Sync workflows
               </div>
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                 <CircleCheck size={15} /> Configured (GitHub Actions)
               </div>
             </div>
-            <div className="rounded-lg border border-kvm-border bg-white p-4">
+            <div className="rounded-xl border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Shortlists &amp; notes
               </div>

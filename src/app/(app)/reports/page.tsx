@@ -98,7 +98,7 @@ export default function ReportsPage() {
       <>
         <PageHeader title="Scouting Reports" description="Match report history, private to your account." />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <EmptyState
               icon={FileText}
               title="Database not configured"
@@ -155,7 +155,7 @@ export default function ReportsPage() {
         <div className="min-w-0 flex-1">
           <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-          <div className="m-4 rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="m-6 rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             {error ? (
               <ErrorState message={error.message} onRetry={reload} />
             ) : loading ? (

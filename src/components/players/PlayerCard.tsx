@@ -31,7 +31,7 @@ export function PlayerCard({ player, ratingOverride }: { player: Player; ratingO
   const trend = ratingOverride?.trend ?? ratingTrendSeries(player.matches);
 
   return (
-    <div className="flex flex-col justify-between rounded-lg border border-kvm-border bg-white p-4">
+    <div className="flex flex-col justify-between rounded-xl border border-kvm-border bg-white p-4">
       <div>
         <div className="flex items-start justify-between gap-2">
           <Link

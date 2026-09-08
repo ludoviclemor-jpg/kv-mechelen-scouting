@@ -97,7 +97,7 @@ export function BenchList({
   }
 
   return (
-    <div className="rounded-lg border border-kvm-border bg-white">
+    <div className="rounded-xl border border-kvm-border bg-white">
       <h3 className="border-b border-kvm-border px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
         Substitutes {teamName ? `· ${teamName}` : ""}
       </h3>

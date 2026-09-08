@@ -96,7 +96,7 @@ export function PositionUsagePitch({
               >
                 <div
                   className={cn(
-                    "flex items-center justify-center rounded-full bg-kvm-yellow font-bold text-kvm-ink shadow-sm ring-1 ring-black/10"
+                    "flex items-center justify-center rounded-full bg-kvm-yellow font-bold text-kvm-ink shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)] ring-1 ring-black/10"
                   )}
                   style={{ width: `${1.5 * scale}rem`, height: `${1.5 * scale}rem`, opacity, fontSize: `${0.45 * scale + 0.2}rem` }}
                 >

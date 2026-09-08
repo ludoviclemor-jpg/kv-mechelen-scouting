@@ -74,7 +74,7 @@ export function MatchList({
   return (
     <div className="space-y-5">
       {groups.map((group) => (
-        <section key={group.area} className="rounded-lg border border-kvm-border bg-white">
+        <section key={group.area} className="rounded-xl border border-kvm-border bg-white">
           <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
             {group.area}
           </h2>

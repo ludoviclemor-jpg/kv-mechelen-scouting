@@ -106,7 +106,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <EmptyState icon={Users} title="No player selected" description="Open a player from the Players list." />
           </div>
         </div>
@@ -119,7 +119,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <LoadingState label="Loading player…" />
           </div>
         </div>
@@ -132,7 +132,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <ErrorState message={error.message} />
           </div>
         </div>
@@ -145,7 +145,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <EmptyState icon={Users} title="Player not found" description="This player may have been deactivated by the last sync." />
           </div>
         </div>
@@ -158,7 +158,7 @@ function PlayerProfileContent() {
   return (
     <>
       <PageHeader title={player.name} description="Player profile" />
-      <div className="space-y-5 p-8">
+      <div className="space-y-6 p-8">
         <PlayerHeader
           player={player}
           competitionName={competition?.name ?? null}
@@ -168,7 +168,7 @@ function PlayerProfileContent() {
           }}
         />
 
-        <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+        <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <div role="tablist" aria-label="Player profile sections" className="flex border-b border-kvm-border">
             {TABS.map((t) => (
               <button

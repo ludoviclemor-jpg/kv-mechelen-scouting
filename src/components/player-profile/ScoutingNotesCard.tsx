@@ -72,7 +72,7 @@ export function ScoutingNotesCard({ player }: { player: Player }) {
   }
 
   return (
-    <div className="rounded-lg border border-kvm-border bg-white">
+    <div className="rounded-xl border border-kvm-border bg-white">
       <div className="flex items-center justify-between border-b border-kvm-border px-5 py-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Scouting Notes</h2>
         <button

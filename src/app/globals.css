@@ -46,7 +46,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Compact, information-dense table baseline used across the app. */
+/*
+ * Table baseline — kept compact enough for real scouting work (per the
+ * redesign brief) but with lighter, less busy row dividers than before:
+ * a table with a hundred visible rows read as a grid of hard lines at
+ * full-contrast borders; #f2ede1 keeps rows separable without that
+ * "spreadsheet" effect, and slightly taller cell padding gives text room
+ * to breathe without materially shortening how many rows fit on screen.
+ */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -60,23 +67,23 @@ body {
   text-align: left;
   font-weight: 600;
   font-size: 0.6875rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6b6b6b;
-  padding: 0.5rem 0.75rem;
+  color: #85807a;
+  padding: 0.65rem 0.85rem;
   background: #fff;
   border-bottom: 1px solid var(--color-kvm-border);
   white-space: nowrap;
 }
 
 .data-table td {
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid #efe9dc;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #f2ede1;
   vertical-align: middle;
 }
 
 .data-table tbody tr:hover {
-  background-color: #fdfbf5;
+  background-color: #fbf9f3;
 }
 
 /*

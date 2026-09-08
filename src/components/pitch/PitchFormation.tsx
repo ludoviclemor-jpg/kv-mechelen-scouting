@@ -34,7 +34,7 @@ export function PitchFormation({
   const rows = buildPitchRows(players, tactic);
 
   return (
-    <div className="rounded-lg border border-kvm-border bg-white">
+    <div className="rounded-xl border border-kvm-border bg-white">
       <div className="flex items-center justify-between border-b border-kvm-border px-4 py-2.5">
         <h3 className="text-sm font-bold text-kvm-ink">{teamName ?? "Unknown team"}</h3>
         <span className="text-xs font-medium text-gray-400">{tactic ?? "Formation unavailable"}</span>

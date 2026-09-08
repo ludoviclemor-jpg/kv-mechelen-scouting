@@ -41,7 +41,7 @@ function SportmonksRatingBadge({ rating }: { rating: number }) {
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-kvm-border bg-white px-4 py-3">
+    <div className="rounded-xl border border-kvm-border bg-white px-4 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
       <div className="mt-1 text-lg font-bold text-kvm-ink">{value}</div>
     </div>

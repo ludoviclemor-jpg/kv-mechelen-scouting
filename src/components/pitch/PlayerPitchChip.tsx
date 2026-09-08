@@ -48,7 +48,7 @@ export function PlayerPitchChip({
     >
       <span
         className={cn(
-          "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-kvm-ink shadow-sm ring-1 ring-black/10 sm:h-9 sm:w-9",
+          "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-kvm-ink shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)] ring-1 ring-black/10 sm:h-9 sm:w-9",
           contractUrgent && "ring-2 ring-kvm-red ring-offset-1 ring-offset-kvm-pitch"
         )}
         title={contractUrgent ? `Contract expires ${contractStatus(player!.contractExpiry).label}` : undefined}
@@ -69,7 +69,7 @@ export function PlayerPitchChip({
           />
         ) : null}
       </span>
-      <span className="flex w-full items-center justify-center gap-1 truncate text-[11px] font-semibold leading-tight text-white drop-shadow-sm">
+      <span className="flex w-full items-center justify-center gap-1 truncate text-[11px] font-semibold leading-tight text-white drop-shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
         {flag ? (
           <span aria-label={player?.nationality ?? undefined} title={player?.nationality ?? undefined}>
             {flag}

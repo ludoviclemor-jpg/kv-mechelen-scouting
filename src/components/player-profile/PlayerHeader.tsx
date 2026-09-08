@@ -66,7 +66,7 @@ export function PlayerHeader({
   const positions = [player.position, ...(player.secondaryPositions ?? [])].filter((p): p is NonNullable<typeof p> => p !== null);
 
   return (
-    <div className="rounded-lg border border-kvm-border bg-white p-5">
+    <div className="rounded-xl border border-kvm-border bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="flex items-center gap-4">
           <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="lg" className="ring-2 ring-kvm-border ring-offset-2" />

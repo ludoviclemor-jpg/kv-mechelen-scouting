@@ -117,15 +117,15 @@ export default function CompetitionsPage() {
 
           <div className="p-4">
             {result.error ? (
-              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
                 <ErrorState message={result.error.message} />
               </div>
             ) : result.loading ? (
-              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
                 <LoadingState label="Loading competitions…" />
               </div>
             ) : grouped.length === 0 ? (
-              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
                 <EmptyState
                   icon={Globe2}
                   title="No competitions match these filters"
@@ -135,7 +135,7 @@ export default function CompetitionsPage() {
             ) : (
               <div className="space-y-4">
                 {grouped.map(([country, competitions]) => (
-                  <section key={country} className="rounded-lg border border-kvm-border bg-white shadow-sm">
+                  <section key={country} className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
                     <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
                       {country}
                     </h2>

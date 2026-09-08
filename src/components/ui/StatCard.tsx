@@ -15,7 +15,7 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-kvm-border bg-white px-4 py-3.5">
+    <div className="flex items-center justify-between rounded-xl border border-kvm-border bg-white px-4 py-3.5">
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
           {label}

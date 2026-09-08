@@ -48,7 +48,7 @@ export function ScoutingRadarWidget({
   const active = TABS.find((t) => t.key === tab)!;
 
   return (
-    <section className="rounded-lg border border-kvm-border bg-white shadow-sm">
+    <section className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
       <div className="flex items-center justify-between border-b border-kvm-border px-5 pt-4">
         <div role="tablist" aria-label="Scouting Radar" className="-mb-px flex gap-1 overflow-x-auto">
           {TABS.map((t) => (

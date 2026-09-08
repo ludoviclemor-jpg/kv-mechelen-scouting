@@ -318,7 +318,7 @@ export function MatchReportsSection({ playerId, autoOpenForm = false }: { player
 
   if (!isPersistent) {
     return (
-      <div className="rounded-lg border border-kvm-border bg-white">
+      <div className="rounded-xl border border-kvm-border bg-white">
         <div className="flex items-center justify-between border-b border-kvm-border px-5 py-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Match Reports</h2>
         </div>
@@ -332,7 +332,7 @@ export function MatchReportsSection({ playerId, autoOpenForm = false }: { player
   }
 
   return (
-    <div className="rounded-lg border border-kvm-border bg-white">
+    <div className="rounded-xl border border-kvm-border bg-white">
       <div className="flex items-center justify-between border-b border-kvm-border px-5 py-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Match Reports</h2>
         {!formOpen ? (

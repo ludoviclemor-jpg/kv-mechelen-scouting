@@ -111,28 +111,28 @@ export default function DashboardPage() {
         className="pointer-events-none absolute -right-12 -top-12 h-72 w-72 object-contain opacity-[0.05] grayscale select-none"
       />
 
-      <div className="relative space-y-6 p-8">
+      <div className="relative space-y-8 p-8">
         <SyncStatusBanner />
 
-        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+        <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <SectionHeader title="My Next Actions" />
           <NextActionsWidget />
         </section>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <SectionHeader title="Today's Matches" viewAllHref="/explore" />
             <TodaysMatches />
           </section>
 
-          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <SectionHeader title="My Shortlists" viewAllHref="/shortlists" />
             <MyShortlistsPreview />
           </section>
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+          <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
             <SectionHeader title="First International Call-Ups" viewAllHref="/call-ups" />
             <div className="pt-3">
               <AsyncSection loading={callUps.loading} error={callUps.error} data={callUps.data} onRetry={callUps.reload} skeletonRows={5}>
@@ -150,7 +150,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <section className="rounded-lg border border-kvm-border bg-white pb-4 shadow-sm">
+        <section className="rounded-xl border border-kvm-border bg-white pb-4 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <SectionHeader title="Top Performers" viewAllHref="/top-performers" />
           <AsyncSection loading={topPerformers.loading} error={topPerformers.error} data={topPerformers.data} onRetry={topPerformers.reload} skeletonRows={5}>
             {(data) =>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
           </AsyncSection>
         </section>
 
-        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+        <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <SectionHeader title="African Debutants" viewAllHref="/debutants" />
           <div className="pt-3">
             <AsyncSection loading={debutants.loading} error={debutants.error} data={debutants.data} onRetry={debutants.reload} skeletonRows={5}>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-kvm-border bg-white pb-2 shadow-sm">
+        <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <div className="flex items-center justify-between px-5 pt-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">
               Top Rated Players — Sportmonks TEST (Danish Superliga &amp; Scottish Premiership)
