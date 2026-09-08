@@ -786,3 +786,114 @@ returns table (
            case when direction = 'fallers' then change_pct end asc nulls last
   limit result_limit;
 $$ language sql stable security invoker;
+
+-- ============================================================
+-- Per-scout privacy + match reports / saved searches / next actions
+-- (redesign pass, 2026-09-08 — see docs/POSTGRES_PERSISTENCE.md)
+--
+-- Previously `shortlists`/`player_scouting_state` were shared across
+-- every signed-in scout by design (see the old comment this replaces).
+-- That's no longer the intended model: a scout's shortlists, statuses,
+-- notes, match reports, saved searches and next actions are now private
+-- to them. `favorite_competitions` (Explore's competition bookmarks) is
+-- deliberately left shared — it's a browse convenience, not scouting
+-- work product, and nothing in this pass asked for it to change.
+--
+-- Backfill note: at the time this migration was written, exactly one
+-- real user existed (confirmed live), so "the earliest-created user"
+-- backfill below is exact, not a guess — re-running this on a project
+-- with more users would silently assign every pre-existing shared row to
+-- one of them, so don't re-run the UPDATE lines below a second time (the
+-- `where owner_id is null` guard already makes them a no-op after the
+-- first successful run).
+-- ============================================================
+
+alter table shortlists add column if not exists owner_id uuid references auth.users(id) on delete cascade;
+update shortlists set owner_id = (select id from auth.users order by created_at asc limit 1) where owner_id is null;
+alter table shortlists alter column owner_id set not null;
+alter table shortlists alter column owner_id set default auth.uid();
+create index if not exists idx_shortlists_owner on shortlists(owner_id);
+
+alter table player_scouting_state add column if not exists owner_id uuid references auth.users(id) on delete cascade;
+update player_scouting_state set owner_id = (select id from auth.users order by created_at asc limit 1) where owner_id is null;
+alter table player_scouting_state alter column owner_id set not null;
+alter table player_scouting_state alter column owner_id set default auth.uid();
+-- Was a single-column PK (one shared row per player); now composite so
+-- each scout holds their own independent status/notes for the same
+-- player.
+alter table player_scouting_state drop constraint if exists player_scouting_state_pkey;
+alter table player_scouting_state add primary key (owner_id, scoutastic_player_id);
+
+-- Match-report history (item 5 of the redesign brief) — a scout can now
+-- keep many dated reports per player instead of one shared status/notes
+-- summary. `match_id` is a soft, optional link into `matches` (nullable,
+-- on delete set null) since a live-scouted match is very often not one
+-- SCOUTASTIC has crawled at all — `opponent`/`match_date` are free text/
+-- date so a report never depends on match sync coverage.
+create table if not exists match_reports (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  scoutastic_player_id text not null,
+  match_id text references matches(id) on delete set null,
+  opponent text not null default '',
+  match_date date,
+  scouting_type text not null default 'live' check (scouting_type in ('live', 'video')),
+  minutes_watched integer check (minutes_watched is null or minutes_watched >= 0),
+  position_played text,
+  strengths text not null default '',
+  weaknesses text not null default '',
+  overall_rating integer check (overall_rating is null or overall_rating between 1 and 10),
+  follow_up_action text not null default 'no_action'
+    check (follow_up_action in ('watch_again', 'report_to_staff', 'sign_recommendation', 'discard', 'no_action')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_match_reports_owner on match_reports(owner_id);
+create index if not exists idx_match_reports_player on match_reports(owner_id, scoutastic_player_id);
+create index if not exists idx_match_reports_date on match_reports(match_date desc);
+
+-- Saved search profiles (item 6) — the Players page's filter state,
+-- named and reusable. `filters` stores the same shape the page already
+-- keeps in its own React state/URL query, so no separate parsing layer.
+create table if not exists saved_searches (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  filters jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_saved_searches_owner on saved_searches(owner_id);
+
+-- "My Next Actions" (item 8) — small, scout-owned to-dos, optionally
+-- linked to a player. Not a task-management system: no priority levels,
+-- assignees, or sub-tasks, just what the brief actually asked for.
+create table if not exists action_items (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  description text not null,
+  action_type text not null default 'other'
+    check (action_type in ('review_player', 'finish_report', 'research_candidate', 'other')),
+  scoutastic_player_id text,
+  due_date date,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_action_items_owner on action_items(owner_id);
+create index if not exists idx_action_items_due on action_items(due_date);
+
+drop trigger if exists trg_match_reports_updated_at on match_reports;
+create trigger trg_match_reports_updated_at
+  before update on match_reports
+  for each row execute function set_updated_at();
+
+drop trigger if exists trg_saved_searches_updated_at on saved_searches;
+create trigger trg_saved_searches_updated_at
+  before update on saved_searches
+  for each row execute function set_updated_at();
+
+drop trigger if exists trg_action_items_updated_at on action_items;
+create trigger trg_action_items_updated_at
+  before update on action_items
+  for each row execute function set_updated_at();

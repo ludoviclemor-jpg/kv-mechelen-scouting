@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -16,20 +17,38 @@ import {
   type Shortlist,
 } from "@/lib/players-data";
 import { getPersistenceProvider, type PlayerScoutingState } from "@/lib/persistence";
+import { createKeyedQueue } from "@/lib/keyedQueue";
 
 /**
  * Scouting workspace state: shortlists, status overrides and notes
  * overrides layered on top of the read-only synced player data.
  *
  * Backed by a PersistenceProvider (src/lib/persistence/) — Supabase when
- * configured (real, shared, durable writes), otherwise an in-memory
- * fallback that behaves exactly like the original Phase 1/2 build
- * (resets on reload). All state is loaded once in bulk on mount and kept
- * in React state after that — writes update local state immediately
- * (optimistic) and persist in the background; `useEffectiveStatus` /
- * `useEffectiveNotes` stay simple synchronous lookups either way, so no
- * consuming component needs to know which provider is active.
+ * configured (real, shared writes, private per scout — see
+ * db/rls_policies.sql), otherwise an in-memory fallback that resets on
+ * reload. All state is loaded once in bulk on mount and kept in React
+ * state after that.
+ *
+ * Every write below is optimistic (the UI updates immediately) but now
+ * awaitable and rollback-safe: each mutator returns
+ * `Promise<{ ok: boolean; error?: string }>`, so a caller (e.g.
+ * ScoutingNotesCard) can show a real "Saving…" / "Saved" / "Failed" state
+ * instead of declaring success before the database confirms it. On
+ * failure the optimistic change is rolled back to its exact prior value
+ * (not just cleared) so the UI never quietly disagrees with what's
+ * actually persisted. Writes to the same entity (same player id / same
+ * shortlist id) are serialized via `createKeyedQueue` so two rapid saves
+ * can never race over the network and land out of order.
  */
+
+export interface SaveResult {
+  ok: boolean;
+  error?: string;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error";
+}
 
 interface AppStoreApi {
   shortlists: Shortlist[];
@@ -37,19 +56,20 @@ interface AppStoreApi {
   notesOverrides: Record<string, ScoutingNotes>;
   isLoading: boolean;
   isPersistent: boolean; // false = in-memory only, changes won't survive a reload
-  createShortlist: (name: string, description?: string) => void;
-  renameShortlist: (id: string, name: string) => void;
-  deleteShortlist: (id: string) => void;
-  addPlayerToShortlist: (shortlistId: string, playerId: string) => void;
-  removePlayerFromShortlist: (shortlistId: string, playerId: string) => void;
-  setPlayerStatus: (playerId: string, status: ScoutingStatus) => void;
-  setPlayerNotes: (playerId: string, notes: ScoutingNotes) => void;
+  createShortlist: (name: string, description?: string) => Promise<SaveResult>;
+  renameShortlist: (id: string, name: string) => Promise<SaveResult>;
+  deleteShortlist: (id: string) => Promise<SaveResult>;
+  addPlayerToShortlist: (shortlistId: string, playerId: string) => Promise<SaveResult>;
+  removePlayerFromShortlist: (shortlistId: string, playerId: string) => Promise<SaveResult>;
+  setPlayerStatus: (playerId: string, status: ScoutingStatus) => Promise<SaveResult>;
+  setPlayerNotes: (playerId: string, notes: ScoutingNotes) => Promise<SaveResult>;
 }
 
 const AppStoreContext = createContext<AppStoreApi | null>(null);
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const provider = useMemo(() => getPersistenceProvider(), []);
+  const queueRef = useRef(createKeyedQueue<string>());
   const [shortlists, setShortlists] = useState<Shortlist[]>(DEFAULT_SHORTLISTS);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, ScoutingStatus>>({});
   const [notesOverrides, setNotesOverrides] = useState<Record<string, ScoutingNotes>>({});
@@ -82,77 +102,171 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, [provider]);
 
   const createShortlist = useCallback(
-    (name: string, description = "") => {
+    (name: string, description = ""): Promise<SaveResult> => {
+      const optimisticId = `pending-${Date.now().toString(36)}`;
       const optimistic: Shortlist = {
-        id: `pending-${Date.now().toString(36)}`,
+        id: optimisticId,
         name,
         description,
         createdAt: new Date().toISOString().slice(0, 10),
         playerIds: [],
       };
       setShortlists((prev) => [...prev, optimistic]);
-      provider
-        .createShortlist(name, description)
-        .then((real) => setShortlists((prev) => prev.map((s) => (s.id === optimistic.id ? real : s))))
-        .catch((err) => console.error("Failed to create shortlist:", err));
+      return queueRef.current(optimisticId, () => provider.createShortlist(name, description)).then(
+        (real) => {
+          setShortlists((prev) => prev.map((s) => (s.id === optimisticId ? real : s)));
+          return { ok: true };
+        },
+        (err) => {
+          setShortlists((prev) => prev.filter((s) => s.id !== optimisticId));
+          console.error("Failed to create shortlist:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const renameShortlist = useCallback(
-    (id: string, name: string) => {
-      setShortlists((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
-      provider.renameShortlist(id, name).catch((err) => console.error("Failed to rename shortlist:", err));
+    (id: string, name: string): Promise<SaveResult> => {
+      let previousName: string | undefined;
+      setShortlists((prev) =>
+        prev.map((s) => {
+          if (s.id === id) previousName = s.name;
+          return s.id === id ? { ...s, name } : s;
+        })
+      );
+      return queueRef.current(id, () => provider.renameShortlist(id, name)).then(
+        () => ({ ok: true }),
+        (err) => {
+          if (previousName !== undefined) {
+            setShortlists((prev) => prev.map((s) => (s.id === id ? { ...s, name: previousName! } : s)));
+          }
+          console.error("Failed to rename shortlist:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const deleteShortlist = useCallback(
-    (id: string) => {
-      setShortlists((prev) => prev.filter((s) => s.id !== id));
-      provider.deleteShortlist(id).catch((err) => console.error("Failed to delete shortlist:", err));
+    (id: string): Promise<SaveResult> => {
+      let removed: Shortlist | undefined;
+      let removedIndex = -1;
+      setShortlists((prev) => {
+        removedIndex = prev.findIndex((s) => s.id === id);
+        removed = prev[removedIndex];
+        return prev.filter((s) => s.id !== id);
+      });
+      return queueRef.current(id, () => provider.deleteShortlist(id)).then(
+        () => ({ ok: true }),
+        (err) => {
+          if (removed) {
+            setShortlists((prev) => {
+              const next = [...prev];
+              next.splice(Math.min(removedIndex, next.length), 0, removed!);
+              return next;
+            });
+          }
+          console.error("Failed to delete shortlist:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const addPlayerToShortlist = useCallback(
-    (shortlistId: string, playerId: string) => {
+    (shortlistId: string, playerId: string): Promise<SaveResult> => {
       setShortlists((prev) =>
         prev.map((s) =>
           s.id === shortlistId && !s.playerIds.includes(playerId) ? { ...s, playerIds: [...s.playerIds, playerId] } : s
         )
       );
-      provider
-        .addPlayerToShortlist(shortlistId, playerId)
-        .catch((err) => console.error("Failed to add player to shortlist:", err));
+      return queueRef.current(`${shortlistId}:${playerId}`, () => provider.addPlayerToShortlist(shortlistId, playerId)).then(
+        () => ({ ok: true }),
+        (err) => {
+          setShortlists((prev) =>
+            prev.map((s) => (s.id === shortlistId ? { ...s, playerIds: s.playerIds.filter((id) => id !== playerId) } : s))
+          );
+          console.error("Failed to add player to shortlist:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const removePlayerFromShortlist = useCallback(
-    (shortlistId: string, playerId: string) => {
+    (shortlistId: string, playerId: string): Promise<SaveResult> => {
+      let hadPlayer = false;
       setShortlists((prev) =>
-        prev.map((s) => (s.id === shortlistId ? { ...s, playerIds: s.playerIds.filter((id) => id !== playerId) } : s))
+        prev.map((s) => {
+          if (s.id === shortlistId && s.playerIds.includes(playerId)) hadPlayer = true;
+          return s.id === shortlistId ? { ...s, playerIds: s.playerIds.filter((id) => id !== playerId) } : s;
+        })
       );
-      provider
-        .removePlayerFromShortlist(shortlistId, playerId)
-        .catch((err) => console.error("Failed to remove player from shortlist:", err));
+      return queueRef.current(`${shortlistId}:${playerId}`, () => provider.removePlayerFromShortlist(shortlistId, playerId)).then(
+        () => ({ ok: true }),
+        (err) => {
+          if (hadPlayer) {
+            setShortlists((prev) =>
+              prev.map((s) => (s.id === shortlistId && !s.playerIds.includes(playerId) ? { ...s, playerIds: [...s.playerIds, playerId] } : s))
+            );
+          }
+          console.error("Failed to remove player from shortlist:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const setPlayerStatus = useCallback(
-    (playerId: string, status: ScoutingStatus) => {
-      setStatusOverrides((prev) => ({ ...prev, [playerId]: status }));
-      provider.setPlayerStatus(playerId, status).catch((err) => console.error("Failed to save player status:", err));
+    (playerId: string, status: ScoutingStatus): Promise<SaveResult> => {
+      let previous: ScoutingStatus | undefined;
+      setStatusOverrides((prev) => {
+        previous = prev[playerId];
+        return { ...prev, [playerId]: status };
+      });
+      return queueRef.current(`status:${playerId}`, () => provider.setPlayerStatus(playerId, status)).then(
+        () => ({ ok: true }),
+        (err) => {
+          setStatusOverrides((prev) => {
+            const next = { ...prev };
+            if (previous === undefined) delete next[playerId];
+            else next[playerId] = previous;
+            return next;
+          });
+          console.error("Failed to save player status:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );
 
   const setPlayerNotes = useCallback(
-    (playerId: string, notes: ScoutingNotes) => {
-      setNotesOverrides((prev) => ({ ...prev, [playerId]: notes }));
-      provider.setPlayerNotes(playerId, notes).catch((err) => console.error("Failed to save player notes:", err));
+    (playerId: string, notes: ScoutingNotes): Promise<SaveResult> => {
+      let previous: ScoutingNotes | undefined;
+      setNotesOverrides((prev) => {
+        previous = prev[playerId];
+        return { ...prev, [playerId]: notes };
+      });
+      return queueRef.current(`notes:${playerId}`, () => provider.setPlayerNotes(playerId, notes)).then(
+        () => ({ ok: true }),
+        (err) => {
+          setNotesOverrides((prev) => {
+            const next = { ...prev };
+            if (previous === undefined) delete next[playerId];
+            else next[playerId] = previous;
+            return next;
+          });
+          console.error("Failed to save player notes:", err);
+          return { ok: false, error: errorMessage(err) };
+        }
+      );
     },
     [provider]
   );

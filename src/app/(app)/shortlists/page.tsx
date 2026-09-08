@@ -43,7 +43,11 @@ export default function ShortlistsPage() {
     shortlists[0]?.id ?? null
   );
   const [newName, setNewName] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [addQuery, setAddQuery] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
 
@@ -76,11 +80,52 @@ export default function ShortlistsPage() {
     [selected?.id, debouncedAddQuery]
   );
 
-  function handleCreate() {
+  async function handleCreate() {
     const trimmed = newName.trim();
-    if (!trimmed) return;
-    createShortlist(trimmed);
-    setNewName("");
+    if (!trimmed || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    const result = await createShortlist(trimmed);
+    setCreating(false);
+    if (result.ok) {
+      setNewName(""); // only clear the input once the shortlist is actually confirmed created
+    } else {
+      setCreateError(result.error ?? "Failed to create shortlist — try again.");
+    }
+  }
+
+  async function handleRename(id: string, name: string) {
+    setListError(null);
+    const result = await renameShortlist(id, name);
+    if (!result.ok) setListError(result.error ?? "Failed to rename shortlist — try again.");
+  }
+
+  async function handleDelete(id: string) {
+    setListError(null);
+    const result = await deleteShortlist(id);
+    if (result.ok) {
+      if (selectedId === id) setSelectedId(null);
+    } else {
+      setListError(result.error ?? "Failed to delete shortlist — try again.");
+    }
+  }
+
+  async function handleAddCandidate(playerId: string) {
+    if (!selected) return;
+    setAddError(null);
+    const result = await addPlayerToShortlist(selected.id, playerId);
+    if (result.ok) {
+      setAddQuery(""); // only clear the search once the player is actually confirmed added
+    } else {
+      setAddError(result.error ?? "Failed to add player — try again.");
+    }
+  }
+
+  async function handleRemovePlayer(playerId: string) {
+    if (!selected) return;
+    setListError(null);
+    const result = await removePlayerFromShortlist(selected.id, playerId);
+    if (!result.ok) setListError(result.error ?? "Failed to remove player — try again.");
   }
 
   return (
@@ -99,36 +144,36 @@ export default function ShortlistsPage() {
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="New shortlist name..."
               aria-label="New shortlist name"
-              className="w-full rounded-sm border border-kvm-border bg-white px-2.5 py-1.5 text-sm focus-visible:outline-none"
+              className="w-full rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-sm focus-visible:outline-none"
             />
             <button
               type="button"
               onClick={handleCreate}
+              disabled={creating}
               aria-label="Create shortlist"
-              className="flex shrink-0 items-center justify-center rounded-sm bg-kvm-red px-2.5 text-white"
+              className="flex shrink-0 items-center justify-center rounded-md bg-kvm-red px-2.5 text-white disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
             >
               <Plus size={16} />
             </button>
           </div>
+          {createError ? <p className="text-xs font-medium text-kvm-red">{createError}</p> : null}
 
           <div className="space-y-2">
+            {listError ? <p className="text-xs font-medium text-kvm-red">{listError}</p> : null}
             {shortlists.map((s) => (
               <ShortlistCard
                 key={s.id}
                 shortlist={s}
                 active={s.id === selected?.id}
                 onSelect={() => setSelectedId(s.id)}
-                onRename={(name) => renameShortlist(s.id, name)}
-                onDelete={() => {
-                  deleteShortlist(s.id);
-                  if (selectedId === s.id) setSelectedId(null);
-                }}
+                onRename={(name) => handleRename(s.id, name)}
+                onDelete={() => handleDelete(s.id)}
               />
             ))}
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 border border-kvm-border bg-white shadow-sm">
+        <section className="min-w-0 flex-1 rounded-lg border border-kvm-border bg-white shadow-sm">
           {!selected ? (
             <EmptyState
               icon={ListChecks}
@@ -149,7 +194,7 @@ export default function ShortlistsPage() {
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as SortOption)}
-                      className="rounded-sm border border-kvm-border bg-white px-2 py-1 text-xs"
+                      className="rounded-md border border-kvm-border bg-white px-2 py-1 text-xs"
                     >
                       <option value="name">Sort: Name</option>
                       <option value="rating">Sort: Last 5 average</option>
@@ -166,15 +211,12 @@ export default function ShortlistsPage() {
                   placeholder="Add a player to this shortlist..."
                 />
                 {(addCandidates?.length ?? 0) > 0 ? (
-                  <div className="mt-2 divide-y divide-kvm-border rounded-sm border border-kvm-border">
+                  <div className="mt-2 divide-y divide-kvm-border rounded-md border border-kvm-border">
                     {addCandidates!.map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => {
-                          addPlayerToShortlist(selected.id, p.id);
-                          setAddQuery("");
-                        }}
+                        onClick={() => handleAddCandidate(p.id)}
                         className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-gray-50"
                       >
                         <span>
@@ -185,6 +227,7 @@ export default function ShortlistsPage() {
                     ))}
                   </div>
                 ) : null}
+                {addError ? <p className="mt-1.5 text-xs font-medium text-kvm-red">{addError}</p> : null}
               </div>
 
               {playersError ? (
@@ -232,7 +275,7 @@ export default function ShortlistsPage() {
                             <td>
                               <button
                                 type="button"
-                                onClick={() => removePlayerFromShortlist(selected.id, p.id)}
+                                onClick={() => handleRemovePlayer(p.id)}
                                 aria-label={`Remove ${p.name} from ${selected.name}`}
                                 className="text-gray-400 hover:text-kvm-red"
                               >

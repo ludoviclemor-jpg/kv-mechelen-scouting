@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { User, Banknote } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { User, Banknote, FileText } from "lucide-react";
+import type { ScoutingStatus } from "@/lib/players-data";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
 import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { StatusSelect } from "@/components/ui/StatusBadge";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
+import { NextActionButton } from "@/components/players/NextActionButton";
 import { useAppStore, useEffectiveStatus } from "@/lib/app-store";
 
 function unk(value: string | number | null): string {
@@ -26,7 +28,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function FieldGroup({ icon: Icon, title, children }: { icon: typeof User; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-sm bg-gray-50 p-3">
+    <div className="rounded-md bg-gray-50 p-3">
       <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
         <Icon size={12} aria-hidden="true" />
         {title}
@@ -39,9 +41,24 @@ function FieldGroup({ icon: Icon, title, children }: { icon: typeof User; title:
 /** "Club → opens club/players view", "Nationality → filters relevant players" (item 20) — same convention GlobalSearch already uses. */
 const linkClass = "hover:text-kvm-red hover:underline";
 
-export function PlayerHeader({ player, competitionName }: { player: Player; competitionName?: string | null }) {
+export function PlayerHeader({
+  player,
+  competitionName,
+  onNewReport,
+}: {
+  player: Player;
+  competitionName?: string | null;
+  onNewReport?: () => void;
+}) {
   const { setPlayerStatus } = useAppStore();
   const status = useEffectiveStatus(player.id, player.status);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  async function handleStatusChange(next: ScoutingStatus) {
+    setStatusError(null);
+    const result = await setPlayerStatus(player.id, next);
+    if (!result.ok) setStatusError(result.error ?? "Failed to save status — try again.");
+  }
   // Official SCOUTASTIC competition name when it's been resolved; `league`
   // (the competition's country, see docs/COMPETITIONS.md) is only a
   // fallback for the subtitle line while that lookup is still in flight.
@@ -49,7 +66,7 @@ export function PlayerHeader({ player, competitionName }: { player: Player; comp
   const positions = [player.position, ...(player.secondaryPositions ?? [])].filter((p): p is NonNullable<typeof p> => p !== null);
 
   return (
-    <div className="border border-kvm-border bg-white p-5">
+    <div className="rounded-lg border border-kvm-border bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="flex items-center gap-4">
           <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="lg" className="ring-2 ring-kvm-border ring-offset-2" />
@@ -76,9 +93,23 @@ export function PlayerHeader({ player, competitionName }: { player: Player; comp
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <StatusSelect status={status} onChange={(s) => setPlayerStatus(player.id, s)} />
-          <ShortlistButton playerId={player.id} />
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <StatusSelect status={status} onChange={handleStatusChange} />
+            <ShortlistButton playerId={player.id} />
+            {onNewReport ? (
+              <button
+                type="button"
+                onClick={onNewReport}
+                className="flex items-center gap-1.5 rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-xs font-semibold text-kvm-ink hover:border-kvm-red"
+              >
+                <FileText size={14} aria-hidden="true" />
+                New report
+              </button>
+            ) : null}
+            <NextActionButton playerId={player.id} />
+          </div>
+          {statusError ? <p className="text-xs font-medium text-kvm-red">{statusError}</p> : null}
         </div>
       </div>
 

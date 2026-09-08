@@ -73,38 +73,98 @@ create policy "authenticated can read player_international_callups" on player_in
 -- their own and never need any; they're exactly as readable as `players`
 -- already is for whichever role queries them.
 
+-- Owner-scoped as of the 2026-09-08 redesign (see db/schema.sql's
+-- "Per-scout privacy" section for the owner_id backfill/PK change this
+-- depends on) — a scout's shortlists are now private to them, not shared
+-- with every signed-in scout.
 drop policy if exists "authenticated can read shortlists" on shortlists;
-create policy "authenticated can read shortlists" on shortlists
-  for select to authenticated using (true);
+drop policy if exists "owner can read shortlists" on shortlists;
+create policy "owner can read shortlists" on shortlists
+  for select to authenticated using (owner_id = auth.uid());
 drop policy if exists "authenticated can write shortlists" on shortlists;
-create policy "authenticated can write shortlists" on shortlists
-  for insert to authenticated with check (true);
+drop policy if exists "owner can insert shortlists" on shortlists;
+create policy "owner can insert shortlists" on shortlists
+  for insert to authenticated with check (owner_id = auth.uid());
 drop policy if exists "authenticated can update shortlists" on shortlists;
-create policy "authenticated can update shortlists" on shortlists
-  for update to authenticated using (true) with check (true);
+drop policy if exists "owner can update shortlists" on shortlists;
+create policy "owner can update shortlists" on shortlists
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 drop policy if exists "authenticated can delete shortlists" on shortlists;
-create policy "authenticated can delete shortlists" on shortlists
-  for delete to authenticated using (true);
+drop policy if exists "owner can delete shortlists" on shortlists;
+create policy "owner can delete shortlists" on shortlists
+  for delete to authenticated using (owner_id = auth.uid());
 
+-- shortlist_players has no owner_id of its own — ownership is transitive
+-- through its parent shortlist.
 drop policy if exists "authenticated can read shortlist_players" on shortlist_players;
-create policy "authenticated can read shortlist_players" on shortlist_players
-  for select to authenticated using (true);
+drop policy if exists "owner can read shortlist_players" on shortlist_players;
+create policy "owner can read shortlist_players" on shortlist_players
+  for select to authenticated using (exists (select 1 from shortlists s where s.id = shortlist_players.shortlist_id and s.owner_id = auth.uid()));
 drop policy if exists "authenticated can write shortlist_players" on shortlist_players;
-create policy "authenticated can write shortlist_players" on shortlist_players
-  for insert to authenticated with check (true);
+drop policy if exists "owner can insert shortlist_players" on shortlist_players;
+create policy "owner can insert shortlist_players" on shortlist_players
+  for insert to authenticated with check (exists (select 1 from shortlists s where s.id = shortlist_players.shortlist_id and s.owner_id = auth.uid()));
 drop policy if exists "authenticated can delete shortlist_players" on shortlist_players;
-create policy "authenticated can delete shortlist_players" on shortlist_players
-  for delete to authenticated using (true);
+drop policy if exists "owner can delete shortlist_players" on shortlist_players;
+create policy "owner can delete shortlist_players" on shortlist_players
+  for delete to authenticated using (exists (select 1 from shortlists s where s.id = shortlist_players.shortlist_id and s.owner_id = auth.uid()));
 
 drop policy if exists "authenticated can read player_scouting_state" on player_scouting_state;
-create policy "authenticated can read player_scouting_state" on player_scouting_state
-  for select to authenticated using (true);
+drop policy if exists "owner can read player_scouting_state" on player_scouting_state;
+create policy "owner can read player_scouting_state" on player_scouting_state
+  for select to authenticated using (owner_id = auth.uid());
 drop policy if exists "authenticated can write player_scouting_state" on player_scouting_state;
-create policy "authenticated can write player_scouting_state" on player_scouting_state
-  for insert to authenticated with check (true);
+drop policy if exists "owner can insert player_scouting_state" on player_scouting_state;
+create policy "owner can insert player_scouting_state" on player_scouting_state
+  for insert to authenticated with check (owner_id = auth.uid());
 drop policy if exists "authenticated can update player_scouting_state" on player_scouting_state;
-create policy "authenticated can update player_scouting_state" on player_scouting_state
-  for update to authenticated using (true) with check (true);
+drop policy if exists "owner can update player_scouting_state" on player_scouting_state;
+create policy "owner can update player_scouting_state" on player_scouting_state
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+-- Match reports, saved searches, next actions (2026-09-08 redesign) —
+-- owner-scoped from creation, same four-policy shape as shortlists above.
+alter table match_reports enable row level security;
+drop policy if exists "owner can read match_reports" on match_reports;
+create policy "owner can read match_reports" on match_reports
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert match_reports" on match_reports;
+create policy "owner can insert match_reports" on match_reports
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can update match_reports" on match_reports;
+create policy "owner can update match_reports" on match_reports
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "owner can delete match_reports" on match_reports;
+create policy "owner can delete match_reports" on match_reports
+  for delete to authenticated using (owner_id = auth.uid());
+
+alter table saved_searches enable row level security;
+drop policy if exists "owner can read saved_searches" on saved_searches;
+create policy "owner can read saved_searches" on saved_searches
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert saved_searches" on saved_searches;
+create policy "owner can insert saved_searches" on saved_searches
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can update saved_searches" on saved_searches;
+create policy "owner can update saved_searches" on saved_searches
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "owner can delete saved_searches" on saved_searches;
+create policy "owner can delete saved_searches" on saved_searches
+  for delete to authenticated using (owner_id = auth.uid());
+
+alter table action_items enable row level security;
+drop policy if exists "owner can read action_items" on action_items;
+create policy "owner can read action_items" on action_items
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert action_items" on action_items;
+create policy "owner can insert action_items" on action_items
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can update action_items" on action_items;
+create policy "owner can update action_items" on action_items
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "owner can delete action_items" on action_items;
+create policy "owner can delete action_items" on action_items
+  for delete to authenticated using (owner_id = auth.uid());
 
 alter table favorite_competitions enable row level security;
 drop policy if exists "authenticated can read favorite_competitions" on favorite_competitions;

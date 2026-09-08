@@ -13,7 +13,16 @@ export function ShortlistButton({ playerId }: { playerId: string }) {
   const { shortlists, addPlayerToShortlist, removePlayerFromShortlist } =
     useAppStore();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  async function handleToggle(shortlistId: string, included: boolean) {
+    setError(null);
+    const result = included
+      ? await removePlayerFromShortlist(shortlistId, playerId)
+      : await addPlayerToShortlist(shortlistId, playerId);
+    if (!result.ok) setError(result.error ?? "Failed to update shortlist — try again.");
+  }
 
   const memberOf = shortlists.filter((s) => s.playerIds.includes(playerId));
   const isShortlisted = memberOf.length > 0;
@@ -37,7 +46,7 @@ export function ShortlistButton({ playerId }: { playerId: string }) {
         aria-haspopup="true"
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+          "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors",
           isShortlisted
             ? "border-kvm-red bg-kvm-red text-white"
             : "border-kvm-border bg-white text-kvm-ink hover:border-kvm-red"
@@ -49,7 +58,7 @@ export function ShortlistButton({ playerId }: { playerId: string }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-sm border border-kvm-border bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-kvm-border bg-white py-1 shadow-lg">
           {shortlists.length === 0 ? (
             <p className="px-3 py-2 text-xs text-gray-400">
               No shortlists yet — create one from the Shortlists page.
@@ -61,11 +70,7 @@ export function ShortlistButton({ playerId }: { playerId: string }) {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() =>
-                    included
-                      ? removePlayerFromShortlist(s.id, playerId)
-                      : addPlayerToShortlist(s.id, playerId)
-                  }
+                  onClick={() => handleToggle(s.id, included)}
                   className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-kvm-ink hover:bg-gray-50"
                 >
                   <span>{s.name}</span>
@@ -76,6 +81,7 @@ export function ShortlistButton({ playerId }: { playerId: string }) {
               );
             })
           )}
+          {error ? <p className="border-t border-kvm-border px-3 py-1.5 text-xs font-medium text-kvm-red">{error}</p> : null}
         </div>
       ) : null}
     </div>
