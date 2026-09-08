@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PlayerHeader } from "@/components/player-profile/PlayerHeader";
 import { LastMatchesTable } from "@/components/player-profile/LastMatchesTable";
 import { ScoutingNotesCard } from "@/components/player-profile/ScoutingNotesCard";
+import { MatchReportsSection } from "@/components/player-profile/MatchReportsSection";
 import { StatsOverview, isGoalkeeperPlayer } from "@/components/player-profile/StatsOverview";
 import { GameTimeSection } from "@/components/player-profile/GameTimeSection";
 import { InternationalStatusSection } from "@/components/player-profile/InternationalStatusSection";
@@ -74,6 +75,7 @@ function PlayerProfileContent() {
   );
 
   const [tab, setTab] = useState<Tab>("Overview");
+  const [reportFormNonce, setReportFormNonce] = useState(0);
   const [season, setSeason] = useState("all");
   const [competitionFilter, setCompetitionFilter] = useState("all");
 
@@ -104,7 +106,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="No player selected" description="Open a player from the Players list." />
           </div>
         </div>
@@ -117,7 +119,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
             <LoadingState label="Loading player…" />
           </div>
         </div>
@@ -130,7 +132,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
             <ErrorState message={error.message} />
           </div>
         </div>
@@ -143,7 +145,7 @@ function PlayerProfileContent() {
       <>
         <PageHeader title="Player profile" />
         <div className="p-8">
-          <div className="border border-kvm-border bg-white shadow-sm">
+          <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
             <EmptyState icon={Users} title="Player not found" description="This player may have been deactivated by the last sync." />
           </div>
         </div>
@@ -157,9 +159,16 @@ function PlayerProfileContent() {
     <>
       <PageHeader title={player.name} description="Player profile" />
       <div className="space-y-5 p-8">
-        <PlayerHeader player={player} competitionName={competition?.name ?? null} />
+        <PlayerHeader
+          player={player}
+          competitionName={competition?.name ?? null}
+          onNewReport={() => {
+            setTab("Scouting");
+            setReportFormNonce((n) => n + 1);
+          }}
+        />
 
-        <div className="border border-kvm-border bg-white shadow-sm">
+        <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
           <div role="tablist" aria-label="Player profile sections" className="flex border-b border-kvm-border">
             {TABS.map((t) => (
               <button
@@ -251,7 +260,12 @@ function PlayerProfileContent() {
               </section>
             ) : null}
 
-            {tab === "Scouting" ? <ScoutingNotesCard player={player} /> : null}
+            {tab === "Scouting" ? (
+              <div className="space-y-5">
+                <ScoutingNotesCard player={player} />
+                <MatchReportsSection key={reportFormNonce} playerId={player.id} autoOpenForm={reportFormNonce > 0} />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
