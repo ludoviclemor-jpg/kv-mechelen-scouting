@@ -69,7 +69,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-sm border border-kvm-border px-3 py-2 text-sm text-kvm-ink focus-visible:outline-none"
+                  className="w-full rounded-md border border-kvm-border px-3 py-2 text-sm text-kvm-ink focus-visible:outline-none"
                 />
               </div>
               <div>
@@ -83,7 +83,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-sm border border-kvm-border px-3 py-2 text-sm text-kvm-ink focus-visible:outline-none"
+                  className="w-full rounded-md border border-kvm-border px-3 py-2 text-sm text-kvm-ink focus-visible:outline-none"
                 />
               </div>
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-sm bg-kvm-red px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-md bg-kvm-red px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Signing in…" : "Sign in"}
               </button>

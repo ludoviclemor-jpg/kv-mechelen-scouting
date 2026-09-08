@@ -45,7 +45,7 @@ export function ShortlistCard({
                 if (e.key === "Enter") commitRename();
                 if (e.key === "Escape") setEditing(false);
               }}
-              className="w-full rounded-sm border border-kvm-border px-1.5 py-0.5 text-sm"
+              className="w-full rounded-md border border-kvm-border px-1.5 py-0.5 text-sm"
               aria-label="Shortlist name"
             />
             <button type="button" onClick={commitRename} aria-label="Confirm rename">

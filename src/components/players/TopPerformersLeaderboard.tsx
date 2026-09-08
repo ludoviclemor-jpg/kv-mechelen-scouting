@@ -23,7 +23,7 @@ function RankBadge({ rank }: { rank: number }) {
   return (
     <span
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-sm font-bold tabular-nums",
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm font-bold tabular-nums",
         RANK_BADGE_STYLES[rank - 1] ?? "bg-gray-100 text-gray-400"
       )}
     >
@@ -59,7 +59,7 @@ export function TopPerformersLeaderboard({ entries }: { entries: TopPerformerEnt
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-bold text-kvm-ink">{player.name}</span>
                   {entry.rating ? (
-                    <span className="shrink-0 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
+                    <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
                       via {entry.rating.sourceLabel}
                     </span>
                   ) : null}

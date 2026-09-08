@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -16,10 +16,12 @@ import {
   FileClock,
   HeartPulse,
   LineChart,
+  Flag,
   Settings,
   LogOut,
   Menu,
   X,
+  ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ClubCrest } from "./ClubCrest";
@@ -27,24 +29,72 @@ import { GlobalSearch } from "./GlobalSearch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
-const NAV_ITEMS = [
+interface NavLeaf {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface NavGroup {
+  label: string;
+  icon: LucideIcon;
+  items: NavLeaf[];
+}
+
+type NavEntry = NavLeaf | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "items" in entry;
+}
+
+/**
+ * Simplified from a flat 12-item bar (docs redesign brief, 2026-09-07) into
+ * four top-level entries — Dashboard stays a direct link, the rest group
+ * every existing destination under "Discover" / "Monitor" / "My Scouting"
+ * so the bar reads at a glance and fits comfortably at laptop widths. Every
+ * previous URL is unchanged — this only regroups navigation, nothing moved.
+ */
+const NAV_ENTRIES: NavEntry[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/players", label: "Players", icon: Users },
-  { href: "/competitions", label: "Competitions", icon: Trophy },
-  { href: "/debutants", label: "African Debutants", icon: Globe2 },
-  { href: "/top-performers", label: "Top Performers", icon: TrendingUp },
-  { href: "/loan-watch", label: "Loan Watch", icon: ArrowRightLeft },
-  { href: "/contract-watch", label: "Contract Watch", icon: FileClock },
-  { href: "/injuries", label: "Injury Tracker", icon: HeartPulse },
-  { href: "/market-movers", label: "Market Movers", icon: LineChart },
-  { href: "/shortlists", label: "Shortlists", icon: ListChecks },
-  { href: "/reports", label: "Reports", icon: FileText },
+  {
+    label: "Discover",
+    icon: Compass,
+    items: [
+      { href: "/explore", label: "Explore", icon: Compass },
+      { href: "/players", label: "Players", icon: Users },
+      { href: "/competitions", label: "Competitions", icon: Trophy },
+    ],
+  },
+  {
+    label: "Monitor",
+    icon: LineChart,
+    items: [
+      { href: "/debutants", label: "African Debutants", icon: Globe2 },
+      { href: "/call-ups", label: "First Call-Ups", icon: Flag },
+      { href: "/top-performers", label: "Top Performers", icon: TrendingUp },
+      { href: "/loan-watch", label: "Loan Watch", icon: ArrowRightLeft },
+      { href: "/contract-watch", label: "Contract Watch", icon: FileClock },
+      { href: "/injuries", label: "Injury Tracker", icon: HeartPulse },
+      { href: "/market-movers", label: "Market Movers", icon: LineChart },
+    ],
+  },
+  {
+    label: "My Scouting",
+    icon: ListChecks,
+    items: [
+      { href: "/shortlists", label: "Shortlists", icon: ListChecks },
+      { href: "/reports", label: "Reports", icon: FileText },
+    ],
+  },
 ];
 
-function isActive(pathname: string, href: string) {
+function isActiveHref(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function groupIsActive(pathname: string, group: NavGroup) {
+  return group.items.some((item) => isActiveHref(pathname, item.href));
 }
 
 function NavLink({
@@ -54,14 +104,7 @@ function NavLink({
   active,
   onClick,
   compact = false,
-}: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  onClick?: () => void;
-  compact?: boolean;
-}) {
+}: NavLeaf & { active: boolean; onClick?: () => void; compact?: boolean }) {
   return (
     <Link
       href={href}
@@ -69,7 +112,7 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center whitespace-nowrap border-b-2 font-medium transition-colors",
-        compact ? "gap-2 rounded-sm px-2.5 py-2 text-sm" : "gap-1.5 px-2.5 py-1.5 text-[13px]",
+        compact ? "gap-2 rounded-md px-2.5 py-2 text-sm" : "gap-1.5 px-2.5 py-1.5 text-[13px]",
         active
           ? "border-kvm-yellow text-kvm-yellow"
           : "border-transparent text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
@@ -81,13 +124,87 @@ function NavLink({
   );
 }
 
+/** Desktop group trigger + dropdown menu. Keyboard: Enter/Space toggles, Escape closes and returns focus to the trigger, click-outside closes. */
+function NavGroupDropdown({ group, active }: { group: NavGroup; active: boolean }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const Icon = group.icon;
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+          active || open
+            ? "border-kvm-yellow text-kvm-yellow"
+            : "border-transparent text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
+        )}
+      >
+        <Icon size={15} strokeWidth={2} aria-hidden="true" />
+        {group.label}
+        <ChevronDown size={13} aria-hidden="true" className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open ? (
+        <div role="menu" aria-label={group.label} className="absolute left-0 z-50 mt-1 w-56 rounded-md border border-kvm-border-dark bg-kvm-charcoal py-1.5 shadow-xl">
+          {group.items.map((item) => {
+            const itemActive = isActiveHref(pathname, item.href);
+            const ItemIcon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                aria-current={itemActive ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium",
+                  itemActive ? "bg-kvm-charcoal-light text-kvm-yellow" : "text-gray-200 hover:bg-kvm-charcoal-light hover:text-white"
+                )}
+              >
+                <ItemIcon size={15} strokeWidth={2} aria-hidden="true" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
- * Full nav + search only render at `xl` — eight labeled items plus a
- * search box plus account controls genuinely doesn't fit a `lg` (1024px)
- * viewport without cramping or wrapping. Below `xl`, everything (nav,
- * search, settings, account) lives in the slide-out drawer instead —
- * simpler than trying to partially collapse the bar at an intermediate
- * width.
+ * Full nav + search render at `lg` (1024px) — down from the previous `xl`
+ * (1280px) threshold, now that the bar only holds four labeled entries
+ * instead of eight, comfortably avoiding horizontal overflow on laptop
+ * widths. Below `lg`, nav/search/settings/account all live in the
+ * slide-out drawer.
  */
 export function Header() {
   const pathname = usePathname();
@@ -112,14 +229,18 @@ export function Header() {
           </div>
         </Link>
 
-        <nav aria-label="Primary" className="hidden flex-1 items-center gap-0.5 xl:flex">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.href} {...item} active={isActive(pathname, item.href)} />
-          ))}
+        <nav aria-label="Primary" className="hidden flex-1 items-center gap-1 lg:flex">
+          {NAV_ENTRIES.map((entry) =>
+            isGroup(entry) ? (
+              <NavGroupDropdown key={entry.label} group={entry} active={groupIsActive(pathname, entry)} />
+            ) : (
+              <NavLink key={entry.href} {...entry} active={isActiveHref(pathname, entry.href)} />
+            )
+          )}
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="hidden w-64 xl:block">
+          <div className="hidden w-64 lg:block">
             <GlobalSearch />
           </div>
 
@@ -128,8 +249,8 @@ export function Header() {
             aria-label="Settings"
             title="Settings"
             className={cn(
-              "hidden rounded-sm p-2 xl:block",
-              isActive(pathname, "/settings")
+              "hidden rounded-md p-2 lg:block",
+              isActiveHref(pathname, "/settings")
                 ? "bg-kvm-yellow text-kvm-ink"
                 : "text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
             )}
@@ -137,7 +258,7 @@ export function Header() {
             <Settings size={17} aria-hidden="true" />
           </Link>
 
-          <div className="hidden items-center gap-2 border-l border-kvm-border-dark pl-2 xl:flex">
+          <div className="hidden items-center gap-2 border-l border-kvm-border-dark pl-2 lg:flex">
             <span className="max-w-[10rem] truncate text-xs text-gray-300" title={user?.email ?? undefined}>
               {user?.email ?? "—"}
             </span>
@@ -146,7 +267,7 @@ export function Header() {
               onClick={handleSignOut}
               aria-label="Sign out"
               title="Sign out"
-              className="rounded-sm p-2 text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
+              className="rounded-md p-2 text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
             >
               <LogOut size={16} aria-hidden="true" />
             </button>
@@ -156,7 +277,7 @@ export function Header() {
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
-            className="rounded-sm p-2 text-gray-300 hover:bg-kvm-charcoal-light hover:text-white xl:hidden"
+            className="rounded-md p-2 text-gray-300 hover:bg-kvm-charcoal-light hover:text-white lg:hidden"
           >
             <Menu size={20} aria-hidden="true" />
           </button>
@@ -164,7 +285,7 @@ export function Header() {
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 xl:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close menu"
@@ -188,21 +309,38 @@ export function Header() {
               <GlobalSearch />
             </div>
 
-            <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-              {NAV_ITEMS.map((item) => (
-                <NavLink
-                  key={item.href}
-                  {...item}
-                  active={isActive(pathname, item.href)}
-                  onClick={() => setMobileOpen(false)}
-                  compact
-                />
-              ))}
+            <nav aria-label="Primary" className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+              {NAV_ENTRIES.map((entry) =>
+                isGroup(entry) ? (
+                  <div key={entry.label}>
+                    <div className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">{entry.label}</div>
+                    <div className="flex flex-col gap-1">
+                      {entry.items.map((item) => (
+                        <NavLink
+                          key={item.href}
+                          {...item}
+                          active={isActiveHref(pathname, item.href)}
+                          onClick={() => setMobileOpen(false)}
+                          compact
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <NavLink
+                    key={entry.href}
+                    {...entry}
+                    active={isActiveHref(pathname, entry.href)}
+                    onClick={() => setMobileOpen(false)}
+                    compact
+                  />
+                )
+              )}
               <NavLink
                 href="/settings"
                 label="Settings"
                 icon={Settings}
-                active={isActive(pathname, "/settings")}
+                active={isActiveHref(pathname, "/settings")}
                 onClick={() => setMobileOpen(false)}
                 compact
               />
@@ -215,7 +353,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-sm font-medium text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-gray-300 hover:bg-kvm-charcoal-light hover:text-white"
               >
                 <LogOut size={16} aria-hidden="true" />
                 Sign out

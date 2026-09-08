@@ -80,7 +80,7 @@ export function InjuryTrackerTable({ injured }: { injured: InjuredPlayer[] }) {
                 {to ? (
                   formatDate(to)
                 ) : (
-                  <span className="inline-flex items-center rounded-sm bg-red-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-kvm-red">
+                  <span className="inline-flex items-center rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-kvm-red">
                     Ongoing
                   </span>
                 )}

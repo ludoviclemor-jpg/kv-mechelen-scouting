@@ -6,7 +6,7 @@ import type { PerformanceSeasonRow } from "@/lib/players-data";
 
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-sm bg-gray-50 px-2.5 py-1.5">
+    <div className="rounded-md bg-gray-50 px-2.5 py-1.5">
       <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
       <div className="mt-0.5 text-sm font-bold text-kvm-ink tabular-nums">{value}</div>
     </div>

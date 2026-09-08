@@ -15,7 +15,7 @@ function ConnectionBadge({ state, label }: { state: ConnectionState; label?: str
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold",
         state === "connected" && "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-300",
         state === "warning" && "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300",
         state === "not_connected" && "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-300"
@@ -43,9 +43,9 @@ function IntegrationCard({
   badgeLabel?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border border-kvm-border bg-white p-5">
+    <div className="flex items-start justify-between gap-4 rounded-lg border border-kvm-border bg-white p-5">
       <div className="flex gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
           <Icon size={18} aria-hidden="true" />
         </div>
         <div>
@@ -62,7 +62,7 @@ function IntegrationCard({
           type="button"
           disabled
           title="Configured via the SCOUTASTIC_API_KEY GitHub Actions secret — no credentials are stored in the frontend"
-          className="rounded-sm border border-kvm-border px-2.5 py-1 text-xs font-medium text-gray-400 disabled:cursor-not-allowed"
+          className="rounded-md border border-kvm-border px-2.5 py-1 text-xs font-medium text-gray-400 disabled:cursor-not-allowed"
         >
           Configure
         </button>
@@ -117,9 +117,9 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Account
           </h2>
-          <div className="flex items-center justify-between gap-4 border border-kvm-border bg-white p-5">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-kvm-border bg-white p-5">
             <div className="flex gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
                 <UserCircle size={18} aria-hidden="true" />
               </div>
               <div>
@@ -141,10 +141,10 @@ export default function SettingsPage() {
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
             Data Synchronization
           </h2>
-          <div className="border border-kvm-border bg-white p-5">
+          <div className="rounded-lg border border-kvm-border bg-white p-5">
             <div className="flex items-center justify-between gap-4">
               <div className="flex gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-500">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
                   <RefreshCw size={18} aria-hidden="true" />
                 </div>
                 <div>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                     Actions (the API key lives only as a repository secret, never in
                     this frontend). Trigger it manually from the Actions tab
                     (&quot;Sync SCOUTASTIC&quot; → Run workflow), or locally with{" "}
-                    <code className="rounded-sm bg-gray-100 px-1 py-0.5 text-[11px]">
+                    <code className="rounded-md bg-gray-100 px-1 py-0.5 text-[11px]">
                       SCOUTASTIC_API_KEY=… node scripts/sync-scoutastic.mjs
                     </code>
                     .
@@ -236,7 +236,7 @@ export default function SettingsPage() {
             System Status
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="border border-kvm-border bg-white p-4">
+            <div className="rounded-lg border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Frontend
               </div>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                 <CircleCheck size={15} /> Live
               </div>
             </div>
-            <div className="border border-kvm-border bg-white p-4">
+            <div className="rounded-lg border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Sync workflows
               </div>
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                 <CircleCheck size={15} /> Configured (GitHub Actions)
               </div>
             </div>
-            <div className="border border-kvm-border bg-white p-4">
+            <div className="rounded-lg border border-kvm-border bg-white p-4">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Shortlists &amp; notes
               </div>

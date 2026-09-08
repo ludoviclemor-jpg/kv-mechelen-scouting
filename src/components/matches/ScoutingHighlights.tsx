@@ -65,7 +65,7 @@ export function ScoutingHighlights({
   if (highlights.length === 0) return null;
 
   return (
-    <div className="border border-kvm-border bg-white">
+    <div className="rounded-lg border border-kvm-border bg-white">
       <h3 className="border-b border-kvm-border px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
         Scouting Highlights
       </h3>

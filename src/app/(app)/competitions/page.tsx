@@ -117,15 +117,15 @@ export default function CompetitionsPage() {
 
           <div className="p-4">
             {result.error ? (
-              <div className="border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
                 <ErrorState message={result.error.message} />
               </div>
             ) : result.loading ? (
-              <div className="border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
                 <LoadingState label="Loading competitions…" />
               </div>
             ) : grouped.length === 0 ? (
-              <div className="border border-kvm-border bg-white shadow-sm">
+              <div className="rounded-lg border border-kvm-border bg-white shadow-sm">
                 <EmptyState
                   icon={Globe2}
                   title="No competitions match these filters"
@@ -135,7 +135,7 @@ export default function CompetitionsPage() {
             ) : (
               <div className="space-y-4">
                 {grouped.map(([country, competitions]) => (
-                  <section key={country} className="border border-kvm-border bg-white shadow-sm">
+                  <section key={country} className="rounded-lg border border-kvm-border bg-white shadow-sm">
                     <h2 className="border-b border-kvm-border bg-gray-50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
                       {country}
                     </h2>
@@ -147,7 +147,7 @@ export default function CompetitionsPage() {
                             className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-gray-50"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gray-100 text-gray-400">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-400">
                                 <Trophy size={15} aria-hidden="true" />
                               </div>
                               <div className="min-w-0">
@@ -159,7 +159,7 @@ export default function CompetitionsPage() {
                               </div>
                             </div>
                             {!c.isActive ? (
-                              <span className="shrink-0 rounded-sm bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+                              <span className="shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
                                 Inactive
                               </span>
                             ) : null}

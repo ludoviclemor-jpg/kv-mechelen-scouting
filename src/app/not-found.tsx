@@ -10,7 +10,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/"
-        className="mt-2 rounded-sm bg-kvm-red px-4 py-2 text-sm font-semibold text-white"
+        className="mt-2 rounded-md bg-kvm-red px-4 py-2 text-sm font-semibold text-white"
       >
         Back to Dashboard
       </Link>

@@ -34,7 +34,7 @@ export function Pagination({
           disabled={page <= 1}
           aria-label="Previous page"
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-sm border border-kvm-border",
+            "flex h-7 w-7 items-center justify-center rounded-md border border-kvm-border",
             page <= 1 ? "cursor-not-allowed text-gray-300" : "text-kvm-ink hover:bg-gray-50"
           )}
         >
@@ -49,7 +49,7 @@ export function Pagination({
           disabled={page >= pageCount}
           aria-label="Next page"
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-sm border border-kvm-border",
+            "flex h-7 w-7 items-center justify-center rounded-md border border-kvm-border",
             page >= pageCount ? "cursor-not-allowed text-gray-300" : "text-kvm-ink hover:bg-gray-50"
           )}
         >

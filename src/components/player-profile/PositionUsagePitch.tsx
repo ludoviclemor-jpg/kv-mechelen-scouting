@@ -65,7 +65,7 @@ export function PositionUsagePitch({
   return (
     <div className="space-y-3">
       <div>
-        <span className="inline-flex items-center rounded-sm bg-kvm-red px-2 py-1 text-sm font-bold text-white">
+        <span className="inline-flex items-center rounded-md bg-kvm-red px-2 py-1 text-sm font-bold text-white">
           {primary.fullLabel}
         </span>
         <span className="ml-2 text-xs text-gray-400">primary position — {Math.round(primary.pct)}% of appearances</span>
@@ -77,8 +77,8 @@ export function PositionUsagePitch({
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="relative mx-auto aspect-[3/4] w-full max-w-[180px] shrink-0 overflow-hidden rounded-sm bg-kvm-pitch sm:mx-0">
-          <div className="pointer-events-none absolute inset-2 rounded-sm border border-white/25" />
+        <div className="relative mx-auto aspect-[3/4] w-full max-w-[180px] shrink-0 overflow-hidden rounded-md bg-kvm-pitch sm:mx-0">
+          <div className="pointer-events-none absolute inset-2 rounded-md border border-white/25" />
           <div className="pointer-events-none absolute left-2 right-2 top-1/2 border-t border-white/25" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
 

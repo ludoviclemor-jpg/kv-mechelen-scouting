@@ -15,7 +15,7 @@ export function StatusBadge({ status }: { status: ScoutingStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-semibold whitespace-nowrap",
+        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap",
         STATUS_STYLES[status]
       )}
     >
@@ -37,7 +37,7 @@ export function StatusSelect({
       <select
         value={status}
         onChange={(e) => onChange(e.target.value as ScoutingStatus)}
-        className="rounded-sm border border-kvm-border bg-white px-2.5 py-1.5 text-sm font-medium text-kvm-ink focus-visible:outline-none"
+        className="rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-sm font-medium text-kvm-ink focus-visible:outline-none"
       >
         {Object.entries(STATUS_LABELS).map(([value, label]) => (
           <option key={value} value={value}>

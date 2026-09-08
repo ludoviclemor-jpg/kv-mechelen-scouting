@@ -15,7 +15,7 @@ export function ContractBadge({ expiryIso }: { expiryIso: string | null }) {
   return (
     <span
       title={contract.label}
-      className={cn("inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-semibold tabular-nums", TIER_STYLES[contract.tier])}
+      className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums", TIER_STYLES[contract.tier])}
     >
       {contract.year ?? "—"}
     </span>

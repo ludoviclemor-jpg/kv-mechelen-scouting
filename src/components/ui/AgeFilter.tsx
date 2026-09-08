@@ -64,7 +64,7 @@ function AgeRangeControls({ range, onChange }: { range: AgeRange; onChange: (ran
               type="button"
               onClick={() => onChange(preset.range)}
               className={cn(
-                "rounded-sm border px-2 py-1 text-xs font-medium",
+                "rounded-md border px-2 py-1 text-xs font-medium",
                 active ? "border-kvm-red bg-kvm-red text-white" : "border-kvm-border text-gray-600 hover:bg-gray-50"
               )}
             >
@@ -76,7 +76,7 @@ function AgeRangeControls({ range, onChange }: { range: AgeRange; onChange: (ran
           type="button"
           onClick={() => onChange({ min: null, max: null })}
           className={cn(
-            "rounded-sm border px-2 py-1 text-xs font-medium",
+            "rounded-md border px-2 py-1 text-xs font-medium",
             !isActive ? "border-kvm-red bg-kvm-red text-white" : "border-kvm-border text-gray-600 hover:bg-gray-50"
           )}
         >
@@ -132,7 +132,7 @@ function AgeRangeControls({ range, onChange }: { range: AgeRange; onChange: (ran
             value={slider.min}
             onChange={(e) => setMin(Number(e.target.value))}
             aria-label="Minimum age (number)"
-            className="w-14 rounded-sm border border-kvm-border bg-white px-1.5 py-0.5 text-xs text-kvm-ink focus-visible:outline-none"
+            className="w-14 rounded-md border border-kvm-border bg-white px-1.5 py-0.5 text-xs text-kvm-ink focus-visible:outline-none"
           />
         </label>
         <span className="text-gray-300">–</span>
@@ -145,7 +145,7 @@ function AgeRangeControls({ range, onChange }: { range: AgeRange; onChange: (ran
             value={slider.max}
             onChange={(e) => setMax(Number(e.target.value))}
             aria-label="Maximum age (number)"
-            className="w-14 rounded-sm border border-kvm-border bg-white px-1.5 py-0.5 text-xs text-kvm-ink focus-visible:outline-none"
+            className="w-14 rounded-md border border-kvm-border bg-white px-1.5 py-0.5 text-xs text-kvm-ink focus-visible:outline-none"
           />
         </label>
         {isActive ? (
@@ -185,7 +185,7 @@ export function AgeFilter({ range, onChange }: { range: AgeRange; onChange: (ran
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex items-center gap-1.5 rounded-sm border border-kvm-border bg-white px-2.5 py-1.5 text-sm",
+          "flex items-center gap-1.5 rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-sm",
           isActive ? "font-medium text-kvm-ink" : "text-gray-600"
         )}
       >
@@ -194,7 +194,7 @@ export function AgeFilter({ range, onChange }: { range: AgeRange; onChange: (ran
       </button>
 
       {open ? (
-        <div className="absolute left-0 z-30 mt-1 w-72 rounded-sm border border-kvm-border bg-white p-4 shadow-lg">
+        <div className="absolute left-0 z-30 mt-1 w-72 rounded-md border border-kvm-border bg-white p-4 shadow-lg">
           <AgeRangeControls range={range} onChange={onChange} />
         </div>
       ) : null}

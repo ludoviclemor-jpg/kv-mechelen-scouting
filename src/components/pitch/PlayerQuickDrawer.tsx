@@ -98,7 +98,7 @@ export function PlayerQuickDrawer({
               <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">This match&apos;s rating</span>
               <span
                 className={cn(
-                  "rounded-sm px-2 py-0.5 text-sm font-bold",
+                  "rounded-md px-2 py-0.5 text-sm font-bold",
                   matchRating !== null ? "bg-kvm-yellow text-kvm-ink" : "bg-gray-100 text-gray-400"
                 )}
               >

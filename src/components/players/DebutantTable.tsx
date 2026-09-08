@@ -79,7 +79,7 @@ export function DebutantTable({ players, debutMinutes = {} }: { players: Player[
                 </td>
                 <td>
                   {isU23 ? (
-                    <span className="inline-flex items-center rounded-sm bg-kvm-yellow px-1.5 py-0.5 text-[10px] font-bold text-kvm-ink">
+                    <span className="inline-flex items-center rounded-md bg-kvm-yellow px-1.5 py-0.5 text-[10px] font-bold text-kvm-ink">
                       U23
                     </span>
                   ) : null}

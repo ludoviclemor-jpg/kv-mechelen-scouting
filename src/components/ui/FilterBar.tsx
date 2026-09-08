@@ -23,7 +23,7 @@ export function FilterBar({ children, activeCount = 0 }: { children: ReactNode; 
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-1.5 rounded-sm border border-kvm-border px-2.5 py-1.5 text-sm font-medium text-kvm-ink"
+          className="flex items-center gap-1.5 rounded-md border border-kvm-border px-2.5 py-1.5 text-sm font-medium text-kvm-ink"
         >
           <SlidersHorizontal size={14} aria-hidden="true" />
           Filters{activeCount > 0 ? ` (${activeCount})` : ""}
@@ -53,7 +53,7 @@ export function FilterBar({ children, activeCount = 0 }: { children: ReactNode; 
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="w-full rounded-sm bg-kvm-red py-2 text-sm font-semibold text-white"
+                className="w-full rounded-md bg-kvm-red py-2 text-sm font-semibold text-white"
               >
                 Show results
               </button>
@@ -96,7 +96,7 @@ export function FilterSelect({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className={cn(
-          "rounded-sm border border-kvm-border bg-white text-sm focus-visible:outline-none",
+          "rounded-md border border-kvm-border bg-white text-sm focus-visible:outline-none",
           stacked ? "w-full px-2 py-1.5 text-xs" : "px-2 py-1",
           disabled ? "cursor-not-allowed bg-gray-50 text-gray-300" : "text-kvm-ink"
         )}
@@ -134,7 +134,7 @@ export function ActiveFilterChips({ chips, onClearAll }: { chips: ActiveFilterCh
       {chips.map((chip) => (
         <span
           key={chip.key}
-          className="inline-flex items-center gap-1 rounded-sm border border-kvm-border bg-white px-2 py-1 text-xs text-kvm-ink"
+          className="inline-flex items-center gap-1 rounded-md border border-kvm-border bg-white px-2 py-1 text-xs text-kvm-ink"
         >
           <span className="text-gray-400">{chip.label}:</span>
           {chip.value}

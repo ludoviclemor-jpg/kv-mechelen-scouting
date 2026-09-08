@@ -22,7 +22,7 @@ export function ClubCrest({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-sm bg-kvm-yellow text-kvm-ink font-black tracking-tight",
+        "flex items-center justify-center rounded-md bg-kvm-yellow text-kvm-ink font-black tracking-tight",
         className
       )}
       role="img"

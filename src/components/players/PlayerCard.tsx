@@ -31,7 +31,7 @@ export function PlayerCard({ player, ratingOverride }: { player: Player; ratingO
   const trend = ratingOverride?.trend ?? ratingTrendSeries(player.matches);
 
   return (
-    <div className="flex flex-col justify-between border border-kvm-border bg-white p-4">
+    <div className="flex flex-col justify-between rounded-lg border border-kvm-border bg-white p-4">
       <div>
         <div className="flex items-start justify-between gap-2">
           <Link
@@ -47,7 +47,7 @@ export function PlayerCard({ player, ratingOverride }: { player: Player; ratingO
             </div>
           </Link>
           {ratingOverride ? (
-            <span className="shrink-0 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
+            <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
               via {ratingOverride.sourceLabel}
             </span>
           ) : null}

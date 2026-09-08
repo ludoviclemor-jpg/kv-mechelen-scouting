@@ -24,7 +24,7 @@ export function DateNav({ date, onChange }: { date: string; onChange: (date: str
         type="button"
         onClick={() => onChange(shiftDate(date, -1))}
         aria-label="Previous day"
-        className="flex h-8 w-8 items-center justify-center rounded-sm border border-kvm-border text-kvm-ink hover:bg-gray-50"
+        className="flex h-8 w-8 items-center justify-center rounded-md border border-kvm-border text-kvm-ink hover:bg-gray-50"
       >
         <ChevronLeft size={15} />
       </button>
@@ -33,7 +33,7 @@ export function DateNav({ date, onChange }: { date: string; onChange: (date: str
         type="button"
         onClick={() => onChange(today)}
         className={cn(
-          "rounded-sm border px-3 py-1.5 text-sm font-semibold",
+          "rounded-md border px-3 py-1.5 text-sm font-semibold",
           isToday ? "border-kvm-red bg-kvm-red text-white" : "border-kvm-border text-kvm-ink hover:bg-gray-50"
         )}
       >
@@ -44,7 +44,7 @@ export function DateNav({ date, onChange }: { date: string; onChange: (date: str
         type="button"
         onClick={() => onChange(shiftDate(date, 1))}
         aria-label="Next day"
-        className="flex h-8 w-8 items-center justify-center rounded-sm border border-kvm-border text-kvm-ink hover:bg-gray-50"
+        className="flex h-8 w-8 items-center justify-center rounded-md border border-kvm-border text-kvm-ink hover:bg-gray-50"
       >
         <ChevronRight size={15} />
       </button>

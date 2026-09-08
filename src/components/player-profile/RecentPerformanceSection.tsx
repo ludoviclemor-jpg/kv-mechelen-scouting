@@ -32,7 +32,7 @@ function SportmonksRatingBadge({ rating }: { rating: number }) {
   return (
     <span
       title={TIER_LABELS[tier]}
-      className={cn("inline-flex min-w-[2.75rem] items-center justify-center rounded-sm px-2 py-1 text-sm font-bold tabular-nums", TIER_STYLES[tier])}
+      className={cn("inline-flex min-w-[2.75rem] items-center justify-center rounded-md px-2 py-1 text-sm font-bold tabular-nums", TIER_STYLES[tier])}
     >
       {rating.toFixed(1)}
     </span>
@@ -41,7 +41,7 @@ function SportmonksRatingBadge({ rating }: { rating: number }) {
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-kvm-border bg-white px-4 py-3">
+    <div className="rounded-lg border border-kvm-border bg-white px-4 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
       <div className="mt-1 text-lg font-bold text-kvm-ink">{value}</div>
     </div>

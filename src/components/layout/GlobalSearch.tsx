@@ -62,11 +62,11 @@ export function GlobalSearch() {
         onFocus={() => setOpen(true)}
         placeholder="Search player, club, competition, nationality…"
         aria-label="Global search"
-        className="w-full rounded-sm border border-kvm-border bg-white py-1.5 pl-8 pr-3 text-sm text-kvm-ink placeholder:text-gray-400 focus-visible:outline-none"
+        className="w-full rounded-md border border-kvm-border bg-white py-1.5 pl-8 pr-3 text-sm text-kvm-ink placeholder:text-gray-400 focus-visible:outline-none"
       />
 
       {open && query.trim() ? (
-        <div className="absolute left-0 right-0 z-30 mt-1 max-h-96 overflow-y-auto rounded-sm border border-kvm-border bg-white shadow-lg">
+        <div className="absolute left-0 right-0 z-30 mt-1 max-h-96 overflow-y-auto rounded-md border border-kvm-border bg-white shadow-lg">
           {loading && !results ? (
             <p className="px-3 py-3 text-xs text-gray-400">Searching…</p>
           ) : !hasResults ? (

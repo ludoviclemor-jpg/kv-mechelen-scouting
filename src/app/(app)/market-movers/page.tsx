@@ -73,7 +73,7 @@ export default function MarketMoversPage() {
       <div className="flex min-h-0 flex-1">
         <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
           <FilterSidebarSection label="Direction">
-            <div className="flex rounded-sm border border-kvm-border">
+            <div className="flex rounded-md border border-kvm-border">
               <button
                 type="button"
                 onClick={() => setDirection("risers")}
@@ -122,7 +122,7 @@ export default function MarketMoversPage() {
         <div className="min-w-0 flex-1">
           <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-          <div className="m-4 border border-kvm-border bg-white shadow-sm">
+          <div className="m-4 rounded-lg border border-kvm-border bg-white shadow-sm">
             {error ? (
               <ErrorState message={error.message} />
             ) : loading ? (

@@ -28,7 +28,7 @@ export function FilterSidebar({
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-1.5 rounded-sm border border-kvm-border px-2.5 py-1.5 text-sm font-medium text-kvm-ink"
+          className="flex items-center gap-1.5 rounded-md border border-kvm-border px-2.5 py-1.5 text-sm font-medium text-kvm-ink"
         >
           <SlidersHorizontal size={14} aria-hidden="true" />
           Filters{activeCount > 0 ? ` (${activeCount})` : ""}
@@ -68,7 +68,7 @@ export function FilterSidebar({
                     onClearAll();
                     setDrawerOpen(false);
                   }}
-                  className="w-full rounded-sm border border-kvm-border py-2 text-sm font-semibold text-kvm-ink"
+                  className="w-full rounded-md border border-kvm-border py-2 text-sm font-semibold text-kvm-ink"
                 >
                   Clear all
                 </button>

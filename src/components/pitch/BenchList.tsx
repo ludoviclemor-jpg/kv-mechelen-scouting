@@ -86,7 +86,7 @@ export function BenchList({
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-bold",
+            "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold",
             rating !== null ? "bg-kvm-yellow text-kvm-ink" : "bg-gray-100 text-gray-400"
           )}
         >
@@ -97,7 +97,7 @@ export function BenchList({
   }
 
   return (
-    <div className="border border-kvm-border bg-white">
+    <div className="rounded-lg border border-kvm-border bg-white">
       <h3 className="border-b border-kvm-border px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">
         Substitutes {teamName ? `· ${teamName}` : ""}
       </h3>

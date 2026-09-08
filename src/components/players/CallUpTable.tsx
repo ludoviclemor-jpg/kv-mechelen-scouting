@@ -15,7 +15,7 @@ function LevelBadge({ level }: { level: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
         isSenior ? "bg-kvm-red text-white" : "bg-gray-100 text-gray-600"
       )}
     >

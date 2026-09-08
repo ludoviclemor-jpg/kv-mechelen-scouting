@@ -15,7 +15,7 @@ export function RatingBadge({
 }) {
   if (rating === null) {
     return (
-      <span className="inline-flex items-center rounded-sm bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-400">
+      <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-400">
         N/A
       </span>
     );
@@ -24,7 +24,7 @@ export function RatingBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-sm font-bold tabular-nums",
+        "inline-flex items-center justify-center rounded-md font-bold tabular-nums",
         size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm",
         ratingTone(rating)
       )}

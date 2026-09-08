@@ -44,7 +44,7 @@ export function PlayerPitchChip({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[92px] flex-col items-center gap-1 rounded-sm px-1 py-1 text-center transition-colors hover:bg-white/15 sm:w-[104px]"
+      className="group flex w-[92px] flex-col items-center gap-1 rounded-md px-1 py-1 text-center transition-colors hover:bg-white/15 sm:w-[104px]"
     >
       <span
         className={cn(
@@ -81,7 +81,7 @@ export function PlayerPitchChip({
         {year ?? "—"}
         <span
           className={cn(
-            "rounded-sm px-1 font-bold",
+            "rounded-md px-1 font-bold",
             matchRating !== null ? "bg-kvm-yellow text-kvm-ink" : "bg-white/20 text-white/70"
           )}
         >
@@ -91,12 +91,12 @@ export function PlayerPitchChip({
       {hasGoalContribution ? (
         <span className="flex items-center gap-1 text-[10px] font-bold leading-tight">
           {lineupPlayer.goals > 0 ? (
-            <span className="rounded-sm bg-kvm-yellow px-1 text-kvm-ink" title={`${lineupPlayer.goals} goal${lineupPlayer.goals > 1 ? "s" : ""}`}>
+            <span className="rounded-md bg-kvm-yellow px-1 text-kvm-ink" title={`${lineupPlayer.goals} goal${lineupPlayer.goals > 1 ? "s" : ""}`}>
               ⚽ {lineupPlayer.goals}
             </span>
           ) : null}
           {lineupPlayer.assists > 0 ? (
-            <span className="rounded-sm bg-white/20 px-1 text-white" title={`${lineupPlayer.assists} assist${lineupPlayer.assists > 1 ? "s" : ""}`}>
+            <span className="rounded-md bg-white/20 px-1 text-white" title={`${lineupPlayer.assists} assist${lineupPlayer.assists > 1 ? "s" : ""}`}>
               A {lineupPlayer.assists}
             </span>
           ) : null}

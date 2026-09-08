@@ -24,7 +24,7 @@ export function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full rounded-sm border border-kvm-border bg-white py-1.5 pl-8 pr-3 text-sm text-kvm-ink placeholder:text-gray-400 focus-visible:outline-none"
+        className="w-full rounded-md border border-kvm-border bg-white py-1.5 pl-8 pr-3 text-sm text-kvm-ink placeholder:text-gray-400 focus-visible:outline-none"
       />
     </div>
   );
