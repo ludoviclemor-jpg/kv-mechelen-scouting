@@ -1,15 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FilterSelect, ActiveFilterChips, type ActiveFilterChip } from "@/components/ui/FilterBar";
 import { FilterSidebar, FilterSidebarSection } from "@/components/ui/FilterSidebar";
 import { AgeRangeSlider } from "@/components/ui/AgeFilter";
+import { MarketValueFilter } from "@/components/ui/MarketValueFilter";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
+import { SavedSearchesPanel } from "@/components/players/SavedSearchesPanel";
 import {
   PlayerTable,
   type PlayerSortKey,
@@ -25,30 +27,15 @@ import {
   useAsync,
 } from "@/lib/players-data";
 import { ageRangeLabel, type AgeRange } from "@/lib/agePresets";
+import { valueRangeLabel, type ValueRange } from "@/lib/valuePresets";
+import { CONTRACT_PRESETS, CONTRACT_PRESET_LABELS } from "@/lib/contractPresets";
+import { filtersToSearchParams, searchParamsToFilters } from "@/lib/playersFilterUrl";
+import type { PlayersSearchFilters } from "@/lib/saved-searches";
 import { Users } from "lucide-react";
 
 const PAGE_SIZE = 25;
 const ALL_AGES: AgeRange = { min: null, max: null };
-
-const VALUE_BANDS = [
-  { value: "all", label: "All values" },
-  { value: "u1", label: "Under €1M" },
-  { value: "1-3", label: "€1M – €3M" },
-  { value: "3-6", label: "€3M – €6M" },
-  { value: "6+", label: "€6M+" },
-];
-
-const VALUE_BAND_LABELS: Record<string, string> = Object.fromEntries(VALUE_BANDS.map((b) => [b.value, b.label]));
-
-const CONTRACT_BANDS = [
-  { value: "all", label: "All contracts" },
-  { value: "2026", label: "Expires 2026" },
-  { value: "2027", label: "Expires 2027" },
-  { value: "2028", label: "Expires 2028" },
-  { value: "2029+", label: "2029 or later" },
-];
-
-const CONTRACT_BAND_LABELS: Record<string, string> = Object.fromEntries(CONTRACT_BANDS.map((b) => [b.value, b.label]));
+const ALL_VALUES: ValueRange = { min: null, max: null };
 
 /** 300ms — enough to not fire a query per keystroke, not so much it feels laggy. */
 function useDebounced<T>(value: T, delayMs = 300): T {
@@ -61,25 +48,33 @@ function useDebounced<T>(value: T, delayMs = 300): T {
 }
 
 function PlayersPageContent() {
-  // Initial values from a global-search suggestion (?search=, ?nationality=)
-  // — see src/components/layout/GlobalSearch.tsx. Read once on mount, not
-  // kept in sync afterward — this page's own filters take over from there.
-  const params = useSearchParams();
-  const [search, setSearch] = useState(() => params.get("search") ?? "");
-  const [position, setPosition] = useState("all");
-  const [nationality, setNationality] = useState(() => params.get("nationality") ?? "all");
+  const router = useRouter();
+  const pathname = usePathname();
+  // Read once on mount (both a GlobalSearch suggestion's ?search=/
+  // ?nationality= and this page's own richer query string use the same
+  // keys) — this page's own state takes over from there and writes back
+  // to the URL itself (see the sync effect below), so filters, sort and
+  // page all survive opening a player and returning, and back/forward
+  // moves through real filter states instead of losing them.
+  const searchParams = useSearchParams();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally read only once, on mount
+  const initial = useMemo(() => searchParamsToFilters(searchParams), []);
+
+  const [search, setSearch] = useState(initial.search ?? "");
+  const [position, setPosition] = useState(initial.position ?? "all");
+  const [nationality, setNationality] = useState(initial.nationality ?? "all");
   // Cascading: country -> competition -> club. Changing a parent always
   // clears its children (see the on*Change handlers below) so the UI can
   // never be left showing options that don't actually apply anymore.
-  const [country, setCountry] = useState("all");
-  const [competitionId, setCompetitionId] = useState("all");
-  const [club, setClub] = useState("all");
-  const [ageRange, setAgeRange] = useState<AgeRange>(ALL_AGES);
-  const [valueBand, setValueBand] = useState("all");
-  const [contractBand, setContractBand] = useState("all");
-  const [sortKey, setSortKey] = useState<PlayerSortKey>("marketValueEUR");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [page, setPage] = useState(1);
+  const [country, setCountry] = useState(initial.country ?? "all");
+  const [competitionId, setCompetitionId] = useState(initial.competitionId ?? "all");
+  const [club, setClub] = useState(initial.club ?? "all");
+  const [ageRange, setAgeRange] = useState<AgeRange>({ min: initial.ageMin ?? null, max: initial.ageMax ?? null });
+  const [valueRange, setValueRange] = useState<ValueRange>({ min: initial.valueMinEUR ?? null, max: initial.valueMaxEUR ?? null });
+  const [contractPreset, setContractPreset] = useState(initial.contractPreset ?? "all");
+  const [sortKey, setSortKey] = useState<PlayerSortKey>(initial.sortKey ?? "marketValueEUR");
+  const [sortDirection, setSortDirection] = useState<SortDirection>(initial.sortDirection ?? "desc");
+  const [page, setPage] = useState(initial.page ?? 1);
 
   const debouncedSearch = useDebounced(search);
 
@@ -93,6 +88,35 @@ function PlayersPageContent() {
     [competitionId]
   );
 
+  // Keep the URL in sync with every filter/sort/page change — this is
+  // what makes browser back/forward move through real states and lets a
+  // returning visit (or a saved search) restore the exact same view.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return; // don't rewrite the URL on mount from the state we just read out of it
+    }
+    const qs = filtersToSearchParams({
+      search: debouncedSearch,
+      position,
+      nationality,
+      country,
+      competitionId,
+      club,
+      ageMin: ageRange.min,
+      ageMax: ageRange.max,
+      valueMinEUR: valueRange.min,
+      valueMaxEUR: valueRange.max,
+      contractPreset,
+      sortKey,
+      sortDirection,
+      page,
+    }).toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, position, nationality, country, competitionId, club, ageRange, valueRange, contractPreset, sortKey, sortDirection, page]);
+
   const result = useAsync(
     () =>
       fetchPlayersPage({
@@ -103,14 +127,14 @@ function PlayersPageContent() {
         competitionId: competitionId !== "all" ? competitionId : undefined,
         club,
         ageRange,
-        valueBand,
-        contractBand,
+        valueRange,
+        contractPreset,
         sortKey,
         sortDirection,
         page,
         pageSize: PAGE_SIZE,
       }),
-    [debouncedSearch, position, nationality, country, competitionId, club, ageRange, valueBand, contractBand, sortKey, sortDirection, page]
+    [debouncedSearch, position, nationality, country, competitionId, club, ageRange, valueRange, contractPreset, sortKey, sortDirection, page]
   );
 
   function handleSort(key: PlayerSortKey) {
@@ -151,12 +175,41 @@ function PlayersPageContent() {
     setCompetitionId("all");
     setClub("all");
     setAgeRange(ALL_AGES);
-    setValueBand("all");
-    setContractBand("all");
+    setValueRange(ALL_VALUES);
+    setContractPreset("all");
     setPage(1);
   }
 
+  /** Applies a saved search's stored filters wholesale, replacing everything currently set. */
+  function applySavedSearch(filters: PlayersSearchFilters) {
+    setSearch(filters.search ?? "");
+    setPosition(filters.position ?? "all");
+    setNationality(filters.nationality ?? "all");
+    setCountry(filters.country ?? "all");
+    setCompetitionId(filters.competitionId ?? "all");
+    setClub(filters.club ?? "all");
+    setAgeRange({ min: filters.ageMin ?? null, max: filters.ageMax ?? null });
+    setValueRange({ min: filters.valueMinEUR ?? null, max: filters.valueMaxEUR ?? null });
+    setContractPreset(filters.contractPreset ?? "all");
+    setPage(1);
+  }
+
+  const currentFiltersForSaving: PlayersSearchFilters = {
+    search: search || undefined,
+    position,
+    nationality,
+    country,
+    competitionId,
+    club,
+    ageMin: ageRange.min,
+    ageMax: ageRange.max,
+    valueMinEUR: valueRange.min,
+    valueMaxEUR: valueRange.max,
+    contractPreset,
+  };
+
   const ageLabel = ageRangeLabel(ageRange);
+  const valueLabel = valueRangeLabel(valueRange);
   const competitionName = competitionOptions.data?.find((c) => c.id === competitionId)?.name ?? competitionId;
 
   const chips: ActiveFilterChip[] = useMemo(() => {
@@ -167,10 +220,10 @@ function PlayersPageContent() {
     if (competitionId !== "all") list.push({ key: "competition", label: "Competition", value: competitionName, onClear: () => handleCompetitionChange("all") });
     if (club !== "all") list.push({ key: "club", label: "Club", value: club, onClear: () => resetPage(setClub)("all") });
     if (ageLabel) list.push({ key: "age", label: "Age", value: ageLabel, onClear: () => resetPage(setAgeRange)(ALL_AGES) });
-    if (valueBand !== "all") list.push({ key: "value", label: "Value", value: VALUE_BAND_LABELS[valueBand], onClear: () => resetPage(setValueBand)("all") });
-    if (contractBand !== "all") list.push({ key: "contract", label: "Contract", value: CONTRACT_BAND_LABELS[contractBand], onClear: () => resetPage(setContractBand)("all") });
+    if (valueLabel) list.push({ key: "value", label: "Market value", value: valueLabel, onClear: () => resetPage(setValueRange)(ALL_VALUES) });
+    if (contractPreset !== "all") list.push({ key: "contract", label: "Contract", value: CONTRACT_PRESET_LABELS[contractPreset], onClear: () => resetPage(setContractPreset)("all") });
     return list;
-  }, [position, nationality, country, competitionId, competitionName, club, ageLabel, valueBand, contractBand]);
+  }, [position, nationality, country, competitionId, competitionName, club, ageLabel, valueLabel, contractPreset]);
 
   const total = result.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -184,6 +237,10 @@ function PlayersPageContent() {
 
       <div className="flex min-h-0 flex-1">
         <FilterSidebar activeCount={chips.length} onClearAll={clearAll}>
+          <FilterSidebarSection label="Saved searches">
+            <SavedSearchesPanel currentFilters={currentFiltersForSaving} onApply={applySavedSearch} />
+          </FilterSidebarSection>
+
           <FilterSidebarSection label="Search">
             <SearchBar value={search} onChange={resetPage(setSearch)} placeholder="Player, club, nationality..." />
           </FilterSidebarSection>
@@ -260,20 +317,20 @@ function PlayersPageContent() {
           </FilterSidebarSection>
 
           <FilterSidebarSection label="Market Value">
-            <FilterSelect stacked label="" value={valueBand} onChange={resetPage(setValueBand)} options={VALUE_BANDS} />
+            <MarketValueFilter range={valueRange} onChange={resetPage(setValueRange)} />
           </FilterSidebarSection>
 
           <FilterSidebarSection label="Contract Expiry">
-            <FilterSelect stacked label="" value={contractBand} onChange={resetPage(setContractBand)} options={CONTRACT_BANDS} />
+            <FilterSelect stacked label="" value={contractPreset} onChange={resetPage(setContractPreset)} options={CONTRACT_PRESETS} />
           </FilterSidebarSection>
         </FilterSidebar>
 
         <div className="min-w-0 flex-1">
           <ActiveFilterChips chips={chips} onClearAll={clearAll} />
 
-          <div className="m-4 border border-kvm-border bg-white shadow-sm">
+          <div className="m-4 rounded-lg border border-kvm-border bg-white shadow-sm">
             {result.error ? (
-              <ErrorState message={result.error.message} />
+              <ErrorState message={result.error.message} onRetry={result.reload} />
             ) : result.loading && !result.data ? (
               <LoadingState label="Loading players…" />
             ) : (result.data?.players.length ?? 0) === 0 ? (

@@ -1,5 +1,7 @@
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
+import { valueRangeToQuery, type ValueRange } from "@/lib/valuePresets";
+import { contractPresetToRange } from "@/lib/contractPresets";
 import { MINIMUM_RATED_MATCHES } from "./constants";
 import type {
   InjuryRecord,
@@ -261,8 +263,9 @@ export interface PlayersQueryParams {
   competitionId?: string; // exact SCOUTASTIC competition id — used by the Competition detail page and the Country -> Competition -> Club cascade
   africanOnly?: boolean;
   ageRange?: AgeRange; // shared preset/custom-range system — see src/lib/agePresets.ts
-  valueBand?: string;
-  contractBand?: string;
+  valueBand?: string; // legacy quick-preset band — kept for the Competition detail page; the Players page itself now uses valueRange
+  valueRange?: ValueRange; // exact min/max EUR — see src/lib/valuePresets.ts
+  contractPreset?: string; // relative to today — see src/lib/contractPresets.ts (not a hardcoded year)
   sortKey: PlayerSortKey;
   sortDirection: "asc" | "desc";
   page: number; // 1-based
@@ -279,21 +282,6 @@ function valueBandToRange(band: string | undefined): { gte?: number; lt?: number
       return { gte: 3_000_000, lt: 6_000_000 };
     case "6+":
       return { gte: 6_000_000 };
-    default:
-      return {};
-  }
-}
-
-function contractBandToRange(band: string | undefined): { gte?: string; lt?: string } {
-  switch (band) {
-    case "2026":
-      return { gte: "2026-01-01", lt: "2027-01-01" };
-    case "2027":
-      return { gte: "2027-01-01", lt: "2028-01-01" };
-    case "2028":
-      return { gte: "2028-01-01", lt: "2029-01-01" };
-    case "2029+":
-      return { gte: "2029-01-01" };
     default:
       return {};
   }
@@ -327,11 +315,17 @@ export async function fetchPlayersPage(
   if (dobRange.gt) q = q.gt("date_of_birth", dobRange.gt);
   if (dobRange.lte) q = q.lte("date_of_birth", dobRange.lte);
 
-  const valueRange = valueBandToRange(params.valueBand);
-  if (valueRange.gte !== undefined) q = q.gte("market_value_eur", valueRange.gte);
-  if (valueRange.lt !== undefined) q = q.lt("market_value_eur", valueRange.lt);
+  const bandRange = valueBandToRange(params.valueBand);
+  if (bandRange.gte !== undefined) q = q.gte("market_value_eur", bandRange.gte);
+  if (bandRange.lt !== undefined) q = q.lt("market_value_eur", bandRange.lt);
 
-  const contractRange = contractBandToRange(params.contractBand);
+  if (params.valueRange) {
+    const exactRange = valueRangeToQuery(params.valueRange);
+    if (exactRange.gte !== undefined) q = q.gte("market_value_eur", exactRange.gte);
+    if (exactRange.lte !== undefined) q = q.lte("market_value_eur", exactRange.lte);
+  }
+
+  const contractRange = contractPresetToRange(params.contractPreset ?? "all", today);
   if (contractRange.gte) q = q.gte("contract_expiry", contractRange.gte);
   if (contractRange.lt) q = q.lt("contract_expiry", contractRange.lt);
 
