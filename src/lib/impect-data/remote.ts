@@ -24,22 +24,38 @@ export interface ImpectCompetitionOption {
   isSynced: boolean; // has scripts/sync-impect-player-kpis.mjs ever processed this one?
 }
 
-/** The full real 759-competition catalog, for a searchable picker — small (id/name/season only), safe to fetch in full. */
+/**
+ * The full real 759-competition catalog, for a searchable picker —
+ * small (id/name/season only), safe to fetch in full.
+ *
+ * `isSynced` reads `impect_sync_queue.last_synced_at`, NOT
+ * `impect_competitions.last_synced_at` — a real bug fixed here
+ * (2026-09-11): the competition-catalog sync
+ * (scripts/sync-impect-competitions.mjs) stamps its own
+ * `last_synced_at` on all 759 rows every time it runs, regardless of
+ * whether that competition's *player* data was ever actually crawled —
+ * so every competition was showing as "synced" in the picker even
+ * though only a fraction genuinely have player-kpis data.
+ * `impect_sync_queue` is the real per-competition player-data crawl
+ * status (scripts/sync-impect-player-kpis.mjs).
+ */
 export async function fetchImpectCompetitions(): Promise<ImpectCompetitionOption[]> {
   if (!isSupabaseConfigured()) notConfigured();
-  const { data, error } = await getSupabaseClient()
-    .from("impect_competitions")
-    .select("iteration_id,competition_name,season,competition_type,age_group,last_synced_at")
-    .order("competition_name")
-    .order("season", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map((r) => ({
+  const db = getSupabaseClient();
+  const [competitionsRes, queueRes] = await Promise.all([
+    db.from("impect_competitions").select("iteration_id,competition_name,season,competition_type,age_group").order("competition_name").order("season", { ascending: false }),
+    db.from("impect_sync_queue").select("iteration_id").not("last_synced_at", "is", null),
+  ]);
+  if (competitionsRes.error) throw competitionsRes.error;
+  if (queueRes.error) throw queueRes.error;
+  const syncedIds = new Set((queueRes.data ?? []).map((r) => r.iteration_id));
+  return (competitionsRes.data ?? []).map((r) => ({
     iterationId: r.iteration_id,
     competitionName: r.competition_name,
     season: r.season,
     competitionType: r.competition_type,
     ageGroup: r.age_group,
-    isSynced: r.last_synced_at !== null,
+    isSynced: syncedIds.has(r.iteration_id),
   }));
 }
 

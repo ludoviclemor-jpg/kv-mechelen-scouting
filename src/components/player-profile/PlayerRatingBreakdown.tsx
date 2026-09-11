@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Info, X, Target } from "lucide-react";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
+import { Info, X, Target, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from "recharts";
 import type { PlayerRating } from "@/lib/scoring-data/types";
 import { formatDate, cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,6 +13,29 @@ const CONFIDENCE_STYLES: Record<string, string> = {
   Medium: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-300",
   Low: "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-300",
 };
+
+/** Pillar scores are already centered on 50 = the cohort average (see docs/SCORING_MODEL.md's normalization method) — a small dead zone avoids reading noise around 50 as a meaningful signal either way. */
+const AVERAGE_DEAD_ZONE = 3;
+
+function averageComparison(score: number | null) {
+  if (score === null) return null;
+  if (score > 50 + AVERAGE_DEAD_ZONE) return { direction: "above" as const, Icon: ArrowUp, className: "text-emerald-700" };
+  if (score < 50 - AVERAGE_DEAD_ZONE) return { direction: "below" as const, Icon: ArrowDown, className: "text-kvm-red" };
+  return { direction: "average" as const, Icon: Minus, className: "text-gray-400" };
+}
+
+function AverageBadge({ score }: { score: number | null }) {
+  const comparison = averageComparison(score);
+  if (!comparison) return <span className="text-gray-300">—</span>;
+  const { Icon, className, direction } = comparison;
+  const label = direction === "above" ? "Above average" : direction === "below" ? "Below average" : "Average";
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", className)}>
+      <Icon size={12} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
 
 function InfoModal({ onClose }: { onClose: () => void }) {
   return (
@@ -86,7 +109,7 @@ export function PlayerRatingBreakdown({
     );
   }
 
-  const radarData = rating.pillars.filter((p) => p.available).map((p) => ({ pillar: p.label, score: p.score ?? 0 }));
+  const radarData = rating.pillars.filter((p) => p.available).map((p) => ({ pillar: p.label, score: p.score ?? 0, average: 50 }));
 
   return (
     <div className="space-y-5">
@@ -141,7 +164,9 @@ export function PlayerRatingBreakdown({
                   <PolarGrid stroke="#e7e1d4" />
                   <PolarAngleAxis dataKey="pillar" tick={{ fontSize: 10.5, fill: "#6b665f" }} />
                   <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#a39d8e" }} tickCount={5} />
-                  <Radar dataKey="score" stroke="#e30613" fill="#e30613" fillOpacity={0.25} isAnimationActive={false} />
+                  <Radar name="Cohort average" dataKey="average" stroke="#a39d8e" strokeDasharray="4 3" fill="none" isAnimationActive={false} />
+                  <Radar name="This player" dataKey="score" stroke="#e30613" fill="#e30613" fillOpacity={0.25} isAnimationActive={false} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -153,6 +178,7 @@ export function PlayerRatingBreakdown({
                 <tr>
                   <th>Pillar</th>
                   <th>Score</th>
+                  <th>vs. Cohort Average</th>
                   <th>Percentile</th>
                   <th>Weight</th>
                 </tr>
@@ -162,6 +188,9 @@ export function PlayerRatingBreakdown({
                   <tr key={p.key}>
                     <td className="font-medium text-kvm-ink">{p.label}</td>
                     <td className="tabular-nums text-gray-600">{p.available ? p.score : "—"}</td>
+                    <td>
+                      <AverageBadge score={p.available ? p.score : null} />
+                    </td>
                     <td className="tabular-nums text-gray-600">{p.available ? `${p.percentile}th` : "—"}</td>
                     <td className="tabular-nums text-gray-600">{p.available ? p.weight : "—"}</td>
                   </tr>
