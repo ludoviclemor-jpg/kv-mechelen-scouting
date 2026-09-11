@@ -18,19 +18,27 @@
  * Usage:
  *   SKILLCORNER_USERNAME=... SKILLCORNER_PASSWORD=... \
  *     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
- *     node scripts/sync-skillcorner-physical.mjs [--batch-size 25] [--delay-ms 150] [--only 1194]
+ *     node scripts/sync-skillcorner-physical.mjs [--batch-size 25] [--delay-ms 150] [--only 1194] [--all]
+ *
+ * `--all` works through the *entire* remaining queue in one long-lived
+ * process instead of exiting after one batch — the (name, birthdate)
+ * player bridge (~160k real rows) is loaded once and reused for every
+ * edition, rather than reloaded per invocation (confirmed live: reload
+ * alone costs ~1-2 minutes, which dominates runtime when most of the
+ * queue's 1541 real editions return few or zero real rows).
  */
 
 import { createClient } from "@supabase/supabase-js";
 import { createSkillcornerClient, sleep } from "./lib/skillcornerClient.mjs";
 
 function parseArgs(argv) {
-  const args = { batchSize: 25, delayMs: 150, only: null };
+  const args = { batchSize: 25, delayMs: 150, only: null, all: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--batch-size") args.batchSize = Number(argv[++i]);
     else if (a === "--delay-ms") args.delayMs = Number(argv[++i]);
     else if (a === "--only") args.only = Number(argv[++i]);
+    else if (a === "--all") args.all = true;
   }
   return args;
 }
@@ -113,6 +121,74 @@ function mapPhysicalRow(row, competitionEditionId, competitionName, seasonName, 
   };
 }
 
+/** Processes one competition edition end-to-end: fetch, bridge-match, upsert, mark queue. Returns real counts, never throws (a per-edition failure is logged and the edition marked attempted so it doesn't block the rest of the queue forever). */
+async function processEdition(db, skillcorner, bridge, edition, delayMs) {
+  try {
+    // group_by includes position_group because SkillCorner tracks it per
+    // match, not as one fixed season role (confirmed live: the same
+    // player gets a separate row per position_group they were tracked
+    // in that competition) — grouping by player alone silently drops
+    // the field entirely. For each player, the row with the most
+    // matches is kept as their representative position/season profile —
+    // a real, disclosed simplification (their most common real role),
+    // not a fabricated single value.
+    const rows = await skillcorner.getAllCursor(
+      "/physical/",
+      { competition_edition: String(edition.id), group_by: "player,position_group", average_per: "p90", page_size: "100" },
+      { onRetry }
+    );
+    await sleep(delayMs);
+
+    const primaryRowByPlayer = new Map();
+    for (const row of rows) {
+      const existing = primaryRowByPlayer.get(row.player_id);
+      if (!existing || row.count_match > existing.count_match) primaryRowByPlayer.set(row.player_id, row);
+    }
+
+    let rowsUnmatched = 0;
+    const physicalRows = [];
+    for (const row of primaryRowByPlayer.values()) {
+      const key = `${row.player_birthdate}|${normalizeName(row.player_name)}`;
+      const scoutasticPlayerId = bridge.get(key);
+      if (!scoutasticPlayerId) {
+        rowsUnmatched++;
+        continue;
+      }
+      physicalRows.push(mapPhysicalRow(row, edition.id, edition.competition_name, edition.season_name, scoutasticPlayerId));
+    }
+
+    if (physicalRows.length > 0) {
+      const BATCH = 500;
+      for (let i = 0; i < physicalRows.length; i += BATCH) {
+        const { error } = await db
+          .from("skillcorner_player_physical")
+          .upsert(physicalRows.slice(i, i + BATCH), { onConflict: "scoutastic_player_id,competition_edition_id" });
+        if (error) throw error;
+      }
+    }
+
+    await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
+    await db.from("skillcorner_competition_editions").update({ last_synced_at: new Date().toISOString() }).eq("id", edition.id);
+
+    console.log(`  [${edition.id}] ${edition.competition_name} ${edition.season_name}: ${rows.length} SkillCorner rows, ${physicalRows.length} matched to real players`);
+    return { ok: true, rowsWritten: physicalRows.length, rowsUnmatched };
+  } catch (err) {
+    console.error(`  [fail] edition ${edition.id}: ${err.message}`);
+    await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
+    return { ok: false, rowsWritten: 0, rowsUnmatched: 0 };
+  }
+}
+
+async function fetchQueueBatch(db, batchSize) {
+  const { data, error } = await db
+    .from("skillcorner_sync_queue")
+    .select("competition_edition_id, skillcorner_competition_editions(id,competition_name,season_name)")
+    .order("last_synced_at", { ascending: true, nullsFirst: true })
+    .limit(batchSize);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.skillcorner_competition_editions);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -131,84 +207,46 @@ async function main() {
   const bridge = await loadPlayerBridge(db);
   console.log(`Bridge ready: ${bridge.size} real (name, birthdate) pairs.`);
 
-  let queue;
-  if (args.only !== null) {
-    const { data, error } = await db.from("skillcorner_competition_editions").select("id,competition_name,season_name").eq("id", args.only).single();
-    if (error) throw error;
-    queue = [data];
-  } else {
-    const { data, error: queueError } = await db
-      .from("skillcorner_sync_queue")
-      .select("competition_edition_id, skillcorner_competition_editions(id,competition_name,season_name)")
-      .order("last_synced_at", { ascending: true, nullsFirst: true })
-      .limit(args.batchSize);
-    if (queueError) throw queueError;
-    queue = (data ?? []).map((r) => r.skillcorner_competition_editions);
-  }
-
-  if (!queue || queue.length === 0) {
-    console.log("Queue is empty — run sync-skillcorner-competition-editions.mjs first.");
-    return;
-  }
-  console.log(`Processing ${queue.length} competition editions this run.`);
-
   let editionsOk = 0;
+  let editionsTotal = 0;
   let rowsWritten = 0;
   let rowsUnmatched = 0;
 
-  for (const edition of queue) {
-    try {
-      // group_by includes position_group because SkillCorner tracks it
-      // per match, not as one fixed season role (confirmed live: the
-      // same player gets a separate row per position_group they were
-      // tracked in that competition) — grouping by player alone silently
-      // drops the field entirely. For each player, the row with the
-      // most matches is kept as their representative position/season
-      // profile — a real, disclosed simplification (their most common
-      // real role), not a fabricated single value.
-      const rows = await skillcorner.getAllCursor(
-        "/physical/",
-        { competition_edition: String(edition.id), group_by: "player,position_group", average_per: "p90", page_size: "100" },
-        { onRetry }
-      );
-      await sleep(args.delayMs);
-
-      const primaryRowByPlayer = new Map();
-      for (const row of rows) {
-        const existing = primaryRowByPlayer.get(row.player_id);
-        if (!existing || row.count_match > existing.count_match) primaryRowByPlayer.set(row.player_id, row);
+  if (args.only !== null) {
+    const { data, error } = await db.from("skillcorner_competition_editions").select("id,competition_name,season_name").eq("id", args.only).single();
+    if (error) throw error;
+    console.log("Processing 1 competition edition this run.");
+    const result = await processEdition(db, skillcorner, bridge, data, args.delayMs);
+    editionsTotal = 1;
+    editionsOk += result.ok ? 1 : 0;
+    rowsWritten += result.rowsWritten;
+    rowsUnmatched += result.rowsUnmatched;
+  } else if (args.all) {
+    console.log("Processing the entire remaining queue this run (--all).");
+    for (;;) {
+      const queue = await fetchQueueBatch(db, args.batchSize);
+      if (queue.length === 0) break;
+      for (const edition of queue) {
+        const result = await processEdition(db, skillcorner, bridge, edition, args.delayMs);
+        editionsTotal++;
+        editionsOk += result.ok ? 1 : 0;
+        rowsWritten += result.rowsWritten;
+        rowsUnmatched += result.rowsUnmatched;
       }
-
-      const physicalRows = [];
-      for (const row of primaryRowByPlayer.values()) {
-        const key = `${row.player_birthdate}|${normalizeName(row.player_name)}`;
-        const scoutasticPlayerId = bridge.get(key);
-        if (!scoutasticPlayerId) {
-          rowsUnmatched++;
-          continue;
-        }
-        physicalRows.push(mapPhysicalRow(row, edition.id, edition.competition_name, edition.season_name, scoutasticPlayerId));
-      }
-
-      if (physicalRows.length > 0) {
-        const BATCH = 500;
-        for (let i = 0; i < physicalRows.length; i += BATCH) {
-          const { error } = await db
-            .from("skillcorner_player_physical")
-            .upsert(physicalRows.slice(i, i + BATCH), { onConflict: "scoutastic_player_id,competition_edition_id" });
-          if (error) throw error;
-        }
-      }
-
-      await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
-      await db.from("skillcorner_competition_editions").update({ last_synced_at: new Date().toISOString() }).eq("id", edition.id);
-
-      editionsOk++;
-      rowsWritten += physicalRows.length;
-      console.log(`  [${edition.id}] ${edition.competition_name} ${edition.season_name}: ${rows.length} SkillCorner rows, ${physicalRows.length} matched to real players`);
-    } catch (err) {
-      console.error(`  [fail] edition ${edition.id}: ${err.message}`);
-      await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
+    }
+  } else {
+    const queue = await fetchQueueBatch(db, args.batchSize);
+    if (queue.length === 0) {
+      console.log("Queue is empty — run sync-skillcorner-competition-editions.mjs first.");
+      return;
+    }
+    console.log(`Processing ${queue.length} competition editions this run.`);
+    for (const edition of queue) {
+      const result = await processEdition(db, skillcorner, bridge, edition, args.delayMs);
+      editionsTotal++;
+      editionsOk += result.ok ? 1 : 0;
+      rowsWritten += result.rowsWritten;
+      rowsUnmatched += result.rowsUnmatched;
     }
   }
 
@@ -217,7 +255,7 @@ async function main() {
     .select("competition_edition_id", { count: "exact", head: true })
     .is("last_synced_at", null);
 
-  console.log(`\nEditions synced this run: ${editionsOk}/${queue.length}`);
+  console.log(`\nEditions synced this run: ${editionsOk}/${editionsTotal}`);
   console.log(`Physical rows written: ${rowsWritten} (matched to real players)`);
   console.log(`SkillCorner rows skipped (no bridge match): ${rowsUnmatched}`);
   console.log(`Editions never yet synced: ${remaining ?? "unknown"}`);
