@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { User, Banknote, FileText } from "lucide-react";
+import { User, Banknote, FileText, Gauge } from "lucide-react";
 import type { ScoutingStatus } from "@/lib/players-data";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
-import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
+import { calculateAge, formatCurrency, formatDate, cn } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
 import { StatusChangeMenu } from "@/components/ui/StatusBadge";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
 import { NextActionButton } from "@/components/players/NextActionButton";
 import { useAppStore, useEffectiveStatus } from "@/lib/app-store";
+import type { PlayerRating } from "@/lib/scoring-data/types";
+
+const CONFIDENCE_TEXT: Record<string, string> = {
+  High: "text-emerald-700",
+  Medium: "text-amber-700",
+  Low: "text-gray-500",
+};
 
 function unk(value: string | number | null): string {
   return value === null ? "Unknown" : String(value);
@@ -44,10 +51,12 @@ const linkClass = "hover:text-kvm-red hover:underline";
 export function PlayerHeader({
   player,
   competitionName,
+  rating,
   onNewReport,
 }: {
   player: Player;
   competitionName?: string | null;
+  rating?: PlayerRating | null;
   onNewReport?: () => void;
 }) {
   const { setPlayerStatus } = useAppStore();
@@ -116,7 +125,7 @@ export function PlayerHeader({
       {/* Club/Competition/Position are already in the subtitle above —
           not repeated here, so this is Personal + Contract only (was 3
           boxes including a "Club" one that just duplicated the subtitle). */}
-      <div className="mt-5 grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 sm:grid-cols-2">
+      <div className={cn("mt-5 grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 sm:grid-cols-2", rating?.ratable && "lg:grid-cols-3")}>
         <FieldGroup icon={User} title="Personal">
           <Field label="Age">{player.dateOfBirth ? `${calculateAge(player.dateOfBirth)} yrs` : "Unknown"}</Field>
           <Field label="Date of birth">{formatDate(player.dateOfBirth)}</Field>
@@ -141,6 +150,23 @@ export function PlayerHeader({
           <Field label="Contract expiry">{formatDate(player.contractExpiry)}</Field>
           <Field label="Agent">{unk(player.agent)}</Field>
         </FieldGroup>
+
+        {rating?.ratable ? (
+          <FieldGroup icon={Gauge} title="Position-Specific Rating (Impect)">
+            <Field label="Current Level">
+              <span className="text-base font-bold text-kvm-ink">{rating.currentLevel}</span>
+            </Field>
+            <Field label="Potential">
+              <span className="text-base font-bold text-kvm-ink">{rating.potential}</span>
+            </Field>
+            <Field label="Confidence">
+              <span className={cn("font-semibold", CONFIDENCE_TEXT[rating.confidence.label])}>{rating.confidence.label}</span>
+            </Field>
+            <Field label="Role">{rating.context.role ?? rating.context.positionGroup}</Field>
+            <Field label="Minutes">{rating.context.minutes}</Field>
+            <Field label="Calculated">{formatDate(rating.calculatedAt)}</Field>
+          </FieldGroup>
+        ) : null}
       </div>
     </div>
   );

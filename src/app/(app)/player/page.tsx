@@ -14,7 +14,9 @@ import { InternationalStatusSection } from "@/components/player-profile/Internat
 import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePitch";
 import { CareerHistorySection } from "@/components/player-profile/CareerHistorySection";
 import { RecentPerformanceSection } from "@/components/player-profile/RecentPerformanceSection";
+import { PlayerRatingBreakdown } from "@/components/player-profile/PlayerRatingBreakdown";
 import { fetchPlayerRecentPerformance } from "@/lib/sportmonks-data";
+import { fetchPlayerRating } from "@/lib/scoring-data/remote";
 import { FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -72,6 +74,14 @@ function PlayerProfileContent() {
   const { data: recentPerformance } = useAsync(
     () => (id ? fetchPlayerRecentPerformance(id) : Promise.resolve({ ratings: [], last5Average: null, seasonAverage: null })),
     [id]
+  );
+  // Position-specific Current Level / Potential rating — computed entirely
+  // server-side (scripts/calculate-player-ratings.mjs, see docs/SCORING_MODEL.md);
+  // this only ever reads the stored result, keyed by the real Impect<->Scoutastic
+  // bridge (impect_players.transfermarkt_id = players.scoutastic_player_id).
+  const rating = useAsync(
+    () => (player ? fetchPlayerRating(player.scoutasticPlayerId) : Promise.resolve(null)),
+    [player?.scoutasticPlayerId]
   );
 
   const [tab, setTab] = useState<Tab>("Overview");
@@ -162,6 +172,7 @@ function PlayerProfileContent() {
         <PlayerHeader
           player={player}
           competitionName={competition?.name ?? null}
+          rating={rating.data ?? null}
           onNewReport={() => {
             setTab("Scouting");
             setReportFormNonce((n) => n + 1);
@@ -254,10 +265,15 @@ function PlayerProfileContent() {
             {tab === "Matches" ? <LastMatchesTable matches={player.matches} sofascoreMatchStatus={player.sofascoreMatchStatus} /> : null}
 
             {tab === "Ratings" ? (
-              <section>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Sportmonks Ratings (Test)</h3>
-                <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
-              </section>
+              <div className="space-y-6">
+                <section>
+                  <PlayerRatingBreakdown rating={rating.data ?? null} loading={rating.loading} error={rating.error} onRetry={rating.reload} />
+                </section>
+                <section className="border-t border-kvm-border pt-5">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Sportmonks Ratings (Test)</h3>
+                  <RecentPerformanceSection performance={recentPerformance ?? { ratings: [], last5Average: null, seasonAverage: null }} />
+                </section>
+              </div>
             ) : null}
 
             {tab === "Scouting" ? (

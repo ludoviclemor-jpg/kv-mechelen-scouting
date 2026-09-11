@@ -1,0 +1,85 @@
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
+import type { PlayerRating } from "./types";
+
+/**
+ * Reads an already-calculated rating from `player_ratings` — this file
+ * never computes anything itself (see docs/SCORING_MODEL.md: the
+ * scoring engine only ever runs server-side, in
+ * scripts/calculate-player-ratings.mjs). If a player has ratings from
+ * more than one competition (played in two synced competitions this
+ * season, e.g. league + a separately-synced iteration), the most
+ * recently calculated one wins — a real, disclosed simplification, not
+ * a full multi-competition picker (yet).
+ */
+
+function notConfigured(): never {
+  throw new Error("Supabase is not configured — player ratings live in Postgres, no static fallback.");
+}
+
+interface RatingRow {
+  impect_player_id: number;
+  iteration_id: number;
+  scoutastic_player_id: string | null;
+  model_version: string;
+  calculated_at: string;
+  ratable: boolean;
+  reason: string | null;
+  current_level: number | null;
+  current_level_band: string | null;
+  potential: number | null;
+  potential_range_low: number | null;
+  potential_range_high: number | null;
+  overall_percentile: number | null;
+  confidence_score: number;
+  confidence_label: PlayerRating["confidence"]["label"];
+  confidence_reasons: string[];
+  context: PlayerRating["context"];
+  pillars: PlayerRating["pillars"];
+  strengths: PlayerRating["strengths"];
+  weaknesses: PlayerRating["weaknesses"];
+  development_priorities: string[];
+  explanation: string | null;
+  warnings: string[];
+}
+
+function fromRow(row: RatingRow): PlayerRating {
+  return {
+    impectPlayerId: row.impect_player_id,
+    iterationId: row.iteration_id,
+    scoutasticPlayerId: row.scoutastic_player_id,
+    modelVersion: row.model_version,
+    calculatedAt: row.calculated_at,
+    ratable: row.ratable,
+    reason: row.reason,
+    currentLevel: row.current_level,
+    currentLevelBand: row.current_level_band,
+    potential: row.potential,
+    potentialRange:
+      row.potential_range_low !== null && row.potential_range_high !== null
+        ? { low: row.potential_range_low, high: row.potential_range_high }
+        : null,
+    overallPercentile: row.overall_percentile,
+    confidence: { score: row.confidence_score, label: row.confidence_label, reasons: row.confidence_reasons ?? [] },
+    context: row.context,
+    pillars: row.pillars ?? [],
+    strengths: row.strengths ?? [],
+    weaknesses: row.weaknesses ?? [],
+    developmentPriorities: row.development_priorities ?? [],
+    explanation: row.explanation,
+    warnings: row.warnings ?? [],
+  };
+}
+
+/** Real Impect/Scoutastic player-id bridge (impect_players.transfermarkt_id = players.scoutastic_player_id, confirmed live) — `scoutasticPlayerId` here is the raw numeric-string id (e.g. "563139"), not the "sc-563139" form used as `players.id`. */
+export async function fetchPlayerRating(scoutasticPlayerId: string): Promise<PlayerRating | null> {
+  if (!isSupabaseConfigured()) notConfigured();
+  const { data, error } = await getSupabaseClient()
+    .from("player_ratings")
+    .select("*")
+    .eq("scoutastic_player_id", scoutasticPlayerId)
+    .order("calculated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? fromRow(data as unknown as RatingRow) : null;
+}

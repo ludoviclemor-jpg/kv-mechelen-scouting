@@ -301,6 +301,14 @@ create policy "authenticated can read impect_player_kpis" on impect_player_kpis
 -- including authenticated), same convention as scoutastic_teams.
 alter table impect_sync_queue enable row level security;
 
+-- Player ratings — read-only for authenticated, same convention as the
+-- other impect_* tables. Written only by
+-- scripts/calculate-player-ratings.mjs's service_role key.
+alter table player_ratings enable row level security;
+drop policy if exists "authenticated can read player_ratings" on player_ratings;
+create policy "authenticated can read player_ratings" on player_ratings
+  for select to authenticated using (true);
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see
