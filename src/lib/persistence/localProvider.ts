@@ -56,8 +56,8 @@ export function createLocalOnlyProvider(): PersistenceProvider {
     },
 
     async setPlayerStatus() {
-      // Local-only provider doesn't persist status server-side; AppStoreProvider
-      // keeps its own in-memory override map exactly as before.
+      // Local-only provider doesn't persist status (or its history) server-side;
+      // AppStoreProvider keeps its own in-memory override map exactly as before.
     },
 
     async setPlayerNotes() {

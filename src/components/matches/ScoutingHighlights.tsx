@@ -3,6 +3,7 @@
 import type { MatchLineupPlayer } from "@/lib/matches-data";
 import type { Player } from "@/lib/players-data";
 import { useAppStore } from "@/lib/app-store";
+import { ACTIVE_SCOUTING_STATUSES } from "@/lib/players-data";
 import { calculateAge } from "@/lib/utils";
 import { Star, Globe2, Bookmark, Eye } from "lucide-react";
 
@@ -55,9 +56,9 @@ export function ScoutingHighlights({
     },
     {
       icon: Eye,
-      label: "Monitoring / Interested / Priority",
+      label: "Actively scouted",
       players: withPlayer.filter((x) =>
-        ["monitoring", "interested", "priority"].includes(statusOverrides[x.player.id] ?? x.player.status)
+        ACTIVE_SCOUTING_STATUSES.includes(statusOverrides[x.player.id] ?? x.player.status)
       ),
     },
   ].filter((h) => h.players.length > 0);

@@ -61,7 +61,7 @@ interface AppStoreApi {
   deleteShortlist: (id: string) => Promise<SaveResult>;
   addPlayerToShortlist: (shortlistId: string, playerId: string) => Promise<SaveResult>;
   removePlayerFromShortlist: (shortlistId: string, playerId: string) => Promise<SaveResult>;
-  setPlayerStatus: (playerId: string, status: ScoutingStatus) => Promise<SaveResult>;
+  setPlayerStatus: (playerId: string, status: ScoutingStatus, note?: string) => Promise<SaveResult>;
   setPlayerNotes: (playerId: string, notes: ScoutingNotes) => Promise<SaveResult>;
 }
 
@@ -224,13 +224,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const setPlayerStatus = useCallback(
-    (playerId: string, status: ScoutingStatus): Promise<SaveResult> => {
+    (playerId: string, status: ScoutingStatus, note?: string): Promise<SaveResult> => {
       let previous: ScoutingStatus | undefined;
       setStatusOverrides((prev) => {
         previous = prev[playerId];
         return { ...prev, [playerId]: status };
       });
-      return queueRef.current(`status:${playerId}`, () => provider.setPlayerStatus(playerId, status)).then(
+      return queueRef.current(`status:${playerId}`, () => provider.setPlayerStatus(playerId, status, previous, note)).then(
         () => ({ ok: true }),
         (err) => {
           setStatusOverrides((prev) => {

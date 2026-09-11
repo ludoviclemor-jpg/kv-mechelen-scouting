@@ -2,7 +2,7 @@ import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
 import { valueRangeToQuery, type ValueRange } from "@/lib/valuePresets";
 import { contractPresetToRange } from "@/lib/contractPresets";
-import { MINIMUM_RATED_MATCHES } from "./constants";
+import { MINIMUM_RATED_MATCHES, ACTIVE_SCOUTING_STATUSES } from "./constants";
 import type {
   InjuryRecord,
   MarketValuePoint,
@@ -140,7 +140,7 @@ function playerFromRow(row: PlayerRow): Player {
     // (src/lib/persistence/), never on the player row itself — these are
     // just the pre-any-assessment defaults; useEffectiveStatus/
     // useEffectiveNotes always layer the real persisted value on top.
-    status: "not_assessed",
+    status: "unwatched",
     addedDate: row.created_at.slice(0, 10),
     notes: { strengths: "", weaknesses: "", recommendation: "", general: "" },
     isYouthOrReserve: row.is_youth_or_reserve,
@@ -724,7 +724,7 @@ export async function fetchScoutingOverview(referenceDateISO: string): Promise<S
     db
       .from("player_scouting_state")
       .select("scoutastic_player_id", { count: "exact", head: true })
-      .in("status", ["monitoring", "interested", "priority"]),
+      .in("status", ACTIVE_SCOUTING_STATUSES),
     db.from("shortlists").select("id", { count: "exact", head: true }),
   ]);
   for (const res of [total, fresh, debutants, monitored, shortlists]) {

@@ -108,11 +108,27 @@ export function createSupabaseProvider(): PersistenceProvider {
       if (error) throw error;
     },
 
-    async setPlayerStatus(playerId, status) {
+    async setPlayerStatus(playerId, status, previousStatus, note) {
+      // onConflict must target the *current* unique constraint — since the
+      // per-scout privacy migration, that's the composite (owner_id,
+      // scoutastic_player_id) primary key, not scoutastic_player_id alone
+      // (which stopped being unique on its own once multiple scouts could
+      // each hold their own row for the same player). Using the old target
+      // here made every status/notes save fail outright post-migration.
       const { error } = await db()
         .from("player_scouting_state")
-        .upsert({ scoutastic_player_id: playerId, status }, { onConflict: "scoutastic_player_id" });
+        .upsert({ scoutastic_player_id: playerId, status }, { onConflict: "owner_id,scoutastic_player_id" });
       if (error) throw error;
+
+      // Best-effort: the state write above already succeeded, so a
+      // logging hiccup here is reported to the console, never surfaced
+      // as a save failure to the caller.
+      if (previousStatus !== status) {
+        const { error: historyError } = await db()
+          .from("player_status_history")
+          .insert({ scoutastic_player_id: playerId, old_status: previousStatus ?? null, new_status: status, note: note ?? "" });
+        if (historyError) console.error("Failed to log status change:", historyError);
+      }
     },
 
     async setPlayerNotes(playerId, notes) {
@@ -124,7 +140,7 @@ export function createSupabaseProvider(): PersistenceProvider {
           notes_recommendation: notes.recommendation,
           notes_general: notes.general,
         },
-        { onConflict: "scoutastic_player_id" }
+        { onConflict: "owner_id,scoutastic_player_id" }
       );
       if (error) throw error;
     },

@@ -8,7 +8,7 @@ import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
 import { calculateAge, formatCurrency, formatDate } from "@/lib/utils";
 import { PlayerAvatar } from "@/components/ui/PlayerAvatar";
-import { StatusSelect } from "@/components/ui/StatusBadge";
+import { StatusChangeMenu } from "@/components/ui/StatusBadge";
 import { ShortlistButton } from "@/components/shortlists/ShortlistButton";
 import { NextActionButton } from "@/components/players/NextActionButton";
 import { useAppStore, useEffectiveStatus } from "@/lib/app-store";
@@ -54,9 +54,9 @@ export function PlayerHeader({
   const status = useEffectiveStatus(player.id, player.status);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  async function handleStatusChange(next: ScoutingStatus) {
+  async function handleStatusChange(next: ScoutingStatus, note: string) {
     setStatusError(null);
-    const result = await setPlayerStatus(player.id, next);
+    const result = await setPlayerStatus(player.id, next, note);
     if (!result.ok) setStatusError(result.error ?? "Failed to save status — try again.");
   }
   // Official SCOUTASTIC competition name when it's been resolved; `league`
@@ -95,7 +95,7 @@ export function PlayerHeader({
 
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
-            <StatusSelect status={status} onChange={handleStatusChange} />
+            <StatusChangeMenu status={status} onChange={handleStatusChange} />
             <ShortlistButton playerId={player.id} />
             {onNewReport ? (
               <button

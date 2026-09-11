@@ -1,8 +1,33 @@
 -- Run this once in the Supabase SQL Editor (Project -> SQL Editor -> New query).
--- Purely additive: new tables only, nothing existing is touched or dropped.
+-- Additive + one value-remap on an existing column (player_scouting_state.status,
+-- only 2 rows in production as of writing) -- nothing is dropped or destroyed.
 -- Source of truth is db/schema.sql + db/rls_policies.sql (this file is a
--- copy-paste convenience of just the new block added there on 2026-09-11).
+-- copy-paste convenience of just the new blocks added there on 2026-09-11).
 
+-- ==== status pipeline expansion (db/schema.sql) ====
+
+-- ============================================================
+-- Recruitment pipeline expansion (2026-09-11) — from a flat 5-value
+-- status (not_assessed/monitoring/interested/priority/rejected) to the
+-- full 10-stage pipeline. One-time value remap for whatever rows already
+-- exist, then the check constraint and default are widened/updated.
+-- Safe to re-run: the UPDATE only ever touches rows still holding an old
+-- value, so it's a no-op once already migrated.
+-- ============================================================
+update player_scouting_state set status = 'unwatched' where status = 'not_assessed';
+update player_scouting_state set status = 'data_identified' where status = 'monitoring';
+update player_scouting_state set status = 'video' where status = 'interested';
+-- 'priority' and 'rejected' keep the same slug/meaning — no remap needed.
+
+alter table player_scouting_state drop constraint if exists player_scouting_state_status_check;
+alter table player_scouting_state add constraint player_scouting_state_status_check
+  check (status in ('unwatched', 'data_identified', 'video', 'live', 'shortlist', 'priority', 'discuss', 'target', 'rejected', 'signed'));
+alter table player_scouting_state alter column status set default 'unwatched';
+
+
+-- ==== new tables (db/schema.sql) ====
+
+-- ============================================================
 -- Recruitment-platform foundations (2026-09-11 pass) — schema only.
 -- Populating scripts/UI for each of these lands in follow-up passes; see
 -- the architecture summary in the conversation this was written from.
@@ -78,6 +103,26 @@ create table if not exists alert_read_state (
   primary key (alert_id, owner_id)
 );
 
+-- Status change log ("Phase 13") — append-only, one row per real status
+-- transition. Owner-scoped like player_scouting_state itself (each scout
+-- now has their own independent status per player, so their history of
+-- changing it is equally their own). Written by the frontend right after
+-- a successful player_scouting_state write — see
+-- src/lib/persistence/supabaseProvider.ts's setPlayerStatus. `old_status`
+-- is null only for a player's very first status row (never had one
+-- before, e.g. straight to 'shortlist' without passing through the
+-- default 'unwatched' explicitly).
+create table if not exists player_status_history (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  scoutastic_player_id text not null,
+  old_status text,
+  new_status text not null,
+  note text not null default '',
+  changed_at timestamptz not null default now()
+);
+create index if not exists idx_player_status_history_lookup on player_status_history(owner_id, scoutastic_player_id, changed_at desc);
+
 -- KV Mechelen role profiles ("Phase 4/19") — configuration only, no
 -- scoring logic and no seeded weights yet. Deliberately NOT seeded with
 -- example weights against packing/progressive-passing/etc.: those are
@@ -111,7 +156,7 @@ create trigger trg_role_profiles_updated_at
   before update on role_profiles
   for each row execute function set_updated_at();
 
--- ==== RLS policies (from db/rls_policies.sql) ====
+-- ==== RLS policies (db/rls_policies.sql) ====
 
 -- Recruitment-platform foundations (2026-09-11 pass) — see schema.sql's
 -- matching comment block for what each table is for.
@@ -151,6 +196,16 @@ create policy "owner can insert alert_read_state" on alert_read_state
 drop policy if exists "owner can delete alert_read_state" on alert_read_state;
 create policy "owner can delete alert_read_state" on alert_read_state
   for delete to authenticated using (owner_id = auth.uid());
+
+-- Status history is an append-only log — owner can read and insert,
+-- never update or delete (no such policy is intentional).
+alter table player_status_history enable row level security;
+drop policy if exists "owner can read player_status_history" on player_status_history;
+create policy "owner can read player_status_history" on player_status_history
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert player_status_history" on player_status_history;
+create policy "owner can insert player_status_history" on player_status_history
+  for insert to authenticated with check (owner_id = auth.uid());
 
 -- Role profiles are club-wide config, not scout-private — same
 -- "shared, no per-user ownership" convention as favorite_competitions.

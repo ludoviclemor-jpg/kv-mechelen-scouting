@@ -30,12 +30,26 @@ export type Position =
 
 export type PreferredFoot = "Left" | "Right" | "Both";
 
+/**
+ * Recruitment pipeline stage (2026-09-11 expansion from a flat 5-value
+ * set). Ordered roughly as a scout would progress a real candidate,
+ * though "rejected"/"signed" are terminal exits reachable from anywhere,
+ * not only the end of the list. `shortlist` here is the *status* stage —
+ * distinct from (and independent of) the named `Shortlist` lists a player
+ * can also belong to (src/lib/players-data's `Shortlist` type); both
+ * concepts already coexist in the product on purpose.
+ */
 export type ScoutingStatus =
-  | "not_assessed"
-  | "monitoring"
-  | "interested"
+  | "unwatched"
+  | "data_identified"
+  | "video"
+  | "live"
+  | "shortlist"
   | "priority"
-  | "rejected";
+  | "discuss"
+  | "target"
+  | "rejected"
+  | "signed";
 
 export interface MatchRating {
   date: string; // ISO date

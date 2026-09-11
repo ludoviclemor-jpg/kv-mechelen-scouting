@@ -31,6 +31,14 @@ export interface PersistenceProvider {
   addPlayerToShortlist(shortlistId: string, playerId: string): Promise<void>;
   removePlayerFromShortlist(shortlistId: string, playerId: string): Promise<void>;
 
-  setPlayerStatus(playerId: string, status: ScoutingStatus): Promise<void>;
+  /**
+   * `previousStatus`/`note` are only used to write an entry to the
+   * (append-only, owner-scoped) status history log — never required for
+   * the state write itself. A logging failure is swallowed by the
+   * provider (best-effort, non-blocking): the status change itself
+   * already succeeded by the time history is attempted, so a logging
+   * hiccup shouldn't be reported back as a save failure.
+   */
+  setPlayerStatus(playerId: string, status: ScoutingStatus, previousStatus?: ScoutingStatus, note?: string): Promise<void>;
   setPlayerNotes(playerId: string, notes: ScoutingNotes): Promise<void>;
 }

@@ -230,6 +230,16 @@ drop policy if exists "owner can delete alert_read_state" on alert_read_state;
 create policy "owner can delete alert_read_state" on alert_read_state
   for delete to authenticated using (owner_id = auth.uid());
 
+-- Status history is an append-only log — owner can read and insert,
+-- never update or delete (no such policy is intentional).
+alter table player_status_history enable row level security;
+drop policy if exists "owner can read player_status_history" on player_status_history;
+create policy "owner can read player_status_history" on player_status_history
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert player_status_history" on player_status_history;
+create policy "owner can insert player_status_history" on player_status_history
+  for insert to authenticated with check (owner_id = auth.uid());
+
 -- Role profiles are club-wide config, not scout-private — same
 -- "shared, no per-user ownership" convention as favorite_competitions.
 -- Every authenticated scout can read and edit them for now: there is no

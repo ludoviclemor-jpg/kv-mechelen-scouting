@@ -44,7 +44,7 @@ export function PlayerQuickDrawer({
 
   // Called unconditionally, before the early return below — hooks can't
   // follow a conditional return (Rules of Hooks).
-  const status = useEffectiveStatus(player?.id ?? "", player?.status ?? "not_assessed");
+  const status = useEffectiveStatus(player?.id ?? "", player?.status ?? "unwatched");
 
   if (!lineupPlayer) return null;
 

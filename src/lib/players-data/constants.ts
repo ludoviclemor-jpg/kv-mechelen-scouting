@@ -46,20 +46,41 @@ export const POSITION_LABELS: Record<Position, string> = {
 };
 
 export const SCOUTING_STATUSES: ScoutingStatus[] = [
-  "not_assessed",
-  "monitoring",
-  "interested",
+  "unwatched",
+  "data_identified",
+  "video",
+  "live",
+  "shortlist",
   "priority",
+  "discuss",
+  "target",
   "rejected",
+  "signed",
 ];
 
 export const STATUS_LABELS: Record<ScoutingStatus, string> = {
-  not_assessed: "Not assessed",
-  monitoring: "Monitoring",
-  interested: "Interested",
+  unwatched: "Unwatched",
+  data_identified: "Data identified",
+  video: "Video watch",
+  live: "Live watch",
+  shortlist: "Shortlist",
   priority: "Priority",
+  discuss: "Discuss",
+  target: "Target",
   rejected: "Rejected",
+  signed: "Signed",
 };
+
+/** Stages between "unwatched" and a terminal exit — i.e. "actively being scouted" for KPI/overview purposes. */
+export const ACTIVE_SCOUTING_STATUSES: ScoutingStatus[] = [
+  "data_identified",
+  "video",
+  "live",
+  "shortlist",
+  "priority",
+  "discuss",
+  "target",
+];
 
 export const MINIMUM_RATED_MATCHES = 3;
 
