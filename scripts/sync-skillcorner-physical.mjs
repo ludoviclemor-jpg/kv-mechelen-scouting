@@ -174,7 +174,16 @@ async function processEdition(db, skillcorner, bridge, edition, delayMs) {
     return { ok: true, rowsWritten: physicalRows.length, rowsUnmatched };
   } catch (err) {
     console.error(`  [fail] edition ${edition.id}: ${err.message}`);
-    await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
+    // A transient network blip can hit this update too (confirmed live,
+    // a multi-minute Supabase connect-timeout stretch mid-crawl) — never
+    // let marking-as-attempted itself crash the whole `--all` run; worst
+    // case this edition is retried sooner than strict nulls-first order
+    // would otherwise put it, not a correctness problem either way.
+    try {
+      await db.from("skillcorner_sync_queue").update({ last_synced_at: new Date().toISOString() }).eq("competition_edition_id", edition.id);
+    } catch (updateErr) {
+      console.error(`  [fail] edition ${edition.id}: also failed to mark as attempted: ${updateErr.message}`);
+    }
     return { ok: false, rowsWritten: 0, rowsUnmatched: 0 };
   }
 }
@@ -224,7 +233,22 @@ async function main() {
   } else if (args.all) {
     console.log("Processing the entire remaining queue this run (--all).");
     for (;;) {
-      const queue = await fetchQueueBatch(db, args.batchSize);
+      // A transient Supabase connect-timeout here would otherwise crash
+      // the whole multi-hour `--all` run over a blip lasting seconds —
+      // confirmed live. Retry a few times with backoff before giving up
+      // for real.
+      let queue;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          queue = await fetchQueueBatch(db, args.batchSize);
+          break;
+        } catch (err) {
+          if (attempt > 5) throw err;
+          const waitMs = Math.min(2000 * 2 ** (attempt - 1), 30000);
+          console.error(`  [retry] fetchQueueBatch failed (${err.message}), waiting ${waitMs}ms (attempt ${attempt}/5)`);
+          await sleep(waitMs);
+        }
+      }
       if (queue.length === 0) break;
       for (const edition of queue) {
         const result = await processEdition(db, skillcorner, bridge, edition, args.delayMs);
