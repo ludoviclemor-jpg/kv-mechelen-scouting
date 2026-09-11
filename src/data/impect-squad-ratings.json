@@ -1,0 +1,118 @@
+{
+  "iterationId": 2143,
+  "competitionName": "Jupiler Pro League",
+  "season": "26/27",
+  "asOfDate": "2026-09-11",
+  "fetchedAt": "2026-09-11T12:31:53.111Z",
+  "source": "Impect Data API — GET /v5/customerapi/iterations/{id}/squads/ratings",
+  "ratings": [
+    {
+      "squadId": 242,
+      "squadName": "FC Brügge",
+      "rating": 0.8955,
+      "rank": 1
+    },
+    {
+      "squadId": 1635,
+      "squadName": "Royale Union Saint Gilloise",
+      "rating": 0.834,
+      "rank": 2
+    },
+    {
+      "squadId": 372,
+      "squadName": "KRC Genk",
+      "rating": 0.7894,
+      "rank": 3
+    },
+    {
+      "squadId": 363,
+      "squadName": "RSC Anderlecht",
+      "rating": 0.7581,
+      "rank": 4
+    },
+    {
+      "squadId": 366,
+      "squadName": "VV St. Truiden",
+      "rating": 0.7265,
+      "rank": 5
+    },
+    {
+      "squadId": 364,
+      "squadName": "KAA Gent",
+      "rating": 0.7144,
+      "rank": 6
+    },
+    {
+      "squadId": 374,
+      "squadName": "RSC Charleroi",
+      "rating": 0.7111,
+      "rank": 7
+    },
+    {
+      "squadId": 367,
+      "squadName": "SV Zulte Waregem",
+      "rating": 0.6646,
+      "rank": 8
+    },
+    {
+      "squadId": 1637,
+      "squadName": "Cercle Brügge",
+      "rating": 0.6645,
+      "rank": 9
+    },
+    {
+      "squadId": 369,
+      "squadName": "Standard Lüttich",
+      "rating": 0.6522,
+      "rank": 10
+    },
+    {
+      "squadId": 368,
+      "squadName": "SK Beveren",
+      "rating": 0.6477,
+      "rank": 11
+    },
+    {
+      "squadId": 1523,
+      "squadName": "Royal Antwerpen FC",
+      "rating": 0.6328,
+      "rank": 12
+    },
+    {
+      "squadId": 370,
+      "squadName": "KVC Westerlo",
+      "rating": 0.6224,
+      "rank": 13
+    },
+    {
+      "squadId": 373,
+      "squadName": "KV Mechelen",
+      "rating": 0.6208,
+      "rank": 14
+    },
+    {
+      "squadId": 1633,
+      "squadName": "Oud-Heverlee Leuven",
+      "rating": 0.6081,
+      "rank": 15
+    },
+    {
+      "squadId": 4175,
+      "squadName": "RAAL La Louvière",
+      "rating": 0.587,
+      "rank": 16
+    },
+    {
+      "squadId": 362,
+      "squadName": "KV Kortrijk",
+      "rating": 0.5827,
+      "rank": 17
+    },
+    {
+      "squadId": 1645,
+      "squadName": "Lommel SK",
+      "rating": 0.5281,
+      "rank": 18
+    }
+  ]
+}
