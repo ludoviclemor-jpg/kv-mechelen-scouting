@@ -74,13 +74,35 @@ function fromRow(row: RatingRow): PlayerRating {
   };
 }
 
-/** Real Impect/Scoutastic player-id bridge (impect_players.transfermarkt_id = players.scoutastic_player_id, confirmed live) — `scoutasticPlayerId` here is the raw numeric-string id (e.g. "563139"), not the "sc-563139" form used as `players.id`. */
+/**
+ * Real Impect/Scoutastic player-id bridge (impect_players.transfermarkt_id = players.scoutastic_player_id, confirmed live) — `scoutasticPlayerId` here is the raw numeric-string id (e.g. "563139"), not the "sc-563139" form used as `players.id`.
+ *
+ * A player can have `player_ratings` rows from several real competitions
+ * at once (e.g. Erling Haaland has rows from 2018/19 Salzburg, 2019/20
+ * Dortmund, and current Manchester City — every competition Impect has
+ * ever synced KPIs for, not just his current club). Ordering by
+ * `calculated_at` alone (the previous approach) is wrong: a batch
+ * recalculation computes many of a player's old competitions within the
+ * same second, so "most recently calculated" is really just "whichever
+ * happened to be last in that batch" — confirmed live, it was picking a
+ * 2019/20 Bundesliga row over more recent ones for Haaland, not his
+ * current level. Impect's own `iteration_id`s increase monotonically
+ * with season within a competition (confirmed live across e.g. Bundesliga
+ * 96→139→1025→1411→2147 for 18/19→19/20→24/25→25/26→26/27) — the real,
+ * verifiable signal for "which of this player's rated competitions is
+ * most recent", not a fabricated heuristic. `ratable` rows are preferred
+ * over unratable ones (a thin-sample warning shouldn't outrank a real
+ * season score), with `iteration_id` as the real tiebreak within each
+ * group and `calculated_at` only as the final fallback.
+ */
 export async function fetchPlayerRating(scoutasticPlayerId: string): Promise<PlayerRating | null> {
   if (!isSupabaseConfigured()) notConfigured();
   const { data, error } = await getSupabaseClient()
     .from("player_ratings")
     .select("*")
     .eq("scoutastic_player_id", scoutasticPlayerId)
+    .order("ratable", { ascending: false })
+    .order("iteration_id", { ascending: false })
     .order("calculated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
