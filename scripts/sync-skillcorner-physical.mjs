@@ -188,12 +188,24 @@ async function processEdition(db, skillcorner, bridge, edition, delayMs) {
   }
 }
 
-async function fetchQueueBatch(db, batchSize) {
-  const { data, error } = await db
+/**
+ * `onlyUnsynced` matters for `--all`: without it, the query always
+ * returns *some* batch (oldest-synced-first) even once every edition
+ * has been attempted at least once, which is the right behavior for a
+ * single bounded batch run (grows coverage incrementally, same as
+ * Impect's queue) but would make `--all`'s "queue.length === 0" stop
+ * condition never actually trigger — confirmed live: without this
+ * filter it kept re-processing already-synced editions in an unbounded
+ * loop instead of stopping once the real queue was empty.
+ */
+async function fetchQueueBatch(db, batchSize, { onlyUnsynced = false } = {}) {
+  let query = db
     .from("skillcorner_sync_queue")
     .select("competition_edition_id, skillcorner_competition_editions(id,competition_name,season_name)")
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(batchSize);
+  if (onlyUnsynced) query = query.is("last_synced_at", null);
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).map((r) => r.skillcorner_competition_editions);
 }
@@ -240,7 +252,7 @@ async function main() {
       let queue;
       for (let attempt = 1; ; attempt++) {
         try {
-          queue = await fetchQueueBatch(db, args.batchSize);
+          queue = await fetchQueueBatch(db, args.batchSize, { onlyUnsynced: true });
           break;
         } catch (err) {
           if (attempt > 5) throw err;
@@ -274,10 +286,19 @@ async function main() {
     }
   }
 
-  const { count: remaining } = await db
-    .from("skillcorner_sync_queue")
-    .select("competition_edition_id", { count: "exact", head: true })
-    .is("last_synced_at", null);
+  // Best-effort only — this is a cosmetic summary line; a transient
+  // failure here (confirmed live) shouldn't mark an otherwise-fully-
+  // successful multi-hour run as failed.
+  let remaining = "unknown";
+  try {
+    const { count } = await db
+      .from("skillcorner_sync_queue")
+      .select("competition_edition_id", { count: "exact", head: true })
+      .is("last_synced_at", null);
+    remaining = count ?? "unknown";
+  } catch (err) {
+    console.error(`  [warn] couldn't fetch remaining-count summary: ${err.message}`);
+  }
 
   console.log(`\nEditions synced this run: ${editionsOk}/${editionsTotal}`);
   console.log(`Physical rows written: ${rowsWritten} (matched to real players)`);
