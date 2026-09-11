@@ -827,16 +827,24 @@ alter table player_scouting_state add primary key (owner_id, scoutastic_player_i
 -- ============================================================
 -- Recruitment pipeline expansion (2026-09-11) — from a flat 5-value
 -- status (not_assessed/monitoring/interested/priority/rejected) to the
--- full 10-stage pipeline. One-time value remap for whatever rows already
--- exist, then the check constraint and default are widened/updated.
--- Safe to re-run: the UPDATE only ever touches rows still holding an old
--- value, so it's a no-op once already migrated.
+-- full 10-stage pipeline. The check constraint must be widened *before*
+-- any row is remapped to a new value name — the old constraint doesn't
+-- know 'unwatched'/'data_identified'/'video' and rejects the UPDATE
+-- otherwise (confirmed live: this ordering bug was caught by a real
+-- failed migration attempt). Safe to re-run: the UPDATEs only ever touch
+-- rows still holding an old value, so they're a no-op once migrated.
 -- ============================================================
+alter table player_scouting_state drop constraint if exists player_scouting_state_status_check;
+alter table player_scouting_state add constraint player_scouting_state_status_check
+  check (status in ('not_assessed', 'monitoring', 'interested', 'unwatched', 'data_identified', 'video', 'live', 'shortlist', 'priority', 'discuss', 'target', 'rejected', 'signed'));
+
 update player_scouting_state set status = 'unwatched' where status = 'not_assessed';
 update player_scouting_state set status = 'data_identified' where status = 'monitoring';
 update player_scouting_state set status = 'video' where status = 'interested';
 -- 'priority' and 'rejected' keep the same slug/meaning — no remap needed.
 
+-- Now that no row holds an old value, narrow the constraint to just the
+-- real 10-stage set (drops the three old value names from the allowlist).
 alter table player_scouting_state drop constraint if exists player_scouting_state_status_check;
 alter table player_scouting_state add constraint player_scouting_state_status_check
   check (status in ('unwatched', 'data_identified', 'video', 'live', 'shortlist', 'priority', 'discuss', 'target', 'rejected', 'signed'));
