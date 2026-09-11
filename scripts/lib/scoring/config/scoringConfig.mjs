@@ -9,7 +9,7 @@
 
 import { DERIVED_COMPETITION_STRENGTH } from "./competitionStrengthData.mjs";
 
-export const MODEL_VERSION = "1.1.0";
+export const MODEL_VERSION = "1.2.0";
 
 /** Minimum minutes a player needs before their rating is calculated at all — below this, the sample is too thin to say anything. */
 export const MIN_MINUTES_FOR_RATING = 270; // ~3 full matches, same bar already used for the pizza-chart percentile population (src/components/dashboard/ImpectPlayerPizzaDrawer.tsx)

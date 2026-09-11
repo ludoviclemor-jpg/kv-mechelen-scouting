@@ -1,12 +1,31 @@
 import { METRIC_REGISTRY } from "./config/metricRegistry.mjs";
 
 /**
- * Raw -> usable metric values for one player row (Step 3, steps 1-2:
- * validate input, convert applicable totals to per-90). `row` is one
+ * Raw -> usable metric values for one player row. `row` is one
  * `impect_player_kpis` record shape: { kpis: {KPI_NAME: value}, minutes,
  * matchShare, position, playerId }. Rate metrics (duel win %) and
  * derived metrics (finishing) are computed here too, from the same real
  * inputs — never a separately-invented field.
+ *
+ * **`row.kpis` values are already real per-match-share averages, not
+ * season-cumulative totals** — confirmed live, 2026-09-11: Impect's own
+ * sync endpoint (`/v5/customerapi/iterations/{id}/squads/{id}/player-
+ * kpis`) is explicitly documented as returning "average KPIs for players
+ * for single iteration" (its response DTO is literally named
+ * `IterationAvgPlayerKpisDto`/`IterationAvgKpiDto`), and real synced
+ * data confirms it: every Premier League 2025/26 centre-forward's
+ * `GOALS` value clusters in the same ~0.2-0.85 range regardless of
+ * whether they played 2900 or 3644 minutes — impossible for a season
+ * total, exactly expected for an already-per-match average. This module
+ * used to divide these values by `minutes` a *second* time
+ * (`(raw / minutes) * 90`), which doesn't just produce a wrong
+ * constant — it systematically shrinks the metric further the *more*
+ * minutes a player has, silently punishing exactly the high-minutes
+ * regular starters a scout cares most about (confirmed live: this was
+ * why a clearly elite, ever-present striker's Goal Threat pillar came
+ * out at the 40th percentile instead of the 90s). Fixed by using
+ * Impect's own already-computed average directly — trusting Impect's
+ * own real normalization rather than re-deriving a second, guessed one.
  *
  * A metric absent from `row.kpis` (Impect genuinely never computed it
  * for this player) yields `null` here, propagated all the way through —
@@ -16,12 +35,10 @@ import { METRIC_REGISTRY } from "./config/metricRegistry.mjs";
  */
 export function computePlayerMetrics(row) {
   const k = row.kpis ?? {};
-  const minutes = row.minutes ?? 0;
 
-  function per90(kpiName) {
-    const raw = k[kpiName];
-    if (raw === undefined || raw === null || minutes <= 0) return null;
-    return (raw / minutes) * 90;
+  function average(kpiName) {
+    const value = k[kpiName];
+    return value === undefined || value === null ? null : value;
   }
 
   function raw(kpiName) {
@@ -29,15 +46,15 @@ export function computePlayerMetrics(row) {
   }
 
   const values = {
-    goals: per90("GOALS"),
-    assists: per90("ASSISTS"),
-    shots: per90("SHOT_AT_GOAL_NUMBER"),
-    shotXg: per90("SHOT_XG"),
-    packingXg: per90("PACKING_XG"),
-    bypassedOpponents: per90("BYPASSED_OPPONENTS"),
-    bypassedDefenders: per90("BYPASSED_DEFENDERS"),
-    ballWin: per90("BALL_WIN_REMOVED_OPPONENTS"),
-    ballLoss: per90("BALL_LOSS_REMOVED_TEAMMATES"),
+    goals: average("GOALS"),
+    assists: average("ASSISTS"),
+    shots: average("SHOT_AT_GOAL_NUMBER"),
+    shotXg: average("SHOT_XG"),
+    packingXg: average("PACKING_XG"),
+    bypassedOpponents: average("BYPASSED_OPPONENTS"),
+    bypassedDefenders: average("BYPASSED_DEFENDERS"),
+    ballWin: average("BALL_WIN_REMOVED_OPPONENTS"),
+    ballLoss: average("BALL_LOSS_REMOVED_TEAMMATES"),
   };
 
   // Rates: computed from two real volume totals, kept as a rate (never divided by 90 again) — spec's explicit instruction.

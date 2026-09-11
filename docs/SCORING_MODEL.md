@@ -24,20 +24,22 @@ Only fields confirmed in this project's own live-fetched catalogs (`docs/impect-
 
 | Registry key | Impect field | Kind | Higher is better |
 |---|---|---|---|
-| `goals` | `GOALS` | volume (per-90'd) | yes |
-| `assists` | `ASSISTS` | volume | yes |
-| `shots` | `SHOT_AT_GOAL_NUMBER` | volume | yes |
-| `shotXg` | `SHOT_XG` | volume | yes |
-| `packingXg` | `PACKING_XG` | volume | yes |
-| `bypassedOpponents` | `BYPASSED_OPPONENTS` | volume | yes |
-| `bypassedDefenders` | `BYPASSED_DEFENDERS` | volume | yes |
+| `goals` | `GOALS` | already a real per-match-share average (Impect's own) | yes |
+| `assists` | `ASSISTS` | already a real per-match-share average | yes |
+| `shots` | `SHOT_AT_GOAL_NUMBER` | already a real per-match-share average | yes |
+| `shotXg` | `SHOT_XG` | already a real per-match-share average | yes |
+| `packingXg` | `PACKING_XG` | already a real per-match-share average | yes |
+| `bypassedOpponents` | `BYPASSED_OPPONENTS` | already a real per-match-share average | yes |
+| `bypassedDefenders` | `BYPASSED_DEFENDERS` | already a real per-match-share average | yes |
 | `groundDuelWinPct` | `WON_GROUND_DUELS` / `LOST_GROUND_DUELS` | rate | yes |
 | `aerialDuelWinPct` | `WON_AERIAL_DUELS` / `LOST_AERIAL_DUELS` | rate | yes |
-| `ballWin` | `BALL_WIN_REMOVED_OPPONENTS` | volume | yes |
-| `ballLoss` | `BALL_LOSS_REMOVED_TEAMMATES` | volume | **no** (Impect's own catalog marks this `inverted: true`) |
+| `ballWin` | `BALL_WIN_REMOVED_OPPONENTS` | already a real per-match-share average | yes |
+| `ballLoss` | `BALL_LOSS_REMOVED_TEAMMATES` | already a real per-match-share average | **no** (Impect's own catalog marks this `inverted: true`) |
 | `finishing` | `GOALS / SHOT_XG` | derived ratio | yes |
 
 Source of truth: `scripts/lib/scoring/config/metricRegistry.mjs`.
+
+**Fixed a serious real bug this way (2026-09-11)**: `preprocessing.mjs` used to divide these values by `minutes` a second time (`(raw / minutes) * 90`), on the original assumption that `impect_player_kpis.kpis` held season-cumulative totals. It doesn't — Impect's own sync endpoint (`/v5/customerapi/iterations/{id}/squads/{id}/player-kpis`) is explicitly documented as returning "average KPIs for players for single iteration" (response DTO literally named `IterationAvgPlayerKpisDto`), confirmed live against real synced data (every Premier League centre-forward's `GOALS` value clustered in the same ~0.2–0.85 range regardless of whether they'd played 2900 or 3644 minutes — impossible for a season total). Re-dividing an already-averaged value by minutes doesn't just produce a wrong constant, it systematically shrinks the value *further* the more minutes a player has — silently punishing exactly the high-minutes regular starters a scout cares about most. This is why a real, clearly elite, ever-present Premier League striker's Goal Threat pillar was coming out at the 40th percentile instead of the 90s. `preprocessing.mjs` now uses Impect's own already-computed average directly.
 
 ### Fields identified but not yet synced (real, not invented — just not wired up)
 
@@ -59,7 +61,7 @@ Full pillar-by-position mapping, with each pillar's real backing metrics and wei
 
 ## Normalization method (`scripts/lib/scoring/normalization.mjs`)
 
-1. Convert volume totals to per-90 using real minutes (`preprocessing.mjs`); rates (duel win %) and the derived finishing ratio are left as rates, never divided by 90 again.
+1. Read each volume metric as Impect's own already-computed per-match-share average (`preprocessing.mjs`, see "Real Impect fields used" above) — never re-divided by minutes; rates (duel win %) and the derived finishing ratio are left as rates too.
 2. Winsorize each value against its cohort at the 2nd/98th percentile (`WINSORIZE_LOW_PERCENTILE`/`WINSORIZE_HIGH_PERCENTILE` in `scoringConfig.mjs`) — one extreme match/season can't dominate a cohort.
 3. Percentile-rank the clipped value within the cohort, reversed for `higherIsBetter: false` metrics.
 4. Bayesian shrinkage toward 50 using the exact spec formula:

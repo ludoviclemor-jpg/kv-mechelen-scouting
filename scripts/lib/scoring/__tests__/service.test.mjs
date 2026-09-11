@@ -118,19 +118,13 @@ describe("scorePlayer — minutes and sample size", () => {
 
   it("shrinks a low-minutes player's Current Level closer to the cohort average than an identical high-minutes player with the SAME per-90 rate", () => {
     const pool = buildCohortPool(30);
-    // Scale raw totals with minutes so the per-90 *rate* (and therefore the raw percentile) is identical either way — isolating reliability/shrinkage as the only real difference, not a per-90 artifact of holding totals fixed while changing minutes.
-    const scaleKpis = (kpis, factor) => Object.fromEntries(Object.entries(kpis).map(([k, v]) => [k, Math.round(v * factor)]));
+    // `kpis` values are already real per-match-share rates (see
+    // preprocessing.mjs) — holding the SAME rate constant across
+    // different minutes means passing the SAME kpis object, only
+    // `minutes` (and therefore reliability) differs.
     const base = starPlayer();
-    const low = scorePlayer({
-      player: starPlayer({ minutes: 300, kpis: scaleKpis(base.kpis, 300 / 1800) }),
-      pool,
-      competitionTierByIterationId: tierMap,
-    });
-    const high = scorePlayer({
-      player: starPlayer({ minutes: 3000, kpis: scaleKpis(base.kpis, 3000 / 1800) }),
-      pool,
-      competitionTierByIterationId: tierMap,
-    });
+    const low = scorePlayer({ player: starPlayer({ minutes: 300, kpis: base.kpis }), pool, competitionTierByIterationId: tierMap });
+    const high = scorePlayer({ player: starPlayer({ minutes: 3000, kpis: base.kpis }), pool, competitionTierByIterationId: tierMap });
     // Both have the same underlying rate and outperform the cohort, but the low-minutes version should be pulled further toward 50 by shrinkage.
     expect(Math.abs(low.currentLevel - 50)).toBeLessThan(Math.abs(high.currentLevel - 50));
   });
