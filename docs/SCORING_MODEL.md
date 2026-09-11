@@ -79,11 +79,18 @@ Full pillar-by-position mapping, with each pillar's real backing metrics and wei
 
 A fallback firing always adds a `warnings[]` entry and is visible in `context.cohortLevel`. **Known limitation**: this project doesn't yet classify a specific *role* within a position group (e.g. "ball-playing CB" vs. "stopper CB") — `context.role` is the position group name until real role classification exists. `MIN_COHORT_SIZE` is configurable in `scoringConfig.mjs`.
 
-## Competition calibration (`scripts/lib/scoring/competitionStrength.mjs`)
+## Competition calibration (`scripts/lib/scoring/competitionStrength.mjs`, `config/competitionStrengthData.mjs`)
 
-**Provisional, explicitly marked as such** — this project has no real competition-strength data source (no UEFA coefficient sync, no market-value-based ranking). `scoringConfig.mjs`'s `COMPETITION_STRENGTH` map currently lists only the Jupiler Pro League (the calibration anchor, `multiplier: 1.0`) and the Challenger Pro League; every other competition uses `DEFAULT_COMPETITION_STRENGTH` (`multiplier: 0.85, offset: -3`) and gets a `warnings[]` entry saying so. This keeps the absolute `CURRENT_LEVEL_BANDS` scale meaningful (a 90th-percentile player in an unlisted competition does not automatically read as a 90) without pretending the multiplier is an objective fact.
+`COMPETITION_STRENGTH` is derived from two real, independently published external sources (fetched live 2026-09-11, see `competitionStrengthData.mjs`'s header for full methodology and citations) — not hand-picked:
 
-Extend this map with real values (or a real strength source, once one exists in this project) by editing `COMPETITION_STRENGTH` — nothing else needs to change.
+- **IFFHS's "Strongest Leagues" ranking** — real points for the world's top ~20 domestic leagues.
+- **UEFA country coefficients** — real 5-year performance-based ranking for all 55 UEFA associations, converted onto the IFFHS points scale via Belgium's own real numbers in both sources (Belgium is this project's calibration anchor, `multiplier: 1.0, offset: 0`).
+
+For each of these ~90 real competition names (every major domestic league Impect syncs, across every tier of each country's real pyramid — verified against `impect_competitions.country_id`, not guessed from name alone), `multiplier`/`offset` are computed by one formula: `offset = clamp(12 * ln(points / anchorPoints), [-15, 25])`, `multiplier = clamp(1 + 0.15 * ln(points / anchorPoints), [0.7, 1.35])`. A country's lower divisions compound a real, already-established discount ratio once per tier below the top flight — the same 0.85×/-3 ratio this project already used for Belgium's own Challenger Pro League, generalized instead of being Belgium-specific.
+
+**Fixed a real bug this way**: before this data existed, every competition except Belgium's own two used the same weak `DEFAULT_COMPETITION_STRENGTH` (`multiplier: 0.85, offset: -3`) — under which a Current Level of 90+ was *algebraically unreachable* for any player anywhere outside Belgium, since it would require a raw cohort-percentile score above 100. Confirmed live: this is why even a statistically dominant Premier League/LaLiga player's Current Level stayed capped in the 40s-50s regardless of how good their real underlying numbers were.
+
+A competition not covered by either real source (most non-European/non-IFFHS-top-20 leagues, all international tournaments — club-league strength data doesn't describe a one-off national-team tournament — and all youth/reserve competitions, where comparing to senior norms would be a category error) keeps `DEFAULT_COMPETITION_STRENGTH` and a `warnings[]` entry saying so, same honest "unranked" fallback as before, just now covering far fewer of the competitions that actually matter for scouting.
 
 ## Potential (`scripts/lib/scoring/potential.mjs`)
 

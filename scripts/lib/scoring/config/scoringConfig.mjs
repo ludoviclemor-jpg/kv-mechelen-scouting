@@ -7,7 +7,9 @@
  * not by hunting through the scoring modules.
  */
 
-export const MODEL_VERSION = "1.0.0";
+import { DERIVED_COMPETITION_STRENGTH } from "./competitionStrengthData.mjs";
+
+export const MODEL_VERSION = "1.1.0";
 
 /** Minimum minutes a player needs before their rating is calculated at all — below this, the sample is too thin to say anything. */
 export const MIN_MINUTES_FOR_RATING = 270; // ~3 full matches, same bar already used for the pizza-chart percentile population (src/components/dashboard/ImpectPlayerPizzaDrawer.tsx)
@@ -49,25 +51,29 @@ export const CURRENT_LEVEL_BANDS = [
 ];
 
 /**
- * Competition-strength calibration — PROVISIONAL. This project has no
- * real competition-strength data source (no UEFA coefficient sync, no
- * market-value-based league ranking); these multipliers are a rough,
- * clearly-marked placeholder, not an objective fact, per the spec's own
- * explicit instruction ("create a configuration layer with clearly
- * marked provisional values rather than pretending they are objective
- * facts"). `1.0` = calibration anchor. Applied as:
+ * Competition-strength calibration. `1.0`/`0` = Belgium's own Jupiler
+ * Pro League, this project's calibration anchor (per the
+ * CURRENT_LEVEL_BANDS' own "Good Belgian Pro League level" wording).
+ * Applied as:
  *   calibrated = 50 + (rawCurrentLevel - 50) * multiplier + offset
  * A multiplier below 1 compresses scores earned in a weaker competition
  * toward the middle; `offset` shifts the anchor itself down for a
  * genuinely weaker league. Keyed by real competitionName strings from
- * `impect_competitions` — an unlisted competition falls back to
- * DEFAULT_COMPETITION_STRENGTH.
+ * `impect_competitions`.
+ *
+ * ~90 of Impect's real competition names — every major domestic league
+ * this project has real external strength data for — are derived from
+ * two real, cited, independently published sources (IFFHS's strongest-
+ * leagues ranking and UEFA's country coefficients) via
+ * competitionStrengthData.mjs, not hand-picked: see that file's header
+ * for the full methodology and sources. A competition not covered there
+ * (no real external strength data sourced for it yet — most non-
+ * European/non-IFFHS-top-20 leagues, all international tournaments,
+ * all youth/reserve competitions) falls back to
+ * DEFAULT_COMPETITION_STRENGTH, an honest "unranked" placeholder, same
+ * as before.
  */
-export const COMPETITION_STRENGTH = {
-  // Belgium — the club's own league, used as the calibration anchor per the CURRENT_LEVEL_BANDS' own "Good Belgian Pro League level" wording.
-  "Jupiler Pro League": { multiplier: 1.0, offset: 0, tier: "provisional-anchor" },
-  "Challenger Pro League": { multiplier: 0.85, offset: -3, tier: "provisional" },
-};
+export const COMPETITION_STRENGTH = DERIVED_COMPETITION_STRENGTH;
 
 export const DEFAULT_COMPETITION_STRENGTH = { multiplier: 0.85, offset: -3, tier: "provisional-default" };
 
