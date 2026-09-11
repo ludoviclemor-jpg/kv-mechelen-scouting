@@ -1,8 +1,23 @@
--- Run this once in the Supabase SQL Editor (Project -> SQL Editor -> New query).
--- Additive + one value-remap on an existing column (player_scouting_state.status,
--- only 2 rows in production as of writing) -- nothing is dropped or destroyed.
--- Source of truth is db/schema.sql + db/rls_policies.sql (this file is a
--- copy-paste convenience of just the new blocks added there on 2026-09-11).
+-- SUPERSEDED -- do not run this file on its own.
+--
+-- Live-database check (2026-09-11, after the first attempt to run this
+-- file failed with "relation match_reports does not exist") found that
+-- production was still on the *original* schema: no owner_id on
+-- shortlists/player_scouting_state, and none of match_reports,
+-- saved_searches, action_items existed either. That whole block was
+-- written to schema.sql back on 2026-09-08 but apparently never actually
+-- run against Supabase -- this file only contained what was added *after*
+-- that point, so it depends on tables this database doesn't have yet.
+--
+-- Fix: run the complete db/schema.sql, then the complete
+-- db/rls_policies.sql, in the Supabase SQL Editor. Both are written to be
+-- safe to run end-to-end even though most of the tables in them already
+-- exist (create table if not exists / add column if not exists / drop
+-- policy if exists + recreate throughout) -- nothing in either file drops
+-- or truncates anything. That takes the database from its real current
+-- state all the way to what today's code expects, in the right order.
+--
+-- Kept below for history only.
 
 -- ==== status pipeline expansion (db/schema.sql) ====
 
