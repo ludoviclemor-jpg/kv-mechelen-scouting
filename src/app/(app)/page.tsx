@@ -12,6 +12,7 @@ import { CallUpTable } from "@/components/players/CallUpTable";
 import { TodaysMatches } from "@/components/matches/TodaysMatches";
 import { TopRatedPlayersWidget } from "@/components/dashboard/TopRatedPlayersWidget";
 import { ImpectSquadRatingsWidget } from "@/components/dashboard/ImpectSquadRatingsWidget";
+import { ImpectKvmPlayerKpisWidget } from "@/components/dashboard/ImpectKvmPlayerKpisWidget";
 import { ScoutingRadarWidget } from "@/components/dashboard/ScoutingRadarWidget";
 import { NextActionsWidget } from "@/components/dashboard/NextActionsWidget";
 import { useAppStore } from "@/lib/app-store";
@@ -192,6 +193,10 @@ export default function DashboardPage() {
 
         <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <ImpectSquadRatingsWidget />
+        </section>
+
+        <section className="rounded-xl border border-kvm-border bg-white pb-2 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
+          <ImpectKvmPlayerKpisWidget />
         </section>
       </div>
     </div>
