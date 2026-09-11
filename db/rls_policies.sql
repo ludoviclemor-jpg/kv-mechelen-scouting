@@ -309,6 +309,24 @@ drop policy if exists "authenticated can read player_ratings" on player_ratings;
 create policy "authenticated can read player_ratings" on player_ratings
   for select to authenticated using (true);
 
+-- SkillCorner physical-data integration — read-only for `authenticated`,
+-- same convention as the impect_* tables. Written only by
+-- scripts/sync-skillcorner-*.mjs's service_role key.
+alter table skillcorner_competition_editions enable row level security;
+drop policy if exists "authenticated can read skillcorner_competition_editions" on skillcorner_competition_editions;
+create policy "authenticated can read skillcorner_competition_editions" on skillcorner_competition_editions
+  for select to authenticated using (true);
+
+alter table skillcorner_player_physical enable row level security;
+drop policy if exists "authenticated can read skillcorner_player_physical" on skillcorner_player_physical;
+create policy "authenticated can read skillcorner_player_physical" on skillcorner_player_physical
+  for select to authenticated using (true);
+
+-- skillcorner_sync_queue is an internal crawl-queue cache, never read by
+-- the frontend — RLS enabled with no policy at all, same convention as
+-- impect_sync_queue.
+alter table skillcorner_sync_queue enable row level security;
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see

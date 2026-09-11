@@ -15,8 +15,10 @@ import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePit
 import { CareerHistorySection } from "@/components/player-profile/CareerHistorySection";
 import { RecentPerformanceSection } from "@/components/player-profile/RecentPerformanceSection";
 import { PlayerRatingBreakdown } from "@/components/player-profile/PlayerRatingBreakdown";
+import { PlayerPhysicalProfile } from "@/components/player-profile/PlayerPhysicalProfile";
 import { fetchPlayerRecentPerformance } from "@/lib/sportmonks-data";
 import { fetchPlayerRating } from "@/lib/scoring-data/remote";
+import { fetchPlayerPhysicalProfile } from "@/lib/skillcorner-data/remote";
 import { FilterSelect } from "@/components/ui/FilterBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
@@ -81,6 +83,12 @@ function PlayerProfileContent() {
   // bridge (impect_players.transfermarkt_id = players.scoutastic_player_id).
   const rating = useAsync(
     () => (player ? fetchPlayerRating(player.scoutasticPlayerId) : Promise.resolve(null)),
+    [player?.scoutasticPlayerId]
+  );
+  // Real SkillCorner physical tracking data — separate source, separate bridge
+  // (players.name + players.date_of_birth), see scripts/sync-skillcorner-physical.mjs.
+  const physical = useAsync(
+    () => (player ? fetchPlayerPhysicalProfile(player.scoutasticPlayerId) : Promise.resolve(null)),
     [player?.scoutasticPlayerId]
   );
 
@@ -268,6 +276,9 @@ function PlayerProfileContent() {
               <div className="space-y-6">
                 <section>
                   <PlayerRatingBreakdown rating={rating.data ?? null} loading={rating.loading} error={rating.error} onRetry={rating.reload} />
+                </section>
+                <section className="border-t border-kvm-border pt-5">
+                  <PlayerPhysicalProfile profile={physical.data ?? null} loading={physical.loading} error={physical.error} onRetry={physical.reload} />
                 </section>
                 <section className="border-t border-kvm-border pt-5">
                   <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Sportmonks Ratings (Test)</h3>

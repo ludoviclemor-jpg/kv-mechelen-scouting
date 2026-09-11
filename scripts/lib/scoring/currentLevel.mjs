@@ -55,7 +55,7 @@ export function scoreCurrentLevel({ player, positionGroupConfig, cohort, competi
     }
 
     if (metricResults.length === 0) {
-      pillarResults.push({ key: pillarDef.key, label: pillarDef.label, available: false, score: null, percentile: null, reliability: null, weight: null });
+      pillarResults.push({ key: pillarDef.key, label: pillarDef.label, domain: pillarDef.domain, available: false, score: null, percentile: null, reliability: null, weight: null });
       continue;
     }
 
@@ -67,6 +67,7 @@ export function scoreCurrentLevel({ player, positionGroupConfig, cohort, competi
     pillarResults.push({
       key: pillarDef.key,
       label: pillarDef.label,
+      domain: pillarDef.domain,
       available: true,
       score: Math.round(pillarScore * 10) / 10,
       percentile: Math.round(pillarPercentile),

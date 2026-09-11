@@ -61,7 +61,11 @@ function fromRow(row: RatingRow): PlayerRating {
     overallPercentile: row.overall_percentile,
     confidence: { score: row.confidence_score, label: row.confidence_label, reasons: row.confidence_reasons ?? [] },
     context: row.context,
-    pillars: row.pillars ?? [],
+    // `domain` fallback: ratings calculated before the technical/physical
+    // split (scripts/lib/scoring/config/positionPillars.mjs) have no
+    // `domain` field yet in their stored jsonb — default to "technical"
+    // until the next `calculate-player-ratings.mjs` run backfills it.
+    pillars: (row.pillars ?? []).map((p) => ({ ...p, domain: p.domain ?? "technical" })),
     strengths: row.strengths ?? [],
     weaknesses: row.weaknesses ?? [],
     developmentPriorities: row.development_priorities ?? [],

@@ -109,7 +109,8 @@ Deterministic string templates only — no LLM, no paid API. Strengths/weaknesse
 - **No real role classification** within a position group.
 - **No match-level consistency signal** (only season-aggregate KPIs are synced) — "consistency across matches" from the brief isn't incorporated.
 - **Competition strength is provisional** for every competition except the two explicitly configured.
-- **Physical/international-experience data** isn't in Impect's synced fields for this project and isn't used.
+- **International-experience data** isn't in Impect's synced fields for this project and isn't used.
+- **Physical data** (speed, sprints, distance covered) is real but comes from a genuinely separate source — see "SkillCorner physical data" below — not from Impect, and not part of Current Level's own math.
 
 ## How to recalculate ratings
 
@@ -151,3 +152,14 @@ Real sub-position-group role classification isn't implemented yet (`context.role
 ## How the frontend retrieves ratings
 
 `src/lib/scoring-data/remote.ts`'s `fetchPlayerRating(scoutasticPlayerId)` reads the most recently calculated row from `player_ratings` via Supabase (RLS: read-only for `authenticated`, write only via the CLI's service_role key — see `db/rls_policies.sql`). The bridge between Impect's own player id space and this project's Scoutastic-based `players` table is real and confirmed live: `impect_players.transfermarkt_id = players.scoutastic_player_id`. The frontend never calls the Impect API and never runs any scoring math itself.
+
+## Technical vs. Physical charts on the player profile
+
+`positionPillars.mjs`'s `pillar()` helper tags every pillar with a `domain` of `"technical"` or `"physical"` — display-only, added 2026-09-11, never affecting a pillar's weight or its contribution to Current Level (see `currentLevel.mjs`). The `"physical"` tag marks Impect's own duel/pressing-based pillars (ground/aerial duel win %, ball win) — the closest real, non-invented signal Impect itself measures toward physicality. `src/components/player-profile/PlayerRatingBreakdown.tsx` renders only `domain === "technical"` pillars in its "Technical Profile" chart/table; the `"physical"`-tagged pillars still count toward the Current Level score shown above the chart, just aren't duplicated into it.
+
+**Real physical data — distance, sprints, high-speed running — comes from SkillCorner, not Impect.** Impect's own KPI (1458 entries, `docs/impect-kpi-definitions.json`) and Score (134 entries, `docs/impect-score-definitions.json`) catalogs were searched exhaustively and contain no speed/sprint/distance-covered metric; its `skillcorner-frame-mappings` endpoints only link video frames to events, not physical stats. SkillCorner (`www.skillcorner.com`, HTTP Basic Auth, real OpenAPI 3.1 spec at `docs/skillcorner-openapi.json`) is a genuinely separate account/API confirmed to have real per-match physical tracking data, including for KV Mechelen's own players (confirmed live: Benito Raman, Rob Schoofs).
+
+- **Sync**: `scripts/sync-skillcorner-competition-editions.mjs` (catalog + resumable `skillcorner_sync_queue`, same pattern as the Impect integration — 1541 real competition editions), then `scripts/sync-skillcorner-physical.mjs` (crawls the queue, fetches `GET /physical/?competition_edition=X&group_by=player&average_per=p90`, writes matched rows to `skillcorner_player_physical`).
+- **Bridge**: SkillCorner's `Player` object has no cross-reference id of its own (confirmed against its real schema) — the bridge is an exact match on `(players.name normalized, players.date_of_birth)` against SkillCorner's own denormalized `player_name`/`player_birthdate` fields on each physical row. Confirmed live against two real KV Mechelen players before this was built. A SkillCorner player who doesn't match is skipped, never guessed — see `sync-skillcorner-physical.mjs`'s `loadPlayerBridge`.
+- **Frontend**: `src/lib/skillcorner-data/remote.ts`'s `fetchPlayerPhysicalProfile(scoutasticPlayerId)` reads the player's latest synced row plus a real peer pool (same SkillCorner competition edition + SkillCorner's own `position_group`), computing percentiles client-side with the same `percentileRank`/`MIN_POPULATION` (`src/lib/percentile.ts`) used elsewhere in the app. Rendered by `src/components/player-profile/PlayerPhysicalProfile.tsx` as a second, separate radar chart + table on the player profile's Ratings tab.
+- **Coverage grows incrementally**: like the Impect crawl, the physical-data queue is resumable and only covers competition editions synced so far — see `scripts/sync-skillcorner-physical.mjs`'s own header for `--batch-size`/`--only` usage.

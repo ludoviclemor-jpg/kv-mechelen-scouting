@@ -10,6 +10,8 @@ export type ConfidenceLabel = "Low" | "Medium" | "High";
 export interface RatingPillar {
   key: string;
   label: string;
+  /** Display-only categorization (scripts/lib/scoring/config/positionPillars.mjs) — never changes weight or scoring, only which chart a pillar renders in. */
+  domain: "technical" | "physical";
   available: boolean;
   score: number | null;
   percentile: number | null;

@@ -15,10 +15,23 @@
  * values into the same 8 groups) since the frontend pizza chart already
  * uses that grouping for percentiles; the rating engine reuses it here
  * for cohorts too, one standardized set of groups across the app.
+ *
+ * `domain` ("technical" | "physical", 2026-09-11) is a *display*
+ * categorization only — it never changes a pillar's weight or its
+ * contribution to Current Level, which is computed identically
+ * regardless of domain (see currentLevel.mjs). It exists so the
+ * frontend can render two separate charts (Technical Profile /
+ * Physical Profile — src/components/player-profile/PlayerRatingBreakdown.tsx)
+ * from the same underlying pillar results instead of computing a second,
+ * parallel scoring pass. Duel-based and pressing/defensive-positioning
+ * pillars are tagged `physical` — the closest real, non-invented proxy
+ * to physicality this project's synced Impect data supports (no real
+ * speed/sprint/distance-covered tracking is synced). Everything else is
+ * `technical`.
  */
 
-function pillar(key, label, metrics) {
-  return { key, label, metrics, available: metrics.length > 0 };
+function pillar(key, label, metrics, domain = "technical") {
+  return { key, label, metrics, available: metrics.length > 0, domain };
 }
 
 export const POSITION_PILLARS = {
@@ -37,7 +50,7 @@ export const POSITION_PILLARS = {
       pillar("cross_area_control", "Cross & Area Control", []),
       pillar("distribution", "Distribution", []),
       pillar("build_up_involvement", "Build-up Involvement", []),
-      pillar("sweeping", "Sweeping", []),
+      pillar("sweeping", "Sweeping", [], "physical"),
       pillar("ball_security", "Ball Security", []),
     ],
   },
@@ -48,14 +61,14 @@ export const POSITION_PILLARS = {
       pillar("defensive_duels_intervention", "Defensive Duels & Intervention", [
         { metric: "groundDuelWinPct", weight: 0.6 },
         { metric: "ballWin", weight: 0.4 },
-      ]),
-      pillar("aerial_ability", "Aerial Ability", [{ metric: "aerialDuelWinPct", weight: 1.0 }]),
+      ], "physical"),
+      pillar("aerial_ability", "Aerial Ability", [{ metric: "aerialDuelWinPct", weight: 1.0 }], "physical"),
       pillar("build_up_contribution", "Build-up Contribution", [{ metric: "bypassedOpponents", weight: 1.0 }]),
       pillar("passing_progression", "Passing Progression", [{ metric: "bypassedDefenders", weight: 0.6 }, { metric: "packingXg", weight: 0.4 }]),
       pillar("carrying_progression", "Carrying Progression", []), // no dribble/carry-distance metric synced
       pillar("press_resistance", "Press Resistance", []), // no receiving-under-pressure metric synced
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
-      pillar("defensive_mobility", "Defensive Mobility", []), // no physical/speed data synced
+      pillar("defensive_mobility", "Defensive Mobility", [], "physical"), // no physical/speed data synced
     ],
   },
 
@@ -65,7 +78,7 @@ export const POSITION_PILLARS = {
       pillar("defensive_contribution", "Defensive Contribution", [
         { metric: "groundDuelWinPct", weight: 0.5 },
         { metric: "ballWin", weight: 0.5 },
-      ]),
+      ], "physical"),
       pillar("ball_progression", "Ball Progression", [
         { metric: "bypassedOpponents", weight: 0.5 },
         { metric: "bypassedDefenders", weight: 0.5 },
@@ -74,7 +87,7 @@ export const POSITION_PILLARS = {
       pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.7 }, { metric: "packingXg", weight: 0.3 }]),
       pillar("final_third_contribution", "Final-Third Contribution", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("crossing_box_delivery", "Crossing / Box Delivery", []), // no cross-specific metric synced
-      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }]),
+      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
     ],
   },
@@ -89,8 +102,8 @@ export const POSITION_PILLARS = {
       pillar("defensive_positioning_intervention", "Defensive Positioning & Intervention", [
         { metric: "groundDuelWinPct", weight: 0.5 },
         { metric: "ballWin", weight: 0.5 },
-      ]),
-      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }]),
+      ], "physical"),
+      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("possession_value", "Possession Value", [{ metric: "packingXg", weight: 1.0 }]),
     ],
   },
@@ -106,7 +119,7 @@ export const POSITION_PILLARS = {
       pillar("defensive_contribution", "Defensive Contribution", [
         { metric: "groundDuelWinPct", weight: 0.5 },
         { metric: "ballWin", weight: 0.5 },
-      ]),
+      ], "physical"),
       pillar("possession_value", "Possession Value", [{ metric: "packingXg", weight: 1.0 }]),
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
     ],
@@ -121,7 +134,7 @@ export const POSITION_PILLARS = {
       pillar("final_third_involvement", "Final-Third Involvement", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("box_involvement", "Box Involvement", []), // no box-touch metric synced
       pillar("goal_threat", "Goal Threat", [{ metric: "goals", weight: 0.5 }, { metric: "shotXg", weight: 0.5 }]),
-      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }]),
+      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
     ],
   },
@@ -130,13 +143,13 @@ export const POSITION_PILLARS = {
     supported: true,
     pillars: [
       pillar("progression", "Progression", [{ metric: "bypassedOpponents", weight: 1.0 }]),
-      pillar("one_v_one_impact", "1v1 Impact", []), // no dribble-success metric synced (DRIBBLE_SCORE exists in Impect's Scores catalog, not synced yet)
+      pillar("one_v_one_impact", "1v1 Impact", [], "physical"), // no dribble-success metric synced (DRIBBLE_SCORE exists in Impect's Scores catalog, not synced yet)
       pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.6 }, { metric: "packingXg", weight: 0.4 }]),
       pillar("final_third_involvement", "Final-Third Involvement", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("box_threat", "Box Threat", []), // no box-touch metric synced
       pillar("goal_threat", "Goal Threat", [{ metric: "goals", weight: 0.5 }, { metric: "shotXg", weight: 0.5 }]),
-      pillar("off_ball_threat", "Off-Ball Threat", []), // no off-ball-run metric synced
-      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }]),
+      pillar("off_ball_threat", "Off-Ball Threat", [], "physical"), // no off-ball-run metric synced
+      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
     ],
   },
@@ -146,12 +159,12 @@ export const POSITION_PILLARS = {
     pillars: [
       pillar("goal_threat", "Goal Threat", [{ metric: "goals", weight: 0.5 }, { metric: "shotXg", weight: 0.5 }]),
       pillar("shot_quality", "Shot Quality", [{ metric: "shotXg", weight: 1.0 }]),
-      pillar("box_presence", "Box Presence", []), // no box-touch metric synced
+      pillar("box_presence", "Box Presence", [], "physical"), // no box-touch metric synced
       pillar("finishing", "Finishing", [{ metric: "finishing", weight: 1.0 }]),
       pillar("link_play", "Link Play", []), // no hold-up/lay-off metric synced
       pillar("progression_receptions_carries", "Progression via Receptions/Carries", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 1.0 }]),
-      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }]),
+      pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("possession_retention", "Possession Retention", [{ metric: "ballLoss", weight: 1.0 }]),
     ],
   },

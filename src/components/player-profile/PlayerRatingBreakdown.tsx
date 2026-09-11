@@ -109,12 +109,18 @@ export function PlayerRatingBreakdown({
     );
   }
 
-  const radarData = rating.pillars.filter((p) => p.available).map((p) => ({ pillar: p.label, score: p.score ?? 0, average: 50 }));
+  // Split into Technical / Physical (scripts/lib/scoring/config/positionPillars.mjs's `domain` tag) — this chart shows the
+  // Technical pillars only. The duel/pressing pillars tagged "physical" here are still real Impect signal and still count
+  // toward Current Level below, but they're a proxy for physicality, not a measurement of it — real physical data (distance,
+  // sprints, high-speed running) lives in the separate SkillCorner-backed Physical Profile chart on this profile instead.
+  const technicalPillars = rating.pillars.filter((p) => p.domain === "technical");
+  const physicalPillarCount = rating.pillars.filter((p) => p.domain === "physical" && p.available).length;
+  const radarData = technicalPillars.filter((p) => p.available).map((p) => ({ pillar: p.label, score: p.score ?? 0, average: 50 }));
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Position-Specific Rating — Impect</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Technical Profile — Impect</h3>
         <button
           type="button"
           onClick={() => setInfoOpen(true)}
@@ -184,7 +190,7 @@ export function PlayerRatingBreakdown({
                 </tr>
               </thead>
               <tbody>
-                {rating.pillars.map((p) => (
+                {technicalPillars.map((p) => (
                   <tr key={p.key}>
                     <td className="font-medium text-kvm-ink">{p.label}</td>
                     <td className="tabular-nums text-gray-600">{p.available ? p.score : "—"}</td>
@@ -198,6 +204,14 @@ export function PlayerRatingBreakdown({
               </tbody>
             </table>
           </div>
+
+          {physicalPillarCount > 0 ? (
+            <p className="text-xs text-gray-400">
+              {physicalPillarCount} additional duel-based pillar{physicalPillarCount === 1 ? "" : "s"} (ground/aerial duels,
+              pressing) still counts toward Current Level above but isn&apos;t shown in this chart — see the Physical Profile
+              below for real SkillCorner tracking data instead.
+            </p>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
