@@ -19,6 +19,8 @@
  *     node scripts/calculate-player-ratings.mjs --all --iteration-id 2143
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
  *     node scripts/calculate-player-ratings.mjs --all --squad-id 373 --iteration-id 2143  # just one club
+ *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+ *     node scripts/calculate-player-ratings.mjs --all --all-synced-competitions  # every competition that actually has synced player-kpis data
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -34,6 +36,7 @@ function parseArgs(argv) {
     else if (a === "--iteration-id") args.iterationId = Number(argv[++i]);
     else if (a === "--squad-id") args.squadId = Number(argv[++i]);
     else if (a === "--all") args.all = true;
+    else if (a === "--all-synced-competitions") args.allSyncedCompetitions = true;
     else if (a === "--dry-run") args.dryRun = true;
   }
   return args;
@@ -98,13 +101,33 @@ async function fetchPoolForPositionGroup(db, group) {
   return rows.map((r) => ({ playerId: r.player_id, iterationId: r.iteration_id, position: r.position, minutes: r.minutes, kpis: r.kpis ?? {} }));
 }
 
+/**
+ * A `.in()` list of more than a few hundred ids builds a request URL
+ * that can exceed the platform's own URL-length limit (confirmed live:
+ * "414 Request-URI Too Large" from Cloudflare, on top of the earlier
+ * PostgREST-header-size failure — the same real class of bug,
+ * surfacing at a different layer once the id list got large enough —
+ * see fetchPoolForPositionGroup's comment for the first occurrence).
+ * Chunking the `.in()` list itself, not just paginating the *response*
+ * (fetchAllRows already does that), is what actually fixes it.
+ */
+async function fetchByIdsChunked(db, table, columns, idColumn, ids) {
+  const CHUNK = 150;
+  const idArray = [...ids];
+  const rows = [];
+  for (let i = 0; i < idArray.length; i += CHUNK) {
+    const chunk = idArray.slice(i, i + CHUNK);
+    const page = await fetchAllRows(db, table, columns, (q) => q.in(idColumn, chunk));
+    rows.push(...page);
+  }
+  return rows;
+}
+
 async function loadJoinTables(db, playerIds, squadIds, iterationIds) {
   const [players, squads, competitions] = await Promise.all([
-    playerIds.size > 0 ? fetchAllRows(db, "impect_players", "player_id,commonname,birthdate,transfermarkt_id", (q) => q.in("player_id", [...playerIds])) : [],
-    squadIds.size > 0 ? fetchAllRows(db, "impect_squads", "squad_id,name", (q) => q.in("squad_id", [...squadIds])) : [],
-    iterationIds.size > 0
-      ? fetchAllRows(db, "impect_competitions", "iteration_id,competition_name,season", (q) => q.in("iteration_id", [...iterationIds]))
-      : [],
+    fetchByIdsChunked(db, "impect_players", "player_id,commonname,birthdate,transfermarkt_id", "player_id", playerIds),
+    fetchByIdsChunked(db, "impect_squads", "squad_id,name", "squad_id", squadIds),
+    fetchByIdsChunked(db, "impect_competitions", "iteration_id,competition_name,season", "iteration_id", iterationIds),
   ]);
   return {
     playersById: new Map(players.map((p) => [p.player_id, p])),
@@ -126,12 +149,12 @@ async function main() {
   const db = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
   if (!args.playerId && !args.all) {
-    console.error("Usage: --player-id <id> --iteration-id <id>  OR  --all --iteration-id <id> [--squad-id <id>]");
+    console.error("Usage: --player-id <id> --iteration-id <id>  OR  --all --iteration-id <id> [--squad-id <id>]  OR  --all --all-synced-competitions");
     process.exitCode = 1;
     return;
   }
-  if (!args.iterationId) {
-    console.error("--iteration-id is required.");
+  if (!args.iterationId && !args.allSyncedCompetitions) {
+    console.error("--iteration-id is required (or pass --all-synced-competitions to cover every synced competition at once).");
     process.exitCode = 1;
     return;
   }
@@ -148,6 +171,14 @@ async function main() {
       process.exitCode = 1;
       return;
     }
+  } else if (args.allSyncedCompetitions) {
+    // Every competition that genuinely has synced player-kpis data —
+    // NOT `impect_competitions.last_synced_at`, which the catalog sync
+    // (scripts/sync-impect-competitions.mjs) stamps on all 759 rows
+    // regardless of whether player data was ever crawled for them (a
+    // real bug this surfaced: the frontend's competition picker used
+    // that same wrong signal — see src/lib/impect-data/remote.ts).
+    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis");
   } else {
     targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", (q) => {
       let query = q.eq("iteration_id", args.iterationId);
@@ -162,8 +193,14 @@ async function main() {
   const { playersById, squadsById, competitionsById } = await loadJoinTables(db, playerIds, squadIds, iterationIds);
   const targets = joinRows(targetRows, playersById, squadsById, competitionsById);
 
-  // One pool fetch per distinct position group actually needed, reused across every target in that group (a batch run needs this only once per group, not once per player).
+  // One pool fetch per distinct position group actually needed, reused
+  // across every target in that group AND across every competition in
+  // this run (an --all-synced-competitions run needs each group's pool
+  // only once total, not once per competition) — competition-tier
+  // context is passed per-call below so the shared pool never leaks a
+  // wrong tier assumption across competitions.
   const poolByGroup = new Map();
+  const competitionTierByIterationId = new Map(targets.map((t) => [t.iterationId, t.competitionName]));
   const results = [];
   let ratableCount = 0;
   let skippedCount = 0;
@@ -175,24 +212,21 @@ async function main() {
     }
     const pool = poolByGroup.get(group);
 
-    // No real competition-strength-tier source exists yet beyond scoringConfig.mjs's own provisional map — every competition is its own "tier" for the fallback hierarchy's middle level today (a documented limitation, not a silent skip; see cohorts.mjs).
-    const competitionTierByIterationId = new Map([[target.iterationId, target.competitionName]]);
-
     const rating = scorePlayer({ player: target, pool, competitionTierByIterationId });
-    results.push(rating);
+    results.push({ rating, iterationId: target.iterationId });
     if (rating.ratable) ratableCount++;
     else skippedCount++;
   }
 
   if (args.dryRun) {
     console.log(`(--dry-run) would write ${results.length} ratings (${ratableCount} ratable, ${skippedCount} not).`);
-    console.log(JSON.stringify(results[0], null, 2));
+    console.log(JSON.stringify(results[0]?.rating, null, 2));
     return;
   }
 
-  const rows = results.map((r) => ({
+  const rows = results.map(({ rating: r, iterationId }) => ({
     impect_player_id: Number(r.playerId),
-    iteration_id: args.iterationId,
+    iteration_id: iterationId,
     scoutastic_player_id: r.scoutasticPlayerId,
     model_version: r.modelVersion,
     calculated_at: r.calculatedAt,
