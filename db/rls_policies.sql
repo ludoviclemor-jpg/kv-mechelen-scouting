@@ -191,6 +191,78 @@ drop policy if exists "authenticated can read player_match_ratings" on player_ma
 create policy "authenticated can read player_match_ratings" on player_match_ratings
   for select to authenticated using (true);
 
+-- Recruitment-platform foundations (2026-09-11 pass) — see schema.sql's
+-- matching comment block for what each table is for.
+
+alter table player_watch_history enable row level security;
+drop policy if exists "owner can read player_watch_history" on player_watch_history;
+create policy "owner can read player_watch_history" on player_watch_history
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert player_watch_history" on player_watch_history;
+create policy "owner can insert player_watch_history" on player_watch_history
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can update player_watch_history" on player_watch_history;
+create policy "owner can update player_watch_history" on player_watch_history
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "owner can delete player_watch_history" on player_watch_history;
+create policy "owner can delete player_watch_history" on player_watch_history
+  for delete to authenticated using (owner_id = auth.uid());
+
+-- player_alerts holds facts about players (contract windows, call-ups,
+-- ...), not scout opinion — shared/read-only for every authenticated
+-- scout, same convention as players/matches. No insert/update/delete
+-- policy: only a future service_role generator script writes here,
+-- exactly like players/matches/sync_meta.
+alter table player_alerts enable row level security;
+drop policy if exists "authenticated can read player_alerts" on player_alerts;
+create policy "authenticated can read player_alerts" on player_alerts
+  for select to authenticated using (true);
+
+-- Read/unread state IS personal — each scout's own inbox.
+alter table alert_read_state enable row level security;
+drop policy if exists "owner can read alert_read_state" on alert_read_state;
+create policy "owner can read alert_read_state" on alert_read_state
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert alert_read_state" on alert_read_state;
+create policy "owner can insert alert_read_state" on alert_read_state
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can delete alert_read_state" on alert_read_state;
+create policy "owner can delete alert_read_state" on alert_read_state
+  for delete to authenticated using (owner_id = auth.uid());
+
+-- Role profiles are club-wide config, not scout-private — same
+-- "shared, no per-user ownership" convention as favorite_competitions.
+-- Every authenticated scout can read and edit them for now: there is no
+-- admin-only role distinct from "authenticated scout" yet (known
+-- limitation — see the architecture summary this was written from).
+alter table role_profiles enable row level security;
+drop policy if exists "authenticated can read role_profiles" on role_profiles;
+create policy "authenticated can read role_profiles" on role_profiles
+  for select to authenticated using (true);
+drop policy if exists "authenticated can write role_profiles" on role_profiles;
+create policy "authenticated can write role_profiles" on role_profiles
+  for insert to authenticated with check (true);
+drop policy if exists "authenticated can update role_profiles" on role_profiles;
+create policy "authenticated can update role_profiles" on role_profiles
+  for update to authenticated using (true) with check (true);
+drop policy if exists "authenticated can delete role_profiles" on role_profiles;
+create policy "authenticated can delete role_profiles" on role_profiles
+  for delete to authenticated using (true);
+
+alter table role_profile_weights enable row level security;
+drop policy if exists "authenticated can read role_profile_weights" on role_profile_weights;
+create policy "authenticated can read role_profile_weights" on role_profile_weights
+  for select to authenticated using (true);
+drop policy if exists "authenticated can write role_profile_weights" on role_profile_weights;
+create policy "authenticated can write role_profile_weights" on role_profile_weights
+  for insert to authenticated with check (true);
+drop policy if exists "authenticated can update role_profile_weights" on role_profile_weights;
+create policy "authenticated can update role_profile_weights" on role_profile_weights
+  for update to authenticated using (true) with check (true);
+drop policy if exists "authenticated can delete role_profile_weights" on role_profile_weights;
+create policy "authenticated can delete role_profile_weights" on role_profile_weights
+  for delete to authenticated using (true);
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see
