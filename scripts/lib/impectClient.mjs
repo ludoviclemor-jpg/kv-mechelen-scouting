@@ -77,4 +77,18 @@ export function createImpectClient() {
   return { get };
 }
 
+/**
+ * Postgres rejects an upsert batch that repeats the same conflict key
+ * twice in one statement ("ON CONFLICT DO UPDATE command cannot affect
+ * row a second time") — confirmed live: real for players who transfer
+ * squads mid-season, more common in older/historical iterations than
+ * the current season. Keeps the *last* occurrence for a given key,
+ * which is whichever the API listed last for that id.
+ */
+export function dedupeByKey(rows, keyFn) {
+  const map = new Map();
+  for (const row of rows) map.set(keyFn(row), row);
+  return [...map.values()];
+}
+
 export { sleep };

@@ -20,7 +20,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { createImpectClient, sleep } from "./lib/impectClient.mjs";
+import { createImpectClient, sleep, dedupeByKey } from "./lib/impectClient.mjs";
 import { extractKpis } from "./lib/impectKpis.mjs";
 
 function parseArgs(argv) {
@@ -77,27 +77,29 @@ async function main() {
       await sleep(args.delayMs);
 
       if (squads.length > 0) {
-        const { error } = await db
-          .from("impect_squads")
-          .upsert(
-            squads.map((s) => ({ squad_id: s.id, iteration_id: iterationId, name: s.name, last_synced_at: new Date().toISOString() })),
-            { onConflict: "squad_id" }
-          );
+        const squadRows = dedupeByKey(
+          squads.map((s) => ({ squad_id: s.id, iteration_id: iterationId, name: s.name, last_synced_at: new Date().toISOString() })),
+          (r) => r.squad_id
+        );
+        const { error } = await db.from("impect_squads").upsert(squadRows, { onConflict: "squad_id" });
         if (error) throw error;
       }
 
       if (players.length > 0) {
-        const playerRows = players.map((p) => ({
-          player_id: p.id,
-          firstname: p.firstname ?? null,
-          lastname: p.lastname ?? null,
-          commonname: p.commonname,
-          birthdate: p.birthdate ?? null,
-          leg: p.leg ?? null,
-          height: p.height ?? null,
-          transfermarkt_id: (p.idMappings ?? []).find((m) => m.transfermarkt)?.transfermarkt?.[0] ?? null,
-          last_synced_at: new Date().toISOString(),
-        }));
+        const playerRows = dedupeByKey(
+          players.map((p) => ({
+            player_id: p.id,
+            firstname: p.firstname ?? null,
+            lastname: p.lastname ?? null,
+            commonname: p.commonname,
+            birthdate: p.birthdate ?? null,
+            leg: p.leg ?? null,
+            height: p.height ?? null,
+            transfermarkt_id: (p.idMappings ?? []).find((m) => m.transfermarkt)?.transfermarkt?.[0] ?? null,
+            last_synced_at: new Date().toISOString(),
+          })),
+          (r) => r.player_id
+        );
         const BATCH = 500;
         for (let i = 0; i < playerRows.length; i += BATCH) {
           const { error } = await db.from("impect_players").upsert(playerRows.slice(i, i + BATCH), { onConflict: "player_id" });
@@ -123,10 +125,11 @@ async function main() {
         }
       }
 
-      if (kpiRows.length > 0) {
+      const dedupedKpiRows = dedupeByKey(kpiRows, (r) => `${r.iteration_id}:${r.player_id}`);
+      if (dedupedKpiRows.length > 0) {
         const BATCH = 500;
-        for (let i = 0; i < kpiRows.length; i += BATCH) {
-          const { error } = await db.from("impect_player_kpis").upsert(kpiRows.slice(i, i + BATCH), { onConflict: "iteration_id,player_id" });
+        for (let i = 0; i < dedupedKpiRows.length; i += BATCH) {
+          const { error } = await db.from("impect_player_kpis").upsert(dedupedKpiRows.slice(i, i + BATCH), { onConflict: "iteration_id,player_id" });
           if (error) throw error;
         }
       }
@@ -135,8 +138,8 @@ async function main() {
       await db.from("impect_competitions").update({ last_synced_at: new Date().toISOString() }).eq("iteration_id", iterationId);
 
       competitionsOk++;
-      playersWritten += kpiRows.length;
-      console.log(`  [${iterationId}] ${squads.length} squads, ${kpiRows.length} player-kpi rows`);
+      playersWritten += dedupedKpiRows.length;
+      console.log(`  [${iterationId}] ${squads.length} squads, ${dedupedKpiRows.length} player-kpi rows`);
     } catch (err) {
       console.error(`  [fail] iteration ${iterationId}: ${err.message}`);
       // Still mark as attempted so a persistently-broken competition
