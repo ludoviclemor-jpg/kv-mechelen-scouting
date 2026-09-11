@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import leagueData from "@/data/impect-league-player-kpis.json";
-import { formatDate, compareNumbers, compareStrings, cn } from "@/lib/utils";
+import { compareNumbers, compareStrings, cn } from "@/lib/utils";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { useSortableList } from "@/lib/useSortableList";
+import { useAsync } from "@/lib/players-data";
+import { AsyncSection } from "@/components/dashboard/AsyncSection";
 import { ImpectPlayerPizzaDrawer } from "@/components/dashboard/ImpectPlayerPizzaDrawer";
+import { fetchImpectCompetitions, fetchImpectPlayerKpisForCompetition } from "@/lib/impect-data/remote";
 import type { ImpectLeaguePlayer as LeaguePlayer } from "@/lib/impect-types";
 
 const POSITION_LABELS: Record<string, string> = {
@@ -20,6 +22,9 @@ const POSITION_LABELS: Record<string, string> = {
   RIGHT_WINGER: "RW",
   CENTER_FORWARD: "ST",
 };
+
+// Jupiler Pro League 26/27 — confirmed live, KV Mechelen's own current competition. The natural default; any of the other 758 real competitions is one click away in the picker below.
+const DEFAULT_ITERATION_ID = 2143;
 
 function dash(v: number | null, suffix = ""): string {
   return v === null ? "—" : `${v}${suffix}`;
@@ -40,17 +45,85 @@ type SortKey =
   | "ballWinPer90";
 
 /**
- * Every player from every club in the 26/27 Jupiler Pro League with real
- * Impect KPIs (2026-09-11 — broadened from KV Mechelen's own squad only
- * after being asked for the whole league; see
- * scripts/sync-impect-league-player-kpis.mjs for the exact source and
- * why this stops at "the league KVM plays in" rather than Impect's full
- * worldwide catalog). Search + club/position filters + sortable columns
- * so 637 rows stay usable rather than one long unfiltered dump.
+ * Player KPIs for one Impect competition-season at a time, chosen from
+ * the real, full 759-competition catalog (2026-09-11 — broadened from a
+ * single bundled league after being asked for "all 759 competitions").
+ * Bundling every competition's player data into the frontend build
+ * isn't viable (hundreds of thousands of rows, would break the static
+ * export) or responsible (Impect's own rate limits) — see
+ * scripts/sync-impect-player-kpis.mjs's header for the full reasoning.
+ * Instead: a live, searchable competition picker (small, ~759 rows of
+ * just names) plus a live fetch of *one* selected competition's player
+ * table at a time (src/lib/impect-data/remote.ts), same "server-side
+ * query, not a browser dump" principle as the existing Players page.
  */
 export function ImpectLeaguePlayerKpisWidget() {
-  const { players, fetchedAt, squadCount } = leagueData as { players: LeaguePlayer[]; fetchedAt: string; squadCount: number };
+  const [iterationId, setIterationId] = useState(DEFAULT_ITERATION_ID);
+  const competitions = useAsync(() => fetchImpectCompetitions(), []);
+  const playersResult = useAsync(() => fetchImpectPlayerKpisForCompetition(iterationId), [iterationId]);
 
+  const selectedCompetition = competitions.data?.find((c) => c.iterationId === iterationId);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+        <div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Player KPIs — Impect</h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            {selectedCompetition
+              ? `${selectedCompetition.competitionName} ${selectedCompetition.season}`
+              : "Loading competition..."}{" "}
+            &middot; real data from Impect&apos;s Data API
+          </p>
+        </div>
+        {competitions.data ? (
+          <select
+            value={iterationId}
+            onChange={(e) => setIterationId(Number(e.target.value))}
+            aria-label="Choose competition"
+            className="max-w-[260px] rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-sm text-kvm-ink focus-visible:outline-none"
+          >
+            {competitions.data.map((c) => (
+              <option key={c.iterationId} value={c.iterationId}>
+                {c.competitionName} {c.season} {c.isSynced ? "" : "(not synced yet)"}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+
+      <AsyncSection
+        loading={playersResult.loading}
+        error={playersResult.error}
+        data={playersResult.data}
+        onRetry={playersResult.reload}
+        skeletonRows={6}
+      >
+        {(players) => (
+          // key={iterationId}: remounts on competition change so search/filter/selected-player state
+          // resets naturally — no effect-based reset needed (a club/position picked for one league
+          // rarely makes sense in another).
+          <ImpectPlayerTable
+            key={iterationId}
+            players={players}
+            competitionName={selectedCompetition?.competitionName ?? ""}
+            season={selectedCompetition?.season ?? ""}
+          />
+        )}
+      </AsyncSection>
+    </div>
+  );
+}
+
+function ImpectPlayerTable({
+  players,
+  competitionName,
+  season,
+}: {
+  players: LeaguePlayer[];
+  competitionName: string;
+  season: string;
+}) {
   const [search, setSearch] = useState("");
   const [club, setClub] = useState("all");
   const [position, setPosition] = useState("all");
@@ -89,19 +162,18 @@ export function ImpectLeaguePlayerKpisWidget() {
     "desc"
   );
 
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Player KPIs — Impect</h2>
-          <p className="mt-0.5 text-xs text-gray-400">
-            {players.length} players &middot; {squadCount} clubs &middot; 26/27 Jupiler Pro League &middot; snapshot{" "}
-            {formatDate(fetchedAt)}
-          </p>
-        </div>
-        <span className="text-xs font-semibold tabular-nums text-gray-400">{sorted.length} shown</span>
-      </div>
+  if (players.length === 0) {
+    return (
+      <p className="px-5 py-8 text-center text-sm text-gray-400">
+        This competition hasn&apos;t been synced yet — run{" "}
+        <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">scripts/sync-impect-player-kpis.mjs --only &lt;id&gt;</code> to
+        pull it in.
+      </p>
+    );
+  }
 
+  return (
+    <>
       <div className="flex flex-wrap items-center gap-2 px-5 pt-3">
         <input
           type="text"
@@ -137,6 +209,7 @@ export function ImpectLeaguePlayerKpisWidget() {
             </option>
           ))}
         </select>
+        <span className="ml-auto text-xs font-semibold tabular-nums text-gray-400">{sorted.length} shown</span>
       </div>
 
       <div className="mt-2 max-h-[560px] overflow-auto">
@@ -163,11 +236,7 @@ export function ImpectLeaguePlayerKpisWidget() {
             {sorted.map((p) => {
               const isKvm = p.squadName === "KV Mechelen";
               return (
-                <tr
-                  key={p.playerId}
-                  className={cn("cursor-pointer", isKvm && "bg-kvm-red/5")}
-                  onClick={() => setSelectedPlayer(p)}
-                >
+                <tr key={p.playerId} className={cn("cursor-pointer", isKvm && "bg-kvm-red/5")} onClick={() => setSelectedPlayer(p)}>
                   <td className={cn("font-medium", isKvm ? "text-kvm-red" : "text-kvm-ink")}>{p.name}</td>
                   <td className="text-gray-500">{p.squadName}</td>
                   <td className="text-gray-500">{POSITION_LABELS[p.position] ?? p.position}</td>
@@ -202,18 +271,18 @@ export function ImpectLeaguePlayerKpisWidget() {
       </div>
 
       <p className="border-t border-kvm-border px-5 py-2 text-[11px] text-gray-400">
-        Real season-to-date values from Impect&apos;s Data API, not a live feed. &ldquo;&ndash;&rdquo; means Impect
-        hasn&apos;t computed that KPI for this player, never a fabricated zero. Duel % is won / (won + lost) from
-        Impect&apos;s own duel counts. Click a player for a full percentile breakdown vs. their position group.
+        Real values from Impect&apos;s Data API, synced on request — not a live feed. &ldquo;&ndash;&rdquo; means Impect hasn&apos;t
+        computed that KPI for this player, never a fabricated zero. Duel % is won / (won + lost) from Impect&apos;s own duel
+        counts. Click a player for a full percentile breakdown vs. their position group.
       </p>
 
       <ImpectPlayerPizzaDrawer
         player={selectedPlayer}
         allPlayers={players}
-        competitionName={leagueData.competitionName}
-        season={leagueData.season}
+        competitionName={competitionName}
+        season={season}
         onClose={() => setSelectedPlayer(null)}
       />
-    </div>
+    </>
   );
 }

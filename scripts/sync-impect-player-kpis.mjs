@@ -24,11 +24,12 @@ import { createImpectClient, sleep, dedupeByKey } from "./lib/impectClient.mjs";
 import { extractKpis } from "./lib/impectKpis.mjs";
 
 function parseArgs(argv) {
-  const args = { batchSize: 15, delayMs: 150 };
+  const args = { batchSize: 15, delayMs: 150, only: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--batch-size") args.batchSize = Number(argv[++i]);
     else if (a === "--delay-ms") args.delayMs = Number(argv[++i]);
+    else if (a === "--only") args.only = Number(argv[++i]); // sync one specific iteration id on demand, outside the normal queue order
   }
   return args;
 }
@@ -52,12 +53,18 @@ async function main() {
 
   console.log("IMPECT PLAYER-KPI CRAWL STARTED");
 
-  const { data: queue, error: queueError } = await db
-    .from("impect_sync_queue")
-    .select("iteration_id")
-    .order("last_synced_at", { ascending: true, nullsFirst: true })
-    .limit(args.batchSize);
-  if (queueError) throw queueError;
+  let queue;
+  if (args.only !== null) {
+    queue = [{ iteration_id: args.only }];
+  } else {
+    const { data, error: queueError } = await db
+      .from("impect_sync_queue")
+      .select("iteration_id")
+      .order("last_synced_at", { ascending: true, nullsFirst: true })
+      .limit(args.batchSize);
+    if (queueError) throw queueError;
+    queue = data;
+  }
 
   if (!queue || queue.length === 0) {
     console.log("Queue is empty — run sync-impect-competitions.mjs first.");

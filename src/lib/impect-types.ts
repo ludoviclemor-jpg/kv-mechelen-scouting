@@ -1,8 +1,10 @@
 /**
- * Shape of src/data/impect-league-player-kpis.json's `players` rows —
- * shared between ImpectLeaguePlayerKpisWidget and
- * ImpectPlayerPizzaDrawer so both stay in sync with the sync script's
- * real output (scripts/sync-impect-league-player-kpis.mjs).
+ * Real per-player KPI shape, shared between ImpectLeaguePlayerKpisWidget,
+ * ImpectPlayerPizzaDrawer, and src/lib/impect-data/remote.ts's live
+ * Supabase read — one row per player in whichever Impect competition is
+ * currently selected (scripts/sync-impect-player-kpis.mjs is what
+ * populates the underlying `impect_player_kpis` table this is built
+ * from).
  */
 export interface ImpectLeaguePlayer {
   playerId: number;
