@@ -273,6 +273,34 @@ drop policy if exists "authenticated can delete role_profile_weights" on role_pr
 create policy "authenticated can delete role_profile_weights" on role_profile_weights
   for delete to authenticated using (true);
 
+-- Impect Data API integration — read-only for `authenticated`, same
+-- convention as players/matches/scoutastic_competitions. Written only by
+-- scripts/sync-impect-*.mjs's service_role key, never by the frontend.
+alter table impect_competitions enable row level security;
+drop policy if exists "authenticated can read impect_competitions" on impect_competitions;
+create policy "authenticated can read impect_competitions" on impect_competitions
+  for select to authenticated using (true);
+
+alter table impect_squads enable row level security;
+drop policy if exists "authenticated can read impect_squads" on impect_squads;
+create policy "authenticated can read impect_squads" on impect_squads
+  for select to authenticated using (true);
+
+alter table impect_players enable row level security;
+drop policy if exists "authenticated can read impect_players" on impect_players;
+create policy "authenticated can read impect_players" on impect_players
+  for select to authenticated using (true);
+
+alter table impect_player_kpis enable row level security;
+drop policy if exists "authenticated can read impect_player_kpis" on impect_player_kpis;
+create policy "authenticated can read impect_player_kpis" on impect_player_kpis
+  for select to authenticated using (true);
+
+-- impect_sync_queue is an internal crawl-queue cache, never read by the
+-- frontend — RLS enabled with no policy at all (denies every role
+-- including authenticated), same convention as scoutastic_teams.
+alter table impect_sync_queue enable row level security;
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see

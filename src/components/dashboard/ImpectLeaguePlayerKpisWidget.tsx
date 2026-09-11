@@ -5,6 +5,8 @@ import leagueData from "@/data/impect-league-player-kpis.json";
 import { formatDate, compareNumbers, compareStrings, cn } from "@/lib/utils";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { useSortableList } from "@/lib/useSortableList";
+import { ImpectPlayerPizzaDrawer } from "@/components/dashboard/ImpectPlayerPizzaDrawer";
+import type { ImpectLeaguePlayer as LeaguePlayer } from "@/lib/impect-types";
 
 const POSITION_LABELS: Record<string, string> = {
   GOALKEEPER: "GK",
@@ -18,29 +20,6 @@ const POSITION_LABELS: Record<string, string> = {
   RIGHT_WINGER: "RW",
   CENTER_FORWARD: "ST",
 };
-
-interface LeaguePlayer {
-  playerId: number;
-  name: string;
-  position: string;
-  squadId: number;
-  squadName: string;
-  birthdate: string | null;
-  minutes: number;
-  matchShare: number;
-  goals: number | null;
-  assists: number | null;
-  shotsPer90: number | null;
-  shotXgPer90: number | null;
-  packingXgPer90: number | null;
-  bypassedOpponentsPer90: number | null;
-  bypassedDefendersPer90: number | null;
-  groundDuelWinPercent: number | null;
-  aerialDuelWinPercent: number | null;
-  ballWinPer90: number | null;
-  ballLossPer90: number | null;
-  transfermarktId: string | null;
-}
 
 function dash(v: number | null, suffix = ""): string {
   return v === null ? "—" : `${v}${suffix}`;
@@ -75,6 +54,7 @@ export function ImpectLeaguePlayerKpisWidget() {
   const [search, setSearch] = useState("");
   const [club, setClub] = useState("all");
   const [position, setPosition] = useState("all");
+  const [selectedPlayer, setSelectedPlayer] = useState<LeaguePlayer | null>(null);
 
   const clubs = useMemo(() => Array.from(new Set(players.map((p) => p.squadName))).sort(), [players]);
   const positions = useMemo(() => Array.from(new Set(players.map((p) => p.position))).sort(), [players]);
@@ -176,13 +156,18 @@ export function ImpectLeaguePlayerKpisWidget() {
               <SortableHeader label="Ground Duel %" sortKey="groundDuelWinPercent" activeKey={sortKey} direction={direction} onSort={onSort} />
               <SortableHeader label="Aerial Duel %" sortKey="aerialDuelWinPercent" activeKey={sortKey} direction={direction} onSort={onSort} />
               <SortableHeader label="Ball Win/90" sortKey="ballWinPer90" activeKey={sortKey} direction={direction} onSort={onSort} />
+              <th />
             </tr>
           </thead>
           <tbody>
             {sorted.map((p) => {
               const isKvm = p.squadName === "KV Mechelen";
               return (
-                <tr key={p.playerId} className={cn(isKvm && "bg-kvm-red/5")}>
+                <tr
+                  key={p.playerId}
+                  className={cn("cursor-pointer", isKvm && "bg-kvm-red/5")}
+                  onClick={() => setSelectedPlayer(p)}
+                >
                   <td className={cn("font-medium", isKvm ? "text-kvm-red" : "text-kvm-ink")}>{p.name}</td>
                   <td className="text-gray-500">{p.squadName}</td>
                   <td className="text-gray-500">{POSITION_LABELS[p.position] ?? p.position}</td>
@@ -196,6 +181,18 @@ export function ImpectLeaguePlayerKpisWidget() {
                   <td className="tabular-nums text-gray-600">{dash(p.groundDuelWinPercent, "%")}</td>
                   <td className="tabular-nums text-gray-600">{dash(p.aerialDuelWinPercent, "%")}</td>
                   <td className="tabular-nums text-gray-600">{dash(p.ballWinPer90)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlayer(p);
+                      }}
+                      className="text-xs font-semibold text-kvm-red hover:underline"
+                    >
+                      Profile
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -207,8 +204,16 @@ export function ImpectLeaguePlayerKpisWidget() {
       <p className="border-t border-kvm-border px-5 py-2 text-[11px] text-gray-400">
         Real season-to-date values from Impect&apos;s Data API, not a live feed. &ldquo;&ndash;&rdquo; means Impect
         hasn&apos;t computed that KPI for this player, never a fabricated zero. Duel % is won / (won + lost) from
-        Impect&apos;s own duel counts.
+        Impect&apos;s own duel counts. Click a player for a full percentile breakdown vs. their position group.
       </p>
+
+      <ImpectPlayerPizzaDrawer
+        player={selectedPlayer}
+        allPlayers={players}
+        competitionName={leagueData.competitionName}
+        season={leagueData.season}
+        onClose={() => setSelectedPlayer(null)}
+      />
     </div>
   );
 }
