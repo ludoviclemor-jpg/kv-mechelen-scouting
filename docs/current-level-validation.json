@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-09-13T18:58:42.686Z",
+  "totalObservations": 7639,
+  "overallCorrelation": 0.15150446201810636,
+  "byGroup": [
+    {
+      "group": "Striker",
+      "n": 3271,
+      "correlation": 0.22109880418263064
+    },
+    {
+      "group": "Fullback",
+      "n": 464,
+      "correlation": 0.23868458266535716
+    },
+    {
+      "group": "Centre Back",
+      "n": 3529,
+      "correlation": 0.22126907192499096
+    },
+    {
+      "group": "Winger",
+      "n": 215,
+      "correlation": 0.26695711595440036
+    },
+    {
+      "group": "Central Midfield",
+      "n": 8,
+      "correlation": null
+    },
+    {
+      "group": "Defensive Midfield",
+      "n": 144,
+      "correlation": 0.2130842470344066
+    },
+    {
+      "group": "Attacking Midfield",
+      "n": 8,
+      "correlation": null
+    }
+  ]
+}
