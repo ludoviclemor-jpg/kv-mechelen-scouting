@@ -1,0 +1,12 @@
+-- Fixes a real, reproducible search-bar bug found live (2026-09-13):
+-- searchPlayers() ORs together three ILIKE conditions (name_unaccented,
+-- club_unaccented, league) — the first two have real GIN trigram
+-- indexes, but `league` only had a plain btree index (idx_players_league),
+-- which cannot accelerate a leading-wildcard ILIKE at all. Confirmed
+-- live: combining an indexable and a non-indexable condition in one OR
+-- makes Postgres's planner abandon index use for the *whole* OR and
+-- fall back to a sequential scan of the real ~180k-row table, which
+-- times out. Adding the missing trigram index (same real index type
+-- already used for name_unaccented/club_unaccented/name/club above)
+-- lets the planner use an index for all three OR branches together.
+create index if not exists idx_players_league_trgm on players using gin (league gin_trgm_ops);

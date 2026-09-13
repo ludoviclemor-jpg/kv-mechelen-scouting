@@ -130,6 +130,11 @@ create index if not exists idx_players_is_debutant on players(is_debutant) where
 create index if not exists idx_players_position on players(position);
 create index if not exists idx_players_nationality on players(nationality);
 create index if not exists idx_players_league on players(league);
+-- Trigram index (2026-09-13) — searchPlayers() ORs an ILIKE on `league`
+-- together with name_unaccented/club_unaccented; without a trigram
+-- index here too, Postgres's planner abandons index use for the whole
+-- OR and sequential-scans the table, confirmed live to time out.
+create index if not exists idx_players_league_trgm on players using gin (league gin_trgm_ops);
 create index if not exists idx_players_club on players(club);
 -- player_clubs_in_competition() (cascading Country -> Competition ->
 -- Club filter, used by Players/Loan Watch/Debutants/Top Performers/
