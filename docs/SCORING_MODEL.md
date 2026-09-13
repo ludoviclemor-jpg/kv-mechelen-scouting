@@ -1,6 +1,8 @@
 # Position-Specific Player Rating Model
 
-Deterministic, config-driven Current Level / Potential / Confidence scoring built on real Impect Data API metrics. No generative AI is used anywhere in the numeric calculation or the written explanation.
+Deterministic, config-driven Current Level / Potential / KV Mechelen Fit / Confidence scoring built on real Impect Data API metrics. No generative AI is used anywhere in the numeric calculation or the written explanation.
+
+**Current Level, Potential, and KV Mechelen Fit are three deliberately separate scores** — a good player is not automatically a good fit for KV Mechelen. Current Level never carries an age bonus (age belongs only to Potential); Potential is a realistic ceiling within ~5 seasons with Current Level as a hard floor, not a promise every player improves; KV Mechelen Fit measures match against a configurable, explicitly-draft club/role profile, kept fully out of Current Level and Potential's own math. See `MODEL_VERSION` in `scripts/lib/scoring/config/scoringConfig.mjs` — currently `2.0.0`.
 
 ## Architecture — why TypeScript/Node, not Python
 
@@ -111,6 +113,51 @@ A weighted 0-100 combination of: minutes-based reliability (35%), data completen
 
 Deterministic string templates only — no LLM, no paid API. Strengths/weaknesses are pillars at or beyond `STRENGTH_PERCENTILE_THRESHOLD` (75) / `WEAKNESS_PERCENTILE_THRESHOLD` (35), **and only when that pillar's reliability clears `MIN_RELIABILITY_FOR_STRENGTH_WEAKNESS` (0.55)** — an unreliable pillar is never called a strength or weakness, per the brief's explicit rule. Development priorities are the top 3 real weaknesses.
 
+## v2.0.0 methodology review (2026-09-13)
+
+A full review of v1.2.0 against the brief's own explicit checklist — double-counting, sample-size correction, cross-position comparisons — found and fixed real issues rather than re-labelling the existing model as validated.
+
+### Double-counting across pillars
+
+Added `scripts/lib/scoring/config/__tests__/currentLevel.test.mjs`'s exhaustive check: "every real metric key is used by at most one pillar" across all `POSITION_PILLARS` groups. This single automated test found **8 real duplicate-metric-across-pillars bugs** that earlier manual review had missed (5 of the 8 were only caught by this test, not by eyeballing the config) — a metric contributing to two pillars silently double-weights whatever concept it measures. Fixed in `config/positionPillars.mjs` (each fix carries a `// found 2026-09-13` comment at the site):
+
+- Fullback's `defensive_contribution` reduced to `groundDuelWinPct` only (`ballWin` now counted solely in `pressing`).
+- Defensive Midfield's `defensive_positioning_intervention` reduced the same way.
+- Attacking Midfield's `final_third_involvement` pillar removed outright (it duplicated `line_breaking_actions`'s `bypassedDefenders`).
+- Striker's `shot_quality` pillar removed (duplicated half of `goal_threat`'s `shotXg`).
+- Defensive Midfield's `progressive_passing` and Central Midfield's `progression` both reduced to `bypassedDefenders` only (`packingXg` now counted solely in `possession_value`).
+- Attacking Midfield's `chance_creation` had `shotXg` removed, weights renormalized to `assists: 0.625, packingXg: 0.375`.
+- Fullback's `ball_progression` reduced to `bypassedOpponents` only, and `chance_creation` reduced to `assists` only (removing a duplicate `bypassedDefenders`/`packingXg`).
+
+The test itself is the safeguard against regression — any future pillar edit that reintroduces a shared metric now fails CI, not just review.
+
+### Attempt-count-based reliability for rate metrics
+
+`groundDuelWinPct` and `aerialDuelWinPct` are win *rates* — a 100% record from 3 attempts is not the same evidence as 60% from 80 attempts, and the existing minutes-based shrinkage (`RELIABILITY_CONSTANT`) doesn't capture that distinction on its own for a rate metric. `preprocessing.mjs` now derives real per-season attempt counts (`groundDuelAttempts`/`aerialDuelAttempts` = `(won + lost) * matchShare`), wired into `metricRegistry.mjs` via `attemptsKey`, and `currentLevel.mjs` shrinks these two metrics toward 50 using `reliability = attempts / (attempts + RATE_RELIABILITY_CONSTANT)` (`RATE_RELIABILITY_CONSTANT = 20`, `scoringConfig.mjs`) instead of the minutes-based formula — falling back to minutes-based shrinkage only when attempts genuinely aren't available. This is a separate reliability signal from the minutes-based one applied to every other metric, not a second penalty stacked on top of it, per the brief's explicit "pas geen dubbele bestraffing toe voor dezelfde onzekerheid."
+
+### Real, disclosed cross-check against real transfer data (not blended into scoring)
+
+The brief asked to prefer real historical pre/post-transfer performance data over hand-picked competition multipliers where it exists. `scripts/analyze-competition-transfers.mjs` mined this project's own synced Impect data for real transfer pairs: **2,413 real competition-pair combinations covering 12,543 real season-to-season transfers** (`docs/competition-transfer-deltas.json`, real z-score deltas per pair, minimum 630 minutes each side). Checked against the existing IFFHS/UEFA-derived `multiplier`/`offset` calibration (`competitionStrengthData.mjs`): the relationship is weak and inconsistent at today's real per-pair sample sizes (most individual competition pairs have well under 100 real transfers; only 103 pairs clear even n≥20), not a usable basis for deriving new precise per-competition numbers. **This finding is not blended into scoring** — it's surfaced only as a disclosed diagnostic field, `context.competitionCalibration.realTransferEvidence` (`scripts/lib/scoring/transferEvidence.mjs`), showing `{ n, meanDeltaZ, stdevDeltaZ }` for whichever real pair applies to a given rating, so a scout can see the real (thin) evidence behind a competition's calibration without the model quietly overfitting to it. The existing IFFHS/UEFA-derived calibration remains the scored value; it is labelled "provisional" (see Known limitations), not "validated."
+
+### Real, disclosed development-curve analysis (negative finding)
+
+`scripts/analyze-development-curves.mjs` fitted a real age-bucket-by-position development curve from **12,472 real chronological training transitions** and tested it on **1,190 real held-out transitions from the following season** (`docs/development-curve-analysis.json`) — a genuine train/test split with no future information leaking into the fit. Result: the fitted curve's mean-squared error on the held-out season (**0.1067**) does not beat a naive "no change" baseline (**0.1046**) — the curve adds no real predictive value over just assuming a player's z-score stays the same, at today's real sample size. **This is an honest negative finding, not an error to paper over**: the existing conservative single-season Potential fallback (`potential.mjs`'s fixed `0.7` trajectory factor, see above) is kept unchanged rather than replaced with an unvalidated fitted curve. Re-run this script once more historical seasons are synced — the richer multi-season path in `potential.mjs` is already wired to activate automatically (`hasMultiSeasonData`) once a real, validated curve exists.
+
+### KV Mechelen Fit (`scripts/lib/scoring/kvMechelenFit.mjs`, `config/kvMechelenProfile.mjs`)
+
+A third, deliberately separate score from Current Level/Potential. `config/kvMechelenProfile.mjs` is explicitly headed **"DRAFT / CONCEPT PROFILE"** — a configurable, editable starting point per position group (`desiredQualities` with `priority`, `minimumRequirements`, `playingStyle`, `desiredCurrentLevel`, `desiredDevelopmentWindowSeasons`, `intendedRole`), not a claim about the current coach's actual tactics or the club's real transfer strategy. Goalkeeper has no profile yet (unscored, same reason as Current Level).
+
+`scoreKvMechelenFit()` reuses the already-computed Current Level pillar breakdown (never recomputes raw Impect data):
+- **Immediate Fit**: a priority-weighted average of the role's desired-quality pillars (already Pro-League-calibrated, same scale as Current Level), gated by a real **non-compensatory minimum-requirement penalty** — a shortfall against a disclosed minimum floor caps the score rather than letting strength elsewhere average it away (per the brief's explicit "voorkom dat sterke prestaties … een essentiële zwakte volledig compenseren"), and further gated if the player's Current Level falls short of the role's desired level.
+- **Development Fit**: the same quality score plus real upside (`Potential - Current Level`), scaled by how well that upside fits the role's `desiredDevelopmentWindowSeasons` — a role wanting an immediate starter gets little credit here for pure long-term upside; that's reflected at the total level by `ROLE_FIT_MIX` instead.
+- **Total KV Mechelen Fit**: `immediateFit * mix.immediate + developmentFit * mix.development`, where the mix is set per `intendedRole` (Immediate Starter: 75/25, Rotation: 55/45, Development: 25/75) — so a young development-profile player is never penalized as "not immediately ready" the same way an intended starter would be.
+
+Stored in `player_ratings.kv_fit` (jsonb), surfaced to the frontend as `PlayerRating.kvMechelenFit`. When a player's role has no available pillar data, `supported: true` but all three fit scores are `null` with a real `reason` string — never a fabricated fit score.
+
+## Data / Best XI page
+
+`src/app/(app)/data/page.tsx` — a real, competition+season-scoped "best XI" selection, built entirely from `player_ratings.current_level` (**never** Potential or KV Mechelen Fit — the brief is explicit that a competition-wide XI is a pure current-performance comparison). `src/lib/best-xi/selection.ts`'s `selectBestXI()` maps each formation slot to a real Impect position group, fills each position-group's slots by score with a real preferred-raw-position side match where Impect's own data actually distinguishes one (Fullback, Winger — Centre Back and Defensive Midfield have no real left/right distinction in Impect's raw position codes, disclosed in the UI), ties broken by reliability then minutes, and leaves a slot visibly empty rather than filling it with an ineligible player. Cached client-side by `competition + season + formation + min-minutes + model/data version`; the page shows the selected filters, last data update, and model version, plus a short "how is this XI selected" note about coverage limitations, alongside a per-slot detail panel (why selected, key metrics, up to 3 real alternates) and a full 11-row table.
+
 ## Known limitations (disclosed, not hidden)
 
 - **Goalkeepers are not scored** — no goalkeeper-specific metric is synced yet (see "fields identified but not yet synced" above). The service returns `ratable: false` with a real reason string, never a fabricated score.
@@ -120,6 +167,12 @@ Deterministic string templates only — no LLM, no paid API. Strengths/weaknesse
 - **Competition strength is provisional** for every competition except the two explicitly configured.
 - **International-experience data** isn't in Impect's synced fields for this project and isn't used.
 - **Physical data** (speed, sprints, distance covered) is real but comes from a genuinely separate source — see "SkillCorner physical data" below — not from Impect, and not part of Current Level's own math.
+- **Competition calibration is a provisional, transparent index, not a validated multiplier** — the real transfer-pair cross-check (above) did not find a strong enough signal at today's sample sizes to derive new precise per-competition numbers. A 90th competition percentile is not the same claim as Current Level 90/100; treat cross-competition comparisons as lower-confidence than within-competition ones.
+- **`CURRENT_LEVEL_BANDS` are neutral "model index" labels**, not real-world descriptors like "Champions League level" — no reference-player validation exists yet to justify a real-world label.
+- **The age-based development curve does not currently beat a naive baseline** on real held-out data (above) — Potential still uses the conservative single-season fallback, not a fitted trajectory.
+- **Current Level's predictive power for next-season performance has not yet been validated** — `scripts/validate-current-level.mjs` is written (real chronological Pearson correlation, season-N Current Level vs. season-N+1 composite z-score, by position group) but has not yet been run to completion; treat this as an open validation item, not a confirmed result.
+- **KV Mechelen Fit's role profile is an explicit draft/concept**, editable in `config/kvMechelenProfile.mjs` — not verified current coaching philosophy, tactics, or transfer strategy, and not validated against real scouting or recruitment outcomes.
+- **No real financial/transfer-feasibility data is scored** — market value and contract expiry are already shown as plain informational rows in `PlayerHeader.tsx`, entirely separate from the Current Level/Potential/KV Fit tiles, and never affect any score when unknown ("Unknown," never estimated or assumed). Salary indication, real asking-fee, and registration-condition fields aren't currently synced from any source in this project — adding them is a real data-sourcing task, not a scoring-model change.
 
 ## How to recalculate ratings
 

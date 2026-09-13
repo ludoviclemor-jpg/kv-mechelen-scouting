@@ -25,6 +25,38 @@ export interface RatingStrengthWeakness {
   percentile: number;
 }
 
+export interface KvFitQualityBreakdown {
+  pillarKey: string;
+  label: string;
+  priority: "high" | "medium" | "low";
+  score: number;
+  percentile: number;
+}
+
+export interface KvFitFailedRequirement {
+  pillarKey: string;
+  label: string;
+  minPercentile: number;
+  actualPercentile: number;
+}
+
+/** Separate from Current Level/Potential — how well this player's real, measured profile matches KV Mechelen's own configurable role profile (scripts/lib/scoring/config/kvMechelenProfile.mjs, explicitly a draft/concept, not verified club policy). */
+export interface KvMechelenFit {
+  supported: boolean;
+  reason: string | null;
+  immediateFit: number | null;
+  developmentFit: number | null;
+  totalFit: number | null;
+  intendedRole?: "Immediate Starter" | "Rotation" | "Development";
+  playingStyle?: string;
+  desiredCurrentLevel?: number;
+  desiredDevelopmentWindowSeasons?: number;
+  qualityBreakdown?: KvFitQualityBreakdown[];
+  failedRequirements?: KvFitFailedRequirement[];
+  dataCompleteness?: number;
+  profileVersion?: string;
+}
+
 export interface PlayerRating {
   impectPlayerId: number;
   iterationId: number;
@@ -39,6 +71,7 @@ export interface PlayerRating {
   potentialRange: { low: number; high: number } | null;
   overallPercentile: number | null;
   confidence: { score: number; label: ConfidenceLabel; reasons: string[] };
+  kvMechelenFit: KvMechelenFit;
   context: {
     position: string;
     positionGroup: string;
@@ -49,6 +82,12 @@ export interface PlayerRating {
     cohortSize: number;
     cohortLevel: string | null;
     age: number | null;
+    competitionCalibration?: {
+      rawScore: number;
+      calibratedScore: number;
+      competitionAdjustment: { multiplier: number; offset: number; tier: string };
+      realTransferEvidence: { n: number; meanDeltaZ: number; stdevDeltaZ: number | null } | null;
+    };
   };
   pillars: RatingPillar[];
   strengths: RatingStrengthWeakness[];

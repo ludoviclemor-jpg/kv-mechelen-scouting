@@ -103,18 +103,42 @@ export function PlayerHeader({
       {statusError ? <p className="mt-1.5 text-center text-xs font-medium text-kvm-red">{statusError}</p> : null}
 
       {rating?.ratable ? (
-        <div className="mt-4 grid grid-cols-3 gap-1.5 border-t border-kvm-border pt-3">
-          <div className="rounded-md bg-gray-50 py-1.5 text-center">
-            <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Level</div>
-            <div className="text-sm font-bold text-kvm-ink">{rating.currentLevel}</div>
+        <div className="mt-4 border-t border-kvm-border pt-3">
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="rounded-md bg-gray-50 py-1.5 text-center">
+              <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Level</div>
+              <div className="text-sm font-bold text-kvm-ink">{rating.currentLevel}</div>
+            </div>
+            <div className="rounded-md bg-gray-50 py-1.5 text-center">
+              <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Potential</div>
+              <div className="text-sm font-bold text-kvm-ink">{rating.potential}</div>
+              {rating.potentialRange && rating.potential !== null ? (
+                <div className="text-[9px] text-gray-400">±{rating.potentialRange.high - rating.potential}</div>
+              ) : null}
+            </div>
+            <div className={cn("rounded-md py-1.5 text-center", CONFIDENCE_STYLES[rating.confidence.label])}>
+              <div className="text-[9px] font-semibold uppercase tracking-wide opacity-70">Confidence</div>
+              <div className="text-sm font-bold">{rating.confidence.label}</div>
+            </div>
           </div>
-          <div className="rounded-md bg-gray-50 py-1.5 text-center">
-            <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Potential</div>
-            <div className="text-sm font-bold text-kvm-ink">{rating.potential}</div>
-          </div>
-          <div className={cn("rounded-md py-1.5 text-center", CONFIDENCE_STYLES[rating.confidence.label])}>
-            <div className="text-[9px] font-semibold uppercase tracking-wide opacity-70">Confidence</div>
-            <div className="text-sm font-bold">{rating.confidence.label}</div>
+
+          {/* KV Mechelen Fit is a deliberately separate assessment from Current Level/Potential — "een goede speler is niet automatisch een goede match voor KV Mechelen" (Request B). Never shown as part of the level/potential tiles above. */}
+          <div className="mt-1.5 rounded-md bg-kvm-red/5 px-2.5 py-2 ring-1 ring-inset ring-kvm-red/15">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-kvm-red/70">KV Mechelen Fit</div>
+            {rating.kvMechelenFit.supported && rating.kvMechelenFit.totalFit !== null ? (
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="text-lg font-bold text-kvm-ink">{rating.kvMechelenFit.totalFit}</span>
+                <div className="text-right text-[10px] leading-tight text-gray-500">
+                  <div>Immediate {rating.kvMechelenFit.immediateFit}</div>
+                  <div>Development {rating.kvMechelenFit.developmentFit}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-1 text-[11px] text-gray-400">{rating.kvMechelenFit.reason ?? "Insufficient data"}</div>
+            )}
+            {rating.kvMechelenFit.intendedRole ? (
+              <div className="mt-1 text-[9px] text-gray-400">Role: {rating.kvMechelenFit.intendedRole}</div>
+            ) : null}
           </div>
         </div>
       ) : null}

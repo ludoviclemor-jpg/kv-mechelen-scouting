@@ -37,7 +37,17 @@ function AverageBadge({ score }: { score: number | null }) {
   );
 }
 
-function InfoModal({ onClose }: { onClose: () => void }) {
+/**
+ * Full explanation panel (Request B, section 7): every rating shown on
+ * the profile must be traceable back to real, disclosed inputs — never
+ * just "trust the number". Renders the actual data behind this specific
+ * player's rating, not generic copy; falls back to the general concept
+ * text only for fields a given rating genuinely has nothing to show
+ * (e.g. no `competitionCalibration` recorded yet, an older model version).
+ */
+function InfoModal({ rating, onClose }: { rating: PlayerRating; onClose: () => void }) {
+  const calibration = rating.context.competitionCalibration;
+  const fit = rating.kvMechelenFit;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/40" />
@@ -50,20 +60,70 @@ function InfoModal({ onClose }: { onClose: () => void }) {
         </div>
         <dl className="space-y-3 text-sm text-gray-600">
           <div>
-            <dt className="font-semibold text-kvm-ink">Current Level</dt>
-            <dd>An absolute 0–100 estimate of the player&apos;s level right now, calibrated against real competition strength — not simply their percentile within their own league.</dd>
+            <dt className="font-semibold text-kvm-ink">Position / role used</dt>
+            <dd>
+              {rating.context.position} ({rating.context.positionGroup}
+              {rating.context.role ? `, ${rating.context.role}` : ""})
+            </dd>
           </div>
           <div>
-            <dt className="font-semibold text-kvm-ink">Potential</dt>
-            <dd>A projection of the level this player could realistically reach, based on Current Level, age and a position-specific development curve. Never lower than Current Level, and always shown with a plausible range rather than one exact number.</dd>
+            <dt className="font-semibold text-kvm-ink">Reference cohort</dt>
+            <dd>
+              {rating.context.cohortSize} {rating.context.positionGroup.toLowerCase()}s in {rating.context.competition}, {rating.context.season}
+              {rating.context.cohortLevel !== "position+competition+season" ? " — broadened cohort, see warnings below" : ""}.
+            </dd>
+          </div>
+          {calibration ? (
+            <div>
+              <dt className="font-semibold text-kvm-ink">Competition correction</dt>
+              <dd>
+                Raw within-competition score {calibration.rawScore} → calibrated {calibration.calibratedScore} (
+                {calibration.competitionAdjustment.tier} tier, ×{calibration.competitionAdjustment.multiplier}
+                {calibration.competitionAdjustment.offset >= 0 ? "+" : ""}
+                {calibration.competitionAdjustment.offset}). {calibration.realTransferEvidence ? `Cross-checked against ${calibration.realTransferEvidence.n} real transfer pairs (disclosed diagnostic, not blended into the score — see docs/SCORING_MODEL.md).` : "No real transfer-based evidence available for this competition yet — a provisional, disclosed calibration."}
+              </dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className="font-semibold text-kvm-ink">Key strengths</dt>
+            <dd>
+              {rating.strengths.length > 0
+                ? rating.strengths.map((s) => `${s.label} (${s.percentile}th pct.)`).join(", ")
+                : "No pillar clears the strength threshold yet."}
+            </dd>
           </div>
           <div>
-            <dt className="font-semibold text-kvm-ink">Who the player is compared with</dt>
-            <dd>Players in the same broad position group, in the same competition where possible — never the entire player database at once. See &ldquo;Comparison group&rdquo; below for exactly who was used for this rating.</dd>
+            <dt className="font-semibold text-kvm-ink">Key shortcomings</dt>
+            <dd>
+              {rating.weaknesses.length > 0
+                ? rating.weaknesses.map((w) => `${w.label} (${w.percentile}th pct.)`).join(", ")
+                : "No pillar falls below the weakness threshold."}
+            </dd>
           </div>
           <div>
-            <dt className="font-semibold text-kvm-ink">Why confidence matters</dt>
-            <dd>A rating built on few minutes, a small comparison group, or missing metrics is real but less certain — Confidence says how much weight to put on it, separately from the score itself.</dd>
+            <dt className="font-semibold text-kvm-ink">KV Mechelen fit</dt>
+            {fit.supported && fit.totalFit !== null ? (
+              <dd>
+                Total Fit {fit.totalFit}/100 for the {fit.intendedRole ?? "configured"} role
+                {fit.playingStyle ? ` (${fit.playingStyle})` : ""}.{" "}
+                {fit.failedRequirements && fit.failedRequirements.length > 0
+                  ? `Falls short of a minimum requirement: ${fit.failedRequirements.map((f) => `${f.label} (${f.actualPercentile}th vs. ${f.minPercentile}th required)`).join(", ")}.`
+                  : "Meets this role's disclosed minimum requirements."}
+                {" "}Based on a draft KV Mechelen role profile (v{fit.profileVersion}), not verified current club tactics or transfer policy.
+              </dd>
+            ) : (
+              <dd>{fit.reason ?? "Insufficient data for this position/role."}</dd>
+            )}
+          </div>
+          <div>
+            <dt className="font-semibold text-kvm-ink">Missing information</dt>
+            <dd>{rating.warnings.length > 0 ? rating.warnings.join(" ") : "No data-completeness warnings recorded for this rating."}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-kvm-ink">Model version &amp; calculation date</dt>
+            <dd>
+              v{rating.modelVersion} · calculated {formatDate(rating.calculatedAt)}
+            </dd>
           </div>
           <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-500">
             This rating supports, and never replaces, live and video scouting.
@@ -302,7 +362,7 @@ export function PlayerRatingBreakdown({
         </>
       )}
 
-      {infoOpen ? <InfoModal onClose={() => setInfoOpen(false)} /> : null}
+      {infoOpen ? <InfoModal rating={rating} onClose={() => setInfoOpen(false)} /> : null}
     </div>
   );
 }

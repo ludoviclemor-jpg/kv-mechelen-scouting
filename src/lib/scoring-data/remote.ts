@@ -34,6 +34,7 @@ interface RatingRow {
   confidence_label: PlayerRating["confidence"]["label"];
   confidence_reasons: string[];
   context: PlayerRating["context"];
+  kv_fit: PlayerRating["kvMechelenFit"] | null;
   pillars: PlayerRating["pillars"];
   strengths: PlayerRating["strengths"];
   weaknesses: PlayerRating["weaknesses"];
@@ -60,6 +61,11 @@ function fromRow(row: RatingRow): PlayerRating {
         : null,
     overallPercentile: row.overall_percentile,
     confidence: { score: row.confidence_score, label: row.confidence_label, reasons: row.confidence_reasons ?? [] },
+    // `kv_fit` is null for rows calculated before v2.0.0 (see
+    // scripts/lib/scoring/config/kvMechelenProfile.mjs) or for a
+    // position group KV Mechelen has no draft profile for (Goalkeeper) —
+    // surfaced as "not supported", never a fabricated score.
+    kvMechelenFit: row.kv_fit ?? { supported: false, reason: "No KV Mechelen Fit calculated for this rating yet.", immediateFit: null, developmentFit: null, totalFit: null },
     context: row.context,
     // `domain` fallback: ratings calculated before the technical/physical
     // split (scripts/lib/scoring/config/positionPillars.mjs) have no
