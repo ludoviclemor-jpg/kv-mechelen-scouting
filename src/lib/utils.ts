@@ -8,6 +8,11 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(...inputs);
 }
 
+/** Strips diacritics client-side (e.g. "André" -> "Andre") so a search query matches the DB's own `unaccent()`-normalized columns — see db/migrations/2026-09-11_profile_redesign_shadowxi_search_todos.sql. Shared by src/lib/search.ts and players-data/remote.ts's searchPlayers. */
+export function stripAccents(value: string): string {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 /** "Unknown" for null — SCOUTASTIC doesn't return this field for every player, never invented. */
 export function formatCurrency(valueEUR: number | null): string {
   if (valueEUR === null) return "Unknown";

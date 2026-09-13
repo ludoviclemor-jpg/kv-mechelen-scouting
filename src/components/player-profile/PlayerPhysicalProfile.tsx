@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from "recharts";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { PlayerPhysicalProfile as PlayerPhysicalProfileData } from "@/lib/skillcorner-data/remote";
 import { PHYSICAL_METRICS } from "@/lib/skillcorner-data/remote";
 import { MIN_POPULATION } from "@/lib/percentile";
@@ -42,11 +42,14 @@ export function PlayerPhysicalProfile({
   loading,
   error,
   onRetry,
+  compact = false,
 }: {
   profile: PlayerPhysicalProfileData | null;
   loading: boolean;
   error: Error | null;
   onRetry: () => void;
+  /** Chart + cohort line only — no metric table. Used for the always-visible top-of-profile zone (2026-09-11 redesign); the full breakdown still renders in the Ratings tab. */
+  compact?: boolean;
 }) {
   if (error) return <ErrorState message={error.message} onRetry={onRetry} />;
   if (loading) return <LoadingState label="Loading physical data…" />;
@@ -63,11 +66,18 @@ export function PlayerPhysicalProfile({
   const { physical, percentiles, cohortSize } = profile;
   const hasEnoughPeers = cohortSize >= MIN_POPULATION;
 
-  const radarData = PHYSICAL_METRICS.map((metric) => ({
-    metric: metric.label,
-    score: hasEnoughPeers ? (percentiles[metric.key] ?? 0) : 0,
-    average: 50,
-  }));
+  // Only metrics with a real percentile go on the chart — a metric this
+  // player genuinely has no value for (rather than just a too-small
+  // cohort) is excluded from the axis entirely, never plotted as a
+  // fabricated 0 (see percentiles[metric.key] being `undefined`, not
+  // `0`, for a metric fetchPlayerPhysicalProfile skipped).
+  const radarData = hasEnoughPeers
+    ? PHYSICAL_METRICS.filter((metric) => percentiles[metric.key] !== undefined && percentiles[metric.key] !== null).map((metric) => ({
+        metric: metric.label,
+        score: percentiles[metric.key] as number,
+        average: 50,
+      }))
+    : [];
 
   return (
     <div className="space-y-5">
@@ -86,60 +96,74 @@ export function PlayerPhysicalProfile({
         </div>
       ) : null}
 
-      {hasEnoughPeers ? (
-        <div className="h-72 w-full">
+      {hasEnoughPeers && radarData.length < 3 ? (
+        <p className="text-xs text-gray-400">Not enough real physical metrics available yet to draw a chart for this player.</p>
+      ) : null}
+
+      {hasEnoughPeers && radarData.length >= 3 ? (
+        <div className={compact ? "h-56 w-full" : "h-72 w-full"}>
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData} outerRadius="75%">
               <PolarGrid stroke="#e7e1d4" />
-              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: "#6b665f" }} />
+              <PolarAngleAxis dataKey="metric" tick={{ fontSize: compact ? 9 : 10, fill: "#6b665f" }} />
               <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#a39d8e" }} tickCount={5} />
               <Radar name="Cohort average" dataKey="average" stroke="#a39d8e" strokeDasharray="4 3" fill="none" isAnimationActive={false} />
               <Radar name="This player" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} isAnimationActive={false} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, borderColor: "#e7e1d4" }} />
             </RadarChart>
           </ResponsiveContainer>
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Value</th>
-              <th>vs. Cohort Average</th>
-              <th>Percentile</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PHYSICAL_METRICS.map((metric) => {
-              const value = physical[metric.key];
-              const percentile = hasEnoughPeers ? (percentiles[metric.key] ?? null) : null;
-              return (
-                <tr key={metric.key}>
-                  <td className="font-medium text-kvm-ink">{metric.label}</td>
-                  <td className="tabular-nums text-gray-600">{formatValue(value, metric.unit)}</td>
-                  <td>
-                    <AverageBadge percentile={percentile} />
-                  </td>
-                  <td className="tabular-nums text-gray-600">{percentile !== null ? `${percentile}th` : "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <p className="text-xs text-gray-500">
+        <span className="font-semibold text-gray-700">Compared with: </span>
+        {cohortSize} other {physical.positionGroup ?? "players"} tracked in {physical.competitionName} {physical.seasonName}
+      </p>
 
-      <div className="grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 text-xs text-gray-500 sm:grid-cols-2">
-        <div>
-          <span className="font-semibold text-gray-700">Comparison group: </span>
-          {cohortSize} other {physical.positionGroup ?? "players"} tracked in {physical.competitionName} {physical.seasonName}
-        </div>
-        <div>
-          <span className="font-semibold text-gray-700">Source: </span>SkillCorner tracking data · updated{" "}
-          {new Date(physical.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-        </div>
-      </div>
+      {!compact ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>vs. Cohort Average</th>
+                  <th>Percentile</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PHYSICAL_METRICS.map((metric) => {
+                  const value = physical[metric.key];
+                  const percentile = hasEnoughPeers ? (percentiles[metric.key] ?? null) : null;
+                  return (
+                    <tr key={metric.key}>
+                      <td className="font-medium text-kvm-ink">{metric.label}</td>
+                      <td className="tabular-nums text-gray-600">{formatValue(value, metric.unit)}</td>
+                      <td>
+                        <AverageBadge percentile={percentile} />
+                      </td>
+                      <td className="tabular-nums text-gray-600">{percentile !== null ? `${percentile}th` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 text-xs text-gray-500 sm:grid-cols-2">
+            <div>
+              <span className="font-semibold text-gray-700">Comparison group: </span>
+              {cohortSize} other {physical.positionGroup ?? "players"} tracked in {physical.competitionName} {physical.seasonName}
+            </div>
+            <div>
+              <span className="font-semibold text-gray-700">Source: </span>SkillCorner tracking data · updated{" "}
+              {new Date(physical.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -1,2 +1,10 @@
 export * from "./types";
-export { fetchActionItems, createActionItem, setActionItemCompleted, deleteActionItem } from "./remote";
+export {
+  fetchActionItems,
+  fetchActionItemsForPlayer,
+  createActionItem,
+  updateActionItem,
+  setActionItemCompleted,
+  deleteActionItem,
+} from "./remote";
+export { todayISODate, isOverdue, isDueToday, compareActionItems, filterActionItems, type TodoFilter } from "./sort";

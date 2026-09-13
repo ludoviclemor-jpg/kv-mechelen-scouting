@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Info, X, Target, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from "recharts";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { PlayerRating } from "@/lib/scoring-data/types";
 import { formatDate, cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -89,11 +89,14 @@ export function PlayerRatingBreakdown({
   loading,
   error,
   onRetry,
+  compact = false,
 }: {
   rating: PlayerRating | null;
   loading: boolean;
   error: Error | null;
   onRetry: () => void;
+  /** Score cards + chart + cohort line only — no pillar table, strengths/weaknesses, explanation or footer. Used for the always-visible top-of-profile zone (2026-09-11 redesign); the full breakdown still renders in the Ratings tab. */
+  compact?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -135,153 +138,166 @@ export function PlayerRatingBreakdown({
         <NotRatable rating={rating} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-md bg-gray-50 p-4 text-center">
+          <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-3", !compact && "gap-4")}>
+            <div className={cn("rounded-md bg-gray-50 text-center", compact ? "p-2.5" : "p-4")}>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Current Level</div>
-              <div className="mt-1 text-3xl font-bold text-kvm-ink">{rating.currentLevel}</div>
-              <div className="mt-1 text-[11px] text-gray-500">{rating.currentLevelBand}</div>
+              <div className={cn("mt-1 font-bold text-kvm-ink", compact ? "text-2xl" : "text-3xl")}>{rating.currentLevel}</div>
+              {!compact ? <div className="mt-1 text-[11px] text-gray-500">{rating.currentLevelBand}</div> : null}
             </div>
-            <div className="rounded-md bg-gray-50 p-4 text-center">
+            <div className={cn("rounded-md bg-gray-50 text-center", compact ? "p-2.5" : "p-4")}>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Potential</div>
-              <div className="mt-1 text-3xl font-bold text-kvm-ink">{rating.potential}</div>
-              {rating.potentialRange ? (
+              <div className={cn("mt-1 font-bold text-kvm-ink", compact ? "text-2xl" : "text-3xl")}>{rating.potential}</div>
+              {rating.potentialRange && !compact ? (
                 <div className="mt-1 text-[11px] text-gray-500">
                   Range {rating.potentialRange.low}–{rating.potentialRange.high}
                 </div>
               ) : null}
             </div>
-            <div className="rounded-md bg-gray-50 p-4 text-center">
+            <div className={cn("rounded-md bg-gray-50 text-center", compact ? "p-2.5" : "p-4")}>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Confidence</div>
               <div className="mt-1.5">
                 <span className={cn("inline-flex items-center rounded-md px-2.5 py-1 text-sm font-semibold", CONFIDENCE_STYLES[rating.confidence.label])}>
                   {rating.confidence.label} ({rating.confidence.score})
                 </span>
               </div>
-              {rating.overallPercentile !== null ? (
+              {rating.overallPercentile !== null && !compact ? (
                 <div className="mt-1 text-[11px] text-gray-500">{rating.overallPercentile}th percentile overall</div>
               ) : null}
             </div>
           </div>
 
           {radarData.length >= 3 ? (
-            <div className="h-72 w-full">
+            <div className={compact ? "h-56 w-full" : "h-72 w-full"}>
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData} outerRadius="75%">
                   <PolarGrid stroke="#e7e1d4" />
-                  <PolarAngleAxis dataKey="pillar" tick={{ fontSize: 10.5, fill: "#6b665f" }} />
+                  <PolarAngleAxis dataKey="pillar" tick={{ fontSize: compact ? 9.5 : 10.5, fill: "#6b665f" }} />
                   <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#a39d8e" }} tickCount={5} />
                   <Radar name="Cohort average" dataKey="average" stroke="#a39d8e" strokeDasharray="4 3" fill="none" isAnimationActive={false} />
                   <Radar name="This player" dataKey="score" stroke="#e30613" fill="#e30613" fillOpacity={0.25} isAnimationActive={false} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, borderColor: "#e7e1d4" }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
-          ) : null}
+          ) : (
+            <p className="text-xs text-gray-400">Not enough technical pillars available yet to draw a chart for this player.</p>
+          )}
 
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Pillar</th>
-                  <th>Score</th>
-                  <th>vs. Cohort Average</th>
-                  <th>Percentile</th>
-                  <th>Weight</th>
-                </tr>
-              </thead>
-              <tbody>
-                {technicalPillars.map((p) => (
-                  <tr key={p.key}>
-                    <td className="font-medium text-kvm-ink">{p.label}</td>
-                    <td className="tabular-nums text-gray-600">{p.available ? p.score : "—"}</td>
-                    <td>
-                      <AverageBadge score={p.available ? p.score : null} />
-                    </td>
-                    <td className="tabular-nums text-gray-600">{p.available ? `${p.percentile}th` : "—"}</td>
-                    <td className="tabular-nums text-gray-600">{p.available ? p.weight : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Compared with: </span>
+            {rating.context.cohortSize} {rating.context.positionGroup.toLowerCase()}s in {rating.context.competition}
+            {rating.context.cohortLevel !== "position+competition+season" ? " (broadened cohort)" : ""}
+          </p>
 
-          {physicalPillarCount > 0 ? (
-            <p className="text-xs text-gray-400">
-              {physicalPillarCount} additional duel-based pillar{physicalPillarCount === 1 ? "" : "s"} (ground/aerial duels,
-              pressing) still counts toward Current Level above but isn&apos;t shown in this chart — see the Physical Profile
-              below for real SkillCorner tracking data instead.
-            </p>
-          ) : null}
+          {!compact ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Pillar</th>
+                      <th>Score</th>
+                      <th>vs. Cohort Average</th>
+                      <th>Percentile</th>
+                      <th>Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {technicalPillars.map((p) => (
+                      <tr key={p.key}>
+                        <td className="font-medium text-kvm-ink">{p.label}</td>
+                        <td className="tabular-nums text-gray-600">{p.available ? p.score : "—"}</td>
+                        <td>
+                          <AverageBadge score={p.available ? p.score : null} />
+                        </td>
+                        <td className="tabular-nums text-gray-600">{p.available ? `${p.percentile}th` : "—"}</td>
+                        <td className="tabular-nums text-gray-600">{p.available ? p.weight : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Strengths</h4>
-              {rating.strengths.length === 0 ? (
-                <p className="text-sm text-gray-400">No pillar clears the strength threshold yet.</p>
-              ) : (
-                <ul className="space-y-1 text-sm text-kvm-ink">
-                  {rating.strengths.map((s) => (
-                    <li key={s.pillar}>
-                      {s.label} <span className="text-gray-400">({s.percentile}th percentile)</span>
-                    </li>
+              {physicalPillarCount > 0 ? (
+                <p className="text-xs text-gray-400">
+                  {physicalPillarCount} additional duel-based pillar{physicalPillarCount === 1 ? "" : "s"} (ground/aerial duels,
+                  pressing) still counts toward Current Level above but isn&apos;t shown in this chart — see the Physical Profile
+                  tab for real SkillCorner tracking data instead.
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Strengths</h4>
+                  {rating.strengths.length === 0 ? (
+                    <p className="text-sm text-gray-400">No pillar clears the strength threshold yet.</p>
+                  ) : (
+                    <ul className="space-y-1 text-sm text-kvm-ink">
+                      {rating.strengths.map((s) => (
+                        <li key={s.pillar}>
+                          {s.label} <span className="text-gray-400">({s.percentile}th percentile)</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Weaknesses</h4>
+                  {rating.weaknesses.length === 0 ? (
+                    <p className="text-sm text-gray-400">No pillar falls below the weakness threshold.</p>
+                  ) : (
+                    <ul className="space-y-1 text-sm text-kvm-ink">
+                      {rating.weaknesses.map((w) => (
+                        <li key={w.pillar}>
+                          {w.label} <span className="text-gray-400">({w.percentile}th percentile)</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {rating.developmentPriorities.length > 0 ? (
+                <div>
+                  <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Development Priorities</h4>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-kvm-ink">
+                    {rating.developmentPriorities.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {rating.explanation ? (
+                <div className="rounded-md border border-kvm-border bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">{rating.explanation}</div>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 text-xs text-gray-500 sm:grid-cols-2">
+                <div>
+                  <span className="font-semibold text-gray-700">Comparison group: </span>
+                  {rating.context.cohortSize} {rating.context.positionGroup.toLowerCase()}s in {rating.context.competition} ({rating.context.cohortLevel === "position+competition+season" ? "same competition" : "broadened cohort — see warnings"})
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Model: </span>v{rating.modelVersion} · calculated {formatDate(rating.calculatedAt)}
+                </div>
+              </div>
+
+              {rating.confidence.reasons.length > 0 ? (
+                <div className="text-xs text-gray-500">
+                  <span className="font-semibold text-gray-700">Confidence notes: </span>
+                  {rating.confidence.reasons.join(" ")}
+                </div>
+              ) : null}
+
+              {rating.warnings.length > 0 ? (
+                <ul className="space-y-1 rounded-md bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+                  {rating.warnings.map((w) => (
+                    <li key={w}>{w}</li>
                   ))}
                 </ul>
-              )}
-            </div>
-            <div>
-              <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Weaknesses</h4>
-              {rating.weaknesses.length === 0 ? (
-                <p className="text-sm text-gray-400">No pillar falls below the weakness threshold.</p>
-              ) : (
-                <ul className="space-y-1 text-sm text-kvm-ink">
-                  {rating.weaknesses.map((w) => (
-                    <li key={w.pillar}>
-                      {w.label} <span className="text-gray-400">({w.percentile}th percentile)</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {rating.developmentPriorities.length > 0 ? (
-            <div>
-              <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Development Priorities</h4>
-              <ul className="list-inside list-disc space-y-1 text-sm text-kvm-ink">
-                {rating.developmentPriorities.map((d) => (
-                  <li key={d}>{d}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {rating.explanation ? (
-            <div className="rounded-md border border-kvm-border bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">{rating.explanation}</div>
-          ) : null}
-
-          <div className="grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 text-xs text-gray-500 sm:grid-cols-2">
-            <div>
-              <span className="font-semibold text-gray-700">Comparison group: </span>
-              {rating.context.cohortSize} {rating.context.positionGroup.toLowerCase()}s in {rating.context.competition} ({rating.context.cohortLevel === "position+competition+season" ? "same competition" : "broadened cohort — see warnings"})
-            </div>
-            <div>
-              <span className="font-semibold text-gray-700">Model: </span>v{rating.modelVersion} · calculated {formatDate(rating.calculatedAt)}
-            </div>
-          </div>
-
-          {rating.confidence.reasons.length > 0 ? (
-            <div className="text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">Confidence notes: </span>
-              {rating.confidence.reasons.join(" ")}
-            </div>
-          ) : null}
-
-          {rating.warnings.length > 0 ? (
-            <ul className="space-y-1 rounded-md bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
-              {rating.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
+              ) : null}
+            </>
           ) : null}
         </>
       )}

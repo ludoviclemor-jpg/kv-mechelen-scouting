@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { User, Banknote, FileText, Gauge } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { ScoutingStatus } from "@/lib/players-data";
 import type { Player } from "@/lib/players-data";
 import { positionLabel } from "@/lib/players-data";
@@ -14,49 +14,49 @@ import { NextActionButton } from "@/components/players/NextActionButton";
 import { useAppStore, useEffectiveStatus } from "@/lib/app-store";
 import type { PlayerRating } from "@/lib/scoring-data/types";
 
-const CONFIDENCE_TEXT: Record<string, string> = {
-  High: "text-emerald-700",
-  Medium: "text-amber-700",
-  Low: "text-gray-500",
+const CONFIDENCE_STYLES: Record<string, string> = {
+  High: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+  Medium: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+  Low: "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200",
 };
 
 function unk(value: string | number | null): string {
   return value === null ? "Unknown" : String(value);
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium text-kvm-ink">{children}</dd>
-    </div>
-  );
-}
-
-function FieldGroup({ icon: Icon, title, children }: { icon: typeof User; title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-md bg-gray-50 p-3">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
-        <Icon size={12} aria-hidden="true" />
-        {title}
-      </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">{children}</dl>
-    </div>
-  );
-}
-
-/** "Club → opens club/players view", "Nationality → filters relevant players" (item 20) — same convention GlobalSearch already uses. */
+/** "Club → opens club/players view", "Nationality → filters relevant players" — same convention GlobalSearch already uses. */
 const linkClass = "hover:text-kvm-red hover:underline";
 
+/** One dense label/value row — the compact info column's basic building block, replacing the old grid-of-cards layout (redesign 2026-09-11: too busy/too much whitespace for a 25-30%-width column). */
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1 text-xs">
+      <dt className="shrink-0 text-gray-400">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-medium text-kvm-ink">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Compact player info column — left side of the redesigned player
+ * profile (2026-09-11), ~25-30% width alongside the wide Technical/
+ * Physical analysis zone. Every field from the old horizontal
+ * FieldGroup layout is preserved, just restructured into dense rows
+ * instead of a grid of cards, per the redesign brief's explicit
+ * "reorganize, don't remove information" instruction.
+ */
 export function PlayerHeader({
   player,
   competitionName,
   rating,
+  internationalStatus,
   onNewReport,
 }: {
   player: Player;
   competitionName?: string | null;
   rating?: PlayerRating | null;
+  /** Real, derived from this player's own call-up history (see /player page.tsx) — never a guess. `null` while still loading. */
+  internationalStatus?: string | null;
   onNewReport?: () => void;
 }) {
   const { setPlayerStatus } = useAppStore();
@@ -75,99 +75,88 @@ export function PlayerHeader({
   const positions = [player.position, ...(player.secondaryPositions ?? [])].filter((p): p is NonNullable<typeof p> => p !== null);
 
   return (
-    <div className="rounded-xl border border-kvm-border bg-white p-5">
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="lg" className="ring-2 ring-kvm-border ring-offset-2" />
-          <div>
-            <h1 className="text-xl font-bold text-kvm-ink">{player.name}</h1>
-            <p className="text-sm text-gray-500">
-              {positions.map(positionLabel).join(" / ") || "Unknown position"} ·{" "}
-              {player.club ? (
-                <Link href={`/players?search=${encodeURIComponent(player.club)}`} className={linkClass}>
-                  {player.club}
-                </Link>
-              ) : (
-                "Unknown club"
-              )}{" "}
-              ·{" "}
-              {player.competitionId ? (
-                <Link href={`/competition?id=${player.competitionId}`} className={linkClass}>
-                  {competitionLabel}
-                </Link>
-              ) : (
-                competitionLabel
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <StatusChangeMenu status={status} onChange={handleStatusChange} />
-            <ShortlistButton playerId={player.id} />
-            {onNewReport ? (
-              <button
-                type="button"
-                onClick={onNewReport}
-                className="flex items-center gap-1.5 rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-xs font-semibold text-kvm-ink hover:border-kvm-red"
-              >
-                <FileText size={14} aria-hidden="true" />
-                New report
-              </button>
-            ) : null}
-            <NextActionButton playerId={player.id} />
-          </div>
-          {statusError ? <p className="text-xs font-medium text-kvm-red">{statusError}</p> : null}
+    <div className="rounded-xl border border-kvm-border bg-white p-4">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <PlayerAvatar name={player.name} photoUrl={player.photoUrl} size="lg" className="ring-2 ring-kvm-border ring-offset-2" />
+        <div>
+          <h1 className="text-base font-bold leading-tight text-kvm-ink">{player.name}</h1>
+          <p className="mt-0.5 text-xs text-gray-500">{positions.map(positionLabel).join(" / ") || "Unknown position"}</p>
         </div>
       </div>
 
-      {/* Club/Competition/Position are already in the subtitle above —
-          not repeated here, so this is Personal + Contract only (was 3
-          boxes including a "Club" one that just duplicated the subtitle). */}
-      <div className={cn("mt-5 grid grid-cols-1 gap-3 border-t border-kvm-border pt-4 sm:grid-cols-2", rating?.ratable && "lg:grid-cols-3")}>
-        <FieldGroup icon={User} title="Personal">
-          <Field label="Age">{player.dateOfBirth ? `${calculateAge(player.dateOfBirth)} yrs` : "Unknown"}</Field>
-          <Field label="Date of birth">{formatDate(player.dateOfBirth)}</Field>
-          <Field label="Nationality">
-            {player.nationality ? (
-              <Link href={`/players?nationality=${encodeURIComponent(player.nationality)}`} className={linkClass}>
-                {player.nationality}
-              </Link>
-            ) : (
-              "Unknown"
-            )}
-            {player.secondNationality ? ` / ${player.secondNationality}` : ""}
-          </Field>
-          <Field label="Height">{player.heightCm !== null ? `${player.heightCm} cm` : "Unknown"}</Field>
-          <Field label="Preferred foot">{unk(player.preferredFoot)}</Field>
-        </FieldGroup>
-
-        <FieldGroup icon={Banknote} title="Contract">
-          <Field label="Market value">
-            <span className="font-bold text-kvm-ink">{formatCurrency(player.marketValueEUR)}</span>
-          </Field>
-          <Field label="Contract expiry">{formatDate(player.contractExpiry)}</Field>
-          <Field label="Agent">{unk(player.agent)}</Field>
-        </FieldGroup>
-
-        {rating?.ratable ? (
-          <FieldGroup icon={Gauge} title="Position-Specific Rating (Impect)">
-            <Field label="Current Level">
-              <span className="text-base font-bold text-kvm-ink">{rating.currentLevel}</span>
-            </Field>
-            <Field label="Potential">
-              <span className="text-base font-bold text-kvm-ink">{rating.potential}</span>
-            </Field>
-            <Field label="Confidence">
-              <span className={cn("font-semibold", CONFIDENCE_TEXT[rating.confidence.label])}>{rating.confidence.label}</span>
-            </Field>
-            <Field label="Role">{rating.context.role ?? rating.context.positionGroup}</Field>
-            <Field label="Minutes">{rating.context.minutes}</Field>
-            <Field label="Calculated">{formatDate(rating.calculatedAt)}</Field>
-          </FieldGroup>
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+        <StatusChangeMenu status={status} onChange={handleStatusChange} />
+        <ShortlistButton playerId={player.id} />
+        <NextActionButton playerId={player.id} playerName={player.name} />
+        {onNewReport ? (
+          <button
+            type="button"
+            onClick={onNewReport}
+            aria-label="New scouting report"
+            title="New scouting report"
+            className="flex items-center gap-1.5 rounded-md border border-kvm-border bg-white px-2.5 py-1.5 text-xs font-semibold text-kvm-ink hover:border-kvm-red"
+          >
+            <FileText size={14} aria-hidden="true" />
+          </button>
         ) : null}
       </div>
+      {statusError ? <p className="mt-1.5 text-center text-xs font-medium text-kvm-red">{statusError}</p> : null}
+
+      {rating?.ratable ? (
+        <div className="mt-4 grid grid-cols-3 gap-1.5 border-t border-kvm-border pt-3">
+          <div className="rounded-md bg-gray-50 py-1.5 text-center">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Level</div>
+            <div className="text-sm font-bold text-kvm-ink">{rating.currentLevel}</div>
+          </div>
+          <div className="rounded-md bg-gray-50 py-1.5 text-center">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Potential</div>
+            <div className="text-sm font-bold text-kvm-ink">{rating.potential}</div>
+          </div>
+          <div className={cn("rounded-md py-1.5 text-center", CONFIDENCE_STYLES[rating.confidence.label])}>
+            <div className="text-[9px] font-semibold uppercase tracking-wide opacity-70">Confidence</div>
+            <div className="text-sm font-bold">{rating.confidence.label}</div>
+          </div>
+        </div>
+      ) : null}
+
+      <dl className="mt-4 divide-y divide-kvm-border border-t border-kvm-border">
+        <Row label="Age">{player.dateOfBirth ? `${calculateAge(player.dateOfBirth)} yrs` : "Unknown"}</Row>
+        <Row label="Date of birth">{formatDate(player.dateOfBirth)}</Row>
+        <Row label="Nationality">
+          {player.nationality ? (
+            <Link href={`/players?nationality=${encodeURIComponent(player.nationality)}`} className={linkClass}>
+              {player.nationality}
+              {player.secondNationality ? ` / ${player.secondNationality}` : ""}
+            </Link>
+          ) : (
+            "Unknown"
+          )}
+        </Row>
+        <Row label="Club">
+          {player.club ? (
+            <Link href={`/players?search=${encodeURIComponent(player.club)}`} className={linkClass}>
+              {player.club}
+            </Link>
+          ) : (
+            "Unknown"
+          )}
+        </Row>
+        <Row label="Competition">
+          {player.competitionId ? (
+            <Link href={`/competition?id=${player.competitionId}`} className={linkClass}>
+              {competitionLabel}
+            </Link>
+          ) : (
+            competitionLabel
+          )}
+        </Row>
+        <Row label="Preferred foot">{unk(player.preferredFoot)}</Row>
+        <Row label="Height">{player.heightCm !== null ? `${player.heightCm} cm` : "Unknown"}</Row>
+        <Row label="Contract expiry">{formatDate(player.contractExpiry)}</Row>
+        <Row label="Market value">{formatCurrency(player.marketValueEUR)}</Row>
+        <Row label="Minutes (season)">{player.minutes !== null ? player.minutes.toLocaleString("en-GB") : "Unknown"}</Row>
+        <Row label="International">{internationalStatus ?? "Unknown"}</Row>
+      </dl>
     </div>
   );
 }

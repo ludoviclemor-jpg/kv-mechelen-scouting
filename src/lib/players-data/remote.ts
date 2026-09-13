@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { stripAccents } from "@/lib/utils";
 import { ageRangeToDobRange, type AgeRange } from "@/lib/agePresets";
 import { valueRangeToQuery, type ValueRange } from "@/lib/valuePresets";
 import { contractPresetToRange } from "@/lib/contractPresets";
@@ -213,7 +214,17 @@ export async function fetchPlayersByIds(ids: string[]): Promise<Player[]> {
   return (data as unknown as PlayerRow[]).map(playerFromRow);
 }
 
-/** Live search-as-you-type, e.g. "add a player to this shortlist" — always capped by `limit`. */
+/**
+ * Live search-as-you-type, e.g. "add a player to this shortlist" —
+ * always capped by `limit`. Matches on name, club, or league (the
+ * competition's country — the real field `players.league` actually
+ * holds, see db/schema.sql; there's no direct player -> competition-name
+ * join available through a simple PostgREST filter). Matched against
+ * the real `name_unaccented`/`club_unaccented` columns (trigger-
+ * maintained via Postgres's own `unaccent` extension) so a search like
+ * "andre" also finds "André" — plain `ilike` is case-insensitive but
+ * not accent-insensitive.
+ */
 export async function searchPlayers(
   query: string,
   { excludeIds = [], limit = 6 }: { excludeIds?: string[]; limit?: number } = {}
@@ -221,12 +232,12 @@ export async function searchPlayers(
   const trimmed = query.trim();
   if (!trimmed) return [];
   if (!isSupabaseConfigured()) notConfigured();
-  const escaped = trimmed.replace(/[%,()]/g, "");
+  const escaped = stripAccents(trimmed.replace(/[%,()]/g, ""));
   let q = getSupabaseClient()
     .from("players")
     .select(PLAYER_COLUMNS)
     .eq("active", true)
-    .or(`name.ilike.%${escaped}%,club.ilike.%${escaped}%`);
+    .or(`name_unaccented.ilike.%${escaped}%,club_unaccented.ilike.%${escaped}%,league.ilike.%${escaped}%`);
   if (excludeIds.length > 0) q = q.not("id", "in", `(${excludeIds.join(",")})`);
   const { data, error } = await q.order("name").limit(limit);
   if (error) throw error;

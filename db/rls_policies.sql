@@ -327,6 +327,22 @@ create policy "authenticated can read skillcorner_player_physical" on skillcorne
 -- impect_sync_queue.
 alter table skillcorner_sync_queue enable row level security;
 
+-- Shadow XI (2026-09-11) — owner-scoped, same four-policy shape as
+-- match_reports/saved_searches/action_items above.
+alter table shadow_xi enable row level security;
+drop policy if exists "owner can read shadow_xi" on shadow_xi;
+create policy "owner can read shadow_xi" on shadow_xi
+  for select to authenticated using (owner_id = auth.uid());
+drop policy if exists "owner can insert shadow_xi" on shadow_xi;
+create policy "owner can insert shadow_xi" on shadow_xi
+  for insert to authenticated with check (owner_id = auth.uid());
+drop policy if exists "owner can update shadow_xi" on shadow_xi;
+create policy "owner can update shadow_xi" on shadow_xi
+  for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+drop policy if exists "owner can delete shadow_xi" on shadow_xi;
+create policy "owner can delete shadow_xi" on shadow_xi
+  for delete to authenticated using (owner_id = auth.uid());
+
 -- No policies for `anon` on any table above is intentional, not an
 -- omission: it means anonymous SELECT/INSERT/UPDATE/DELETE are all
 -- rejected. Verify this directly after setup — see

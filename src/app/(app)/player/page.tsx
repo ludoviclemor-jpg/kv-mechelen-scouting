@@ -113,6 +113,15 @@ function PlayerProfileContent() {
 
   const stats = useMemo(() => aggregateStats(filteredClubRows), [filteredClubRows]);
   const caps = useMemo(() => capsByLevel(performanceSeasons), [performanceSeasons]);
+  // Real, derived from this player's own call-up/caps history — never a guess.
+  const internationalStatus = useMemo(() => {
+    if (caps.length > 0) {
+      const top = caps[0];
+      return `${top.teamName ?? top.level} · ${top.caps} cap${top.caps === 1 ? "" : "s"}`;
+    }
+    if ((callUps ?? []).length > 0) return "Called up, no caps yet";
+    return "None recorded";
+  }, [caps, callUps]);
 
   function handleSeasonChange(value: string) {
     setSeason(value);
@@ -177,15 +186,31 @@ function PlayerProfileContent() {
     <>
       <PageHeader title={player.name} description="Player profile" />
       <div className="space-y-6 p-8">
-        <PlayerHeader
-          player={player}
-          competitionName={competition?.name ?? null}
-          rating={rating.data ?? null}
-          onNewReport={() => {
-            setTab("Scouting");
-            setReportFormNonce((n) => n + 1);
-          }}
-        />
+        {/* Compact info column (~28%) + wide analysis zone (~72%) with both
+            charts immediately visible side by side — 2026-09-11 redesign.
+            `items-start` keeps the info column from stretching to match a
+            taller right-hand zone. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(260px,28%)_1fr]">
+          <PlayerHeader
+            player={player}
+            competitionName={competition?.name ?? null}
+            rating={rating.data ?? null}
+            internationalStatus={internationalStatus}
+            onNewReport={() => {
+              setTab("Scouting");
+              setReportFormNonce((n) => n + 1);
+            }}
+          />
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-kvm-border bg-white p-5 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
+              <PlayerRatingBreakdown rating={rating.data ?? null} loading={rating.loading} error={rating.error} onRetry={rating.reload} compact />
+            </div>
+            <div className="rounded-xl border border-kvm-border bg-white p-5 shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
+              <PlayerPhysicalProfile profile={physical.data ?? null} loading={physical.loading} error={physical.error} onRetry={physical.reload} compact />
+            </div>
+          </div>
+        </div>
 
         <div className="rounded-xl border border-kvm-border bg-white shadow-[0_1px_2px_rgba(26,23,18,0.04),0_8px_24px_-8px_rgba(26,23,18,0.10)]">
           <div role="tablist" aria-label="Player profile sections" className="flex border-b border-kvm-border">
@@ -226,6 +251,12 @@ function PlayerProfileContent() {
                     <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">International</h3>
                     <InternationalStatusSection caps={caps} callUps={callUps ?? []} />
                   </section>
+                  {player.agent !== null ? (
+                    <section>
+                      <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Representation</h3>
+                      <p className="text-sm text-kvm-ink">{player.agent}</p>
+                    </section>
+                  ) : null}
                 </div>
               </div>
             ) : null}

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ArrowRightLeft,
   ListChecks,
+  ListTodo,
   FileText,
   FileClock,
   HeartPulse,
@@ -84,6 +85,7 @@ const NAV_ENTRIES: NavEntry[] = [
     items: [
       { href: "/shortlists", label: "Shortlists", icon: ListChecks },
       { href: "/reports", label: "Reports", icon: FileText },
+      { href: "/todos", label: "My To-Dos", icon: ListTodo },
     ],
   },
 ];
@@ -240,7 +242,12 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="hidden w-64 lg:block">
+          {/* Was `hidden ... lg:block` (1024px) — invisible on many real
+              laptop windows even though the nav itself only collapses to
+              the hamburger at the same breakpoint. `sm` (640px) keeps the
+              search reachable on any non-phone width; true phones still
+              get it inside the hamburger menu below. */}
+          <div className="hidden w-56 sm:block md:w-64">
             <GlobalSearch />
           </div>
 

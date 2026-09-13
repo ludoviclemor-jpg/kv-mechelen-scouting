@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, X, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ShortlistCard } from "@/components/shortlists/ShortlistCard";
+import { ShadowXIView } from "@/components/shortlists/ShadowXIView";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { AgeFilter } from "@/components/ui/AgeFilter";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,8 +14,10 @@ import { LoadingState, ErrorState } from "@/components/ui/LoadingState";
 import { useAppStore } from "@/lib/app-store";
 import { fetchPlayersByIds, searchPlayers, useAsync, computeMatchStats, positionLabel } from "@/lib/players-data";
 import { matchesAgeRange, type AgeRange } from "@/lib/agePresets";
-import { calculateAge } from "@/lib/utils";
+import { calculateAge, cn } from "@/lib/utils";
 import { ListChecks } from "lucide-react";
+
+type ShortlistView = "list" | "shadow-xi";
 
 type SortOption = "name" | "rating" | "position";
 const ALL_AGES: AgeRange = { min: null, max: null };
@@ -42,6 +45,7 @@ export default function ShortlistsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(
     shortlists[0]?.id ?? null
   );
+  const [view, setView] = useState<ShortlistView>("list");
   const [newName, setNewName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -182,27 +186,49 @@ export default function ShortlistsPage() {
             />
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-kvm-border px-5 py-3">
-                <div>
-                  <h2 className="text-sm font-bold text-kvm-ink">{selected.name}</h2>
-                  <p className="text-xs text-gray-500">{selected.description}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AgeFilter range={ageRange} onChange={setAgeRange} />
-                  <label className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <ArrowUpDown size={13} aria-hidden="true" />
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as SortOption)}
-                      className="rounded-md border border-kvm-border bg-white px-2 py-1 text-xs"
-                    >
-                      <option value="name">Sort: Name</option>
-                      <option value="rating">Sort: Last 5 average</option>
-                      <option value="position">Sort: Position</option>
-                    </select>
-                  </label>
-                </div>
+              <div role="tablist" aria-label="Shortlist view" className="flex border-b border-kvm-border">
+                {(["list", "shadow-xi"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors",
+                      view === v ? "border-kvm-red text-kvm-ink" : "border-transparent text-gray-400 hover:text-kvm-ink"
+                    )}
+                  >
+                    {v === "list" ? "List View" : "Shadow XI"}
+                  </button>
+                ))}
               </div>
+
+              {view === "shadow-xi" ? (
+                <ShadowXIView shortlist={selected} />
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-kvm-border px-5 py-3">
+                    <div>
+                      <h2 className="text-sm font-bold text-kvm-ink">{selected.name}</h2>
+                      <p className="text-xs text-gray-500">{selected.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AgeFilter range={ageRange} onChange={setAgeRange} />
+                      <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <ArrowUpDown size={13} aria-hidden="true" />
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as SortOption)}
+                          className="rounded-md border border-kvm-border bg-white px-2 py-1 text-xs"
+                        >
+                          <option value="name">Sort: Name</option>
+                          <option value="rating">Sort: Last 5 average</option>
+                          <option value="position">Sort: Position</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
 
               <div className="border-b border-kvm-border px-5 py-3">
                 <SearchBar
@@ -288,6 +314,8 @@ export default function ShortlistsPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+                </>
               )}
             </>
           )}

@@ -1,0 +1,14 @@
+-- PART 5 of 5 — run after the backfill script completes. A single
+-- maintenance statement, not a schema change: flushes the two new GIN
+-- trigram indexes' "pending list" (a well-known Postgres behavior — a
+-- burst of ~117,000 individual row updates against a GIN-indexed column
+-- leaves entries sitting in an unconsolidated pending list until a
+-- vacuum runs, and queries against a large pending list are slow until
+-- then) and refreshes the table's planner statistics. Confirmed live:
+-- searches against `players` were timing out right after the backfill
+-- finished, consistent with this.
+--
+-- Run this as its own single statement (not pasted together with
+-- anything else) — VACUUM cannot run inside a multi-statement
+-- transaction block.
+vacuum analyze players;

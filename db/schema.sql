@@ -1269,3 +1269,70 @@ create table if not exists skillcorner_player_physical (
 create index if not exists idx_skillcorner_player_physical_player on skillcorner_player_physical(scoutastic_player_id);
 create index if not exists idx_skillcorner_player_physical_edition on skillcorner_player_physical(competition_edition_id);
 create index if not exists idx_player_ratings_calculated_at on player_ratings(calculated_at);
+
+-- ============================================================
+-- Global search fix (2026-09-11) — accent-insensitive matching. See
+-- db/migrations/2026-09-11_part1_core.sql, _part2_players_columns.sql, _part3_players_indexes.sql
+-- for the full investigation/rationale. `unaccent` is Postgres's own
+-- real contrib extension; trigger-maintained (not `generated always as`)
+-- because `unaccent()` is STABLE, not IMMUTABLE.
+-- ============================================================
+create extension if not exists unaccent;
+
+alter table players add column if not exists name_unaccented text;
+alter table players add column if not exists club_unaccented text;
+
+create or replace function players_set_unaccented()
+returns trigger as $$
+begin
+  new.name_unaccented := unaccent(coalesce(new.name, ''));
+  new.club_unaccented := unaccent(coalesce(new.club, ''));
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_players_set_unaccented on players;
+create trigger trg_players_set_unaccented
+  before insert or update of name, club on players
+  for each row execute function players_set_unaccented();
+
+-- Backfill for pre-existing rows: node scripts/backfill-unaccented-columns.mjs
+-- (a single UPDATE across the real ~180k-row table times out the SQL
+-- Editor — confirmed live).
+
+create index if not exists idx_players_name_unaccented_trgm on players using gin (name_unaccented gin_trgm_ops);
+create index if not exists idx_players_club_unaccented_trgm on players using gin (club_unaccented gin_trgm_ops);
+
+-- ============================================================
+-- To-Do enhancement (2026-09-11) — extends the existing, already
+-- owner-scoped `action_items` table (powers "My Next Actions" on the
+-- dashboard and the player-profile "Next action"/"+ To-Do" button)
+-- instead of creating a parallel table.
+-- ============================================================
+alter table action_items add column if not exists priority text not null default 'normal'
+  check (priority in ('low', 'normal', 'high'));
+alter table action_items add column if not exists notes text;
+create index if not exists idx_action_items_priority on action_items(priority);
+
+-- ============================================================
+-- Shadow XI (2026-09-11) — one row per shortlist. Same owner-scoped RLS
+-- shape as match_reports/saved_searches/action_items — a scout's Shadow
+-- XI is exactly as private as their shortlists and to-dos already are.
+-- `slots` is `{ [slotKey]: scoutastic_player_id }`, a flat jsonb map
+-- (not one column per position) because the formation's slot keys are
+-- configurable — see src/lib/shadow-xi/formations.ts — and this must
+-- not need a migration every time a new formation is added.
+-- ============================================================
+create table if not exists shadow_xi (
+  shortlist_id uuid primary key references shortlists(id) on delete cascade,
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  formation_id text not null default '4-2-3-1',
+  slots jsonb not null default '{}',
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_shadow_xi_owner on shadow_xi(owner_id);
+
+drop trigger if exists trg_shadow_xi_updated_at on shadow_xi;
+create trigger trg_shadow_xi_updated_at
+  before update on shadow_xi
+  for each row execute function set_updated_at();
