@@ -15,6 +15,7 @@ import { PositionUsagePitch } from "@/components/player-profile/PositionUsagePit
 import { CareerHistorySection } from "@/components/player-profile/CareerHistorySection";
 import { RecentPerformanceSection } from "@/components/player-profile/RecentPerformanceSection";
 import { PlayerRatingBreakdown } from "@/components/player-profile/PlayerRatingBreakdown";
+import { TransferFeasibilitySection } from "@/components/player-profile/TransferFeasibilitySection";
 import { PlayerPhysicalProfile } from "@/components/player-profile/PlayerPhysicalProfile";
 import { fetchPlayerRecentPerformance } from "@/lib/sportmonks-data";
 import { fetchPlayerRating } from "@/lib/scoring-data/remote";
@@ -257,6 +258,7 @@ function PlayerProfileContent() {
                       <p className="text-sm text-kvm-ink">{player.agent}</p>
                     </section>
                   ) : null}
+                  <TransferFeasibilitySection marketValueEUR={player.marketValueEUR} contractExpiry={player.contractExpiry} />
                 </div>
               </div>
             ) : null}
