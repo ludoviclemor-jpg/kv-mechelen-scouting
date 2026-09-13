@@ -35,6 +35,7 @@ import { METRIC_REGISTRY } from "./config/metricRegistry.mjs";
  */
 export function computePlayerMetrics(row) {
   const k = row.kpis ?? {};
+  const matchShare = row.matchShare ?? null;
 
   function average(kpiName) {
     const value = k[kpiName];
@@ -72,6 +73,22 @@ export function computePlayerMetrics(row) {
   const goalsTotal = raw("GOALS");
   const shotXgTotal = raw("SHOT_XG");
   values.finishing = goalsTotal === null || shotXgTotal === null || shotXgTotal === 0 ? null : goalsTotal / shotXgTotal;
+
+  // Real attempt counts for the two rate metrics — a duel win % built on
+  // 3 real attempts and one built on 300 real attempts should not get
+  // equal trust just because both players logged similar minutes (found
+  // 2026-09-13: the reliability shrinkage previously used `minutes`
+  // uniformly for every metric, including rates, which is exactly this
+  // bug — a low-engagement player who rarely contests duels but plays
+  // full 90s got the same duel-rate reliability as a duel-heavy
+  // defender). `matchShare` is Impect's own real per-season match-
+  // equivalent figure (confirmed live this session against real season
+  // totals) — (won + lost) per match * matchShare recovers a real
+  // season attempt count from the per-match average Impect returns.
+  values.groundDuelAttempts =
+    matchShare && wonGround !== null && lostGround !== null ? (wonGround + lostGround) * matchShare : null;
+  values.aerialDuelAttempts =
+    matchShare && wonAerial !== null && lostAerial !== null ? (wonAerial + lostAerial) * matchShare : null;
 
   return values;
 }

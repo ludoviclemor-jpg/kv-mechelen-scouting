@@ -75,16 +75,17 @@ export const POSITION_PILLARS = {
   Fullback: {
     supported: true,
     pillars: [
-      pillar("defensive_contribution", "Defensive Contribution", [
-        { metric: "groundDuelWinPct", weight: 0.5 },
-        { metric: "ballWin", weight: 0.5 },
-      ], "physical"),
-      pillar("ball_progression", "Ball Progression", [
-        { metric: "bypassedOpponents", weight: 0.5 },
-        { metric: "bypassedDefenders", weight: 0.5 },
-      ]),
+      // groundDuelWinPct only — ballWin lives solely in "pressing" below.
+      // Previously both pillars weighted ballWin (0.5 here, 1.0 there),
+      // so a player's ball-winning rate counted twice toward Current
+      // Level (real double-counting, found 2026-09-13 while reviewing
+      // for correlated-metric reuse across pillars).
+      pillar("defensive_contribution", "Defensive Contribution", [{ metric: "groundDuelWinPct", weight: 1.0 }], "physical"),
+      // bypassedOpponents only — bypassedDefenders lives solely in "final_third_contribution" below (real double-counting, found via test 2026-09-13).
+      pillar("ball_progression", "Ball Progression", [{ metric: "bypassedOpponents", weight: 1.0 }]),
       pillar("build_up_involvement", "Build-up Involvement", [{ metric: "packingXg", weight: 1.0 }]),
-      pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.7 }, { metric: "packingXg", weight: 0.3 }]),
+      // assists only — packingXg lives solely in "build_up_involvement" above (real double-counting, found via test 2026-09-13).
+      pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 1.0 }]),
       pillar("final_third_contribution", "Final-Third Contribution", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("crossing_box_delivery", "Crossing / Box Delivery", []), // no cross-specific metric synced
       pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
@@ -96,13 +97,12 @@ export const POSITION_PILLARS = {
     supported: true,
     pillars: [
       pillar("build_up_involvement", "Build-up Involvement", [{ metric: "bypassedOpponents", weight: 1.0 }]),
-      pillar("progressive_passing", "Progressive Passing", [{ metric: "bypassedDefenders", weight: 0.6 }, { metric: "packingXg", weight: 0.4 }]),
+      // bypassedDefenders only — packingXg lives solely in "possession_value" below (real double-counting, found via test 2026-09-13).
+      pillar("progressive_passing", "Progressive Passing", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("receiving_press_resistance", "Receiving & Press Resistance", []), // no receiving-specific metric synced
       pillar("ball_security", "Ball Security", [{ metric: "ballLoss", weight: 1.0 }]),
-      pillar("defensive_positioning_intervention", "Defensive Positioning & Intervention", [
-        { metric: "groundDuelWinPct", weight: 0.5 },
-        { metric: "ballWin", weight: 0.5 },
-      ], "physical"),
+      // groundDuelWinPct only — see Fullback's identical fix above; ballWin lives solely in "pressing".
+      pillar("defensive_positioning_intervention", "Defensive Positioning & Intervention", [{ metric: "groundDuelWinPct", weight: 1.0 }], "physical"),
       pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
       pillar("possession_value", "Possession Value", [{ metric: "packingXg", weight: 1.0 }]),
     ],
@@ -112,7 +112,8 @@ export const POSITION_PILLARS = {
     supported: true,
     pillars: [
       pillar("build_up_involvement", "Build-up Involvement", [{ metric: "bypassedOpponents", weight: 1.0 }]),
-      pillar("progression", "Progression", [{ metric: "bypassedDefenders", weight: 0.5 }, { metric: "packingXg", weight: 0.5 }]),
+      // bypassedDefenders only — packingXg lives solely in "possession_value" below (real double-counting, found via test 2026-09-13).
+      pillar("progression", "Progression", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("passing_quality", "Passing Quality", []), // no pass-completion% metric synced (RATIO_PASSING_ACCURACY exists in Impect's Scores catalog but isn't synced yet)
       pillar("press_resistance", "Press Resistance", []),
       pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.6 }, { metric: "shotXg", weight: 0.4 }]),
@@ -128,10 +129,14 @@ export const POSITION_PILLARS = {
   "Attacking Midfield": {
     supported: true,
     pillars: [
-      pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.5 }, { metric: "packingXg", weight: 0.3 }, { metric: "shotXg", weight: 0.2 }]),
+      // shotXg removed (real double-counting with "goal_threat" below, found via test 2026-09-13) — assists/packingXg weights renormalized to sum to 1.0.
+      pillar("chance_creation", "Chance Creation", [{ metric: "assists", weight: 0.625 }, { metric: "packingXg", weight: 0.375 }]),
+      // "Final-Third Involvement" used to be a separate pillar with the
+      // identical single metric (bypassedDefenders, weight 1.0) as this
+      // one — real double-counting (found 2026-09-13), removed rather
+      // than kept as a second copy of the same signal.
       pillar("line_breaking_actions", "Line-Breaking Actions", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("progressive_receptions", "Progressive Receptions", []), // no receiving-location metric synced
-      pillar("final_third_involvement", "Final-Third Involvement", [{ metric: "bypassedDefenders", weight: 1.0 }]),
       pillar("box_involvement", "Box Involvement", []), // no box-touch metric synced
       pillar("goal_threat", "Goal Threat", [{ metric: "goals", weight: 0.5 }, { metric: "shotXg", weight: 0.5 }]),
       pillar("pressing", "Pressing", [{ metric: "ballWin", weight: 1.0 }], "physical"),
@@ -157,8 +162,14 @@ export const POSITION_PILLARS = {
   Striker: {
     supported: true,
     pillars: [
+      // "Shot Quality" used to be a separate pillar built from shotXg
+      // alone — the same metric already fully inside "Goal Threat"
+      // (weight 0.5) here, so shotXg counted toward Current Level twice
+      // over (three times counting "Finishing" below, which is derived
+      // from shotXg too) — real double-counting, found 2026-09-13.
+      // Removed as its own pillar; shotXg's signal still lives in Goal
+      // Threat.
       pillar("goal_threat", "Goal Threat", [{ metric: "goals", weight: 0.5 }, { metric: "shotXg", weight: 0.5 }]),
-      pillar("shot_quality", "Shot Quality", [{ metric: "shotXg", weight: 1.0 }]),
       pillar("box_presence", "Box Presence", [], "physical"), // no box-touch metric synced
       pillar("finishing", "Finishing", [{ metric: "finishing", weight: 1.0 }]),
       pillar("link_play", "Link Play", []), // no hold-up/lay-off metric synced

@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-09-13T18:20:48.559Z",
+  "minMinutes": 630,
+  "trainTransitions": 12472,
+  "testTransitions": 1190,
+  "testYear": 2026,
+  "evaluated": 1170,
+  "modelMSE": 0.10672810959543474,
+  "baselineMSE": 0.1046215929582369,
+  "curve": {
+    "Goalkeeper|27-29": {
+      "n": 675,
+      "meanDeltaZ": 0.018134368659028392
+    },
+    "Goalkeeper|30+": {
+      "n": 1195,
+      "meanDeltaZ": 0.011915066409369589
+    },
+    "Striker|27-29": {
+      "n": 912,
+      "meanDeltaZ": -0.0069368147901495165
+    },
+    "Striker|30+": {
+      "n": 1180,
+      "meanDeltaZ": -0.043968603748917
+    },
+    "Fullback|21-23": {
+      "n": 119,
+      "meanDeltaZ": -0.023831030425766536
+    },
+    "Centre Back|30+": {
+      "n": 1186,
+      "meanDeltaZ": -0.01384282306089533
+    },
+    "Fullback|27-29": {
+      "n": 113,
+      "meanDeltaZ": -0.01343525793797994
+    },
+    "Centre Back|18-20": {
+      "n": 268,
+      "meanDeltaZ": -0.018241334990890683
+    },
+    "Goalkeeper|24-26": {
+      "n": 644,
+      "meanDeltaZ": -0.0014845139426381275
+    },
+    "Centre Back|21-23": {
+      "n": 744,
+      "meanDeltaZ": -0.012900269825816813
+    },
+    "Fullback|30+": {
+      "n": 121,
+      "meanDeltaZ": -0.06936216133552592
+    },
+    "Centre Back|27-29": {
+      "n": 999,
+      "meanDeltaZ": -0.02387975658053108
+    },
+    "Striker|24-26": {
+      "n": 994,
+      "meanDeltaZ": 0.01946961965216316
+    },
+    "Striker|21-23": {
+      "n": 699,
+      "meanDeltaZ": 0.028980485936173618
+    },
+    "Winger|27-29": {
+      "n": 72,
+      "meanDeltaZ": -0.10696168960539823
+    },
+    "Centre Back|24-26": {
+      "n": 1070,
+      "meanDeltaZ": -0.016298222589277316
+    },
+    "Goalkeeper|18-20": {
+      "n": 161,
+      "meanDeltaZ": -0.0044107685456340985
+    },
+    "Goalkeeper|21-23": {
+      "n": 453,
+      "meanDeltaZ": -0.009119548291770774
+    },
+    "Fullback|24-26": {
+      "n": 142,
+      "meanDeltaZ": 0.0027979584560349708
+    },
+    "Striker|18-20": {
+      "n": 255,
+      "meanDeltaZ": 0.03374849602433575
+    },
+    "Winger|24-26": {
+      "n": 70,
+      "meanDeltaZ": -0.09884846721094731
+    },
+    "Winger|21-23": {
+      "n": 66,
+      "meanDeltaZ": 0.014528655976189978
+    },
+    "Winger|30+": {
+      "n": 35,
+      "meanDeltaZ": -0.2225403839107867
+    },
+    "Fullback|18-20": {
+      "n": 35,
+      "meanDeltaZ": 0.023703818198657658
+    },
+    "Winger|18-20": {
+      "n": 24,
+      "meanDeltaZ": -0.011976600174887482
+    },
+    "Defensive Midfield|30+": {
+      "n": 40,
+      "meanDeltaZ": -0.0978942926254068
+    },
+    "Defensive Midfield|27-29": {
+      "n": 43,
+      "meanDeltaZ": 0.05583192246339858
+    },
+    "Defensive Midfield|21-23": {
+      "n": 24,
+      "meanDeltaZ": -0.02819767628584391
+    },
+    "Defensive Midfield|24-26": {
+      "n": 40,
+      "meanDeltaZ": -0.005338865049318983
+    }
+  }
+}

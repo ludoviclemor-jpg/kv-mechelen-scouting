@@ -1182,7 +1182,12 @@ create table if not exists player_ratings (
   confidence_score integer,
   confidence_label text check (confidence_label is null or confidence_label in ('Low', 'Medium', 'High')),
   confidence_reasons jsonb not null default '[]',
-  context jsonb not null default '{}', -- position, positionGroup, role, season, competition, minutes, cohortSize, cohortLevel, age
+  context jsonb not null default '{}', -- position, positionGroup, role, season, competition, minutes, cohortSize, cohortLevel, age, competitionCalibration
+  -- KV Mechelen Fit (2026-09-13) — Immediate/Development/Total fit against the
+  -- club's own configurable role profile (scripts/lib/scoring/config/
+  -- kvMechelenProfile.mjs), kept deliberately separate from Current Level/
+  -- Potential. Stores the computed result only, never the profile config itself.
+  kv_fit jsonb,
   pillars jsonb not null default '[]',
   strengths jsonb not null default '[]',
   weaknesses jsonb not null default '[]',

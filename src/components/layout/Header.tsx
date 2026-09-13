@@ -57,6 +57,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
  */
 const NAV_ENTRIES: NavEntry[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/data", label: "Data", icon: LineChart },
   {
     label: "Discover",
     icon: Compass,

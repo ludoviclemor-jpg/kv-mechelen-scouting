@@ -42,17 +42,31 @@ function parseArgs(argv) {
   return args;
 }
 
-/** Paginated read — PostgREST caps a `.select()` at 1,000 rows/request regardless of `.limit()` (see docs/SCOUTASTIC_SYNC.md; same pattern reused from scripts/sync-matches.mjs). */
-async function fetchAllRows(db, table, columns, build = (q) => q) {
+/**
+ * Keyset pagination on `cursorColumn` (a real column of `table`) — NOT
+ * `.range()` offset pagination. Confirmed live, 2026-09-13, now that
+ * the full 759-competition crawl is done: `fetchPoolForPositionGroup`'s
+ * real result set (every synced player in one broad position group,
+ * across every competition) got large enough that later `.range()`
+ * pages hit Postgres's own statement timeout — the identical real bug
+ * already fixed this session for the `players` table and the
+ * SkillCorner player bridge (see scripts/sync-skillcorner-physical.mjs's
+ * loadPlayerBridge). `cursorColumn` should be a column with many
+ * distinct values relative to any single page (here, always
+ * `iteration_id` — a single competition's real row count for one
+ * position group is always far below the 1,000-row page size, so a
+ * page boundary never actually splits one competition's rows).
+ */
+async function fetchAllRows(db, table, columns, cursorColumn, build = (q) => q) {
   const rows = [];
-  const PAGE = 1000;
-  let from = 0;
-  while (true) {
-    const { data, error } = await build(db.from(table).select(columns)).range(from, from + PAGE - 1);
+  const PAGE = 1000; // PostgREST's own real default max-rows cap — requesting more silently returns exactly this many anyway
+  let cursor = -1;
+  for (;;) {
+    const { data, error } = await build(db.from(table).select(columns).gt(cursorColumn, cursor)).order(cursorColumn, { ascending: true }).limit(PAGE);
     if (error) throw error;
+    if (data.length === 0) break;
     rows.push(...data);
-    if (data.length < PAGE) break;
-    from += PAGE;
+    cursor = data[data.length - 1][cursorColumn];
   }
   return rows;
 }
@@ -70,6 +84,7 @@ function joinRows(kpiRows, playersById, squadsById, competitionsById) {
       transfermarktId: player?.transfermarkt_id ?? null,
       position: r.position,
       minutes: r.minutes,
+      matchShare: r.match_share ?? null,
       iterationId: r.iteration_id,
       squadId: r.squad_id,
       squadName: squad?.name ?? "Unknown",
@@ -95,7 +110,7 @@ function joinRows(kpiRows, playersById, squadsById, competitionsById) {
 async function fetchPoolForPositionGroup(db, group) {
   const rawPositions = rawPositionsForGroup(group);
   if (rawPositions.length === 0) return [];
-  const rows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,player_id,position,minutes,kpis", (q) =>
+  const rows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,player_id,position,minutes,kpis", "iteration_id", (q) =>
     q.in("position", rawPositions).gte("minutes", MIN_MINUTES_FOR_RATING)
   );
   return rows.map((r) => ({ playerId: r.player_id, iterationId: r.iteration_id, position: r.position, minutes: r.minutes, kpis: r.kpis ?? {} }));
@@ -117,8 +132,14 @@ async function fetchByIdsChunked(db, table, columns, idColumn, ids) {
   const rows = [];
   for (let i = 0; i < idArray.length; i += CHUNK) {
     const chunk = idArray.slice(i, i + CHUNK);
-    const page = await fetchAllRows(db, table, columns, (q) => q.in(idColumn, chunk));
-    rows.push(...page);
+    // A single direct query, not fetchAllRows — each chunk is capped at
+    // 150 ids, always far under PostgREST's own 1,000-row page cap, so
+    // there's nothing to paginate and no cursor-column ambiguity across
+    // this function's different real tables (impect_players/
+    // impect_squads/impect_competitions each key on a different column).
+    const { data, error } = await db.from(table).select(columns).in(idColumn, chunk);
+    if (error) throw error;
+    rows.push(...data);
   }
   return rows;
 }
@@ -163,7 +184,7 @@ async function main() {
 
   let targetRows;
   if (args.playerId) {
-    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", (q) =>
+    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", "iteration_id", (q) =>
       q.eq("iteration_id", args.iterationId).eq("player_id", args.playerId)
     );
     if (targetRows.length === 0) {
@@ -178,9 +199,16 @@ async function main() {
     // regardless of whether player data was ever crawled for them (a
     // real bug this surfaced: the frontend's competition picker used
     // that same wrong signal — see src/lib/impect-data/remote.ts).
-    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis");
+    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", "iteration_id");
   } else {
-    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", (q) => {
+    // Filtered to one real, fixed iteration_id — every matching row
+    // shares that exact value, so keyset-paginating on iteration_id
+    // itself would wrongly stop after the first page for any
+    // competition with more than 1,000 real rows (the cursor's `.gt()`
+    // check could never find a "later" iteration_id). player_id varies
+    // across every real row in a single competition, so it's the real,
+    // safe cursor column for this specific query shape.
+    targetRows = await fetchAllRows(db, "impect_player_kpis", "iteration_id,squad_id,player_id,position,minutes,match_share,kpis", "player_id", (q) => {
       let query = q.eq("iteration_id", args.iterationId);
       if (args.squadId) query = query.eq("squad_id", args.squadId);
       return query;
@@ -242,6 +270,7 @@ async function main() {
     confidence_label: r.confidence.label,
     confidence_reasons: r.confidence.reasons,
     context: r.context,
+    kv_fit: r.kvMechelenFit,
     pillars: r.pillars,
     strengths: r.strengths,
     weaknesses: r.weaknesses,

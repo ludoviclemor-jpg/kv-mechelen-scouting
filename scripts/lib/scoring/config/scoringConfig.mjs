@@ -9,7 +9,7 @@
 
 import { DERIVED_COMPETITION_STRENGTH } from "./competitionStrengthData.mjs";
 
-export const MODEL_VERSION = "1.2.0";
+export const MODEL_VERSION = "2.0.0";
 
 /** Minimum minutes a player needs before their rating is calculated at all — below this, the sample is too thin to say anything. */
 export const MIN_MINUTES_FOR_RATING = 270; // ~3 full matches, same bar already used for the pizza-chart percentile population (src/components/dashboard/ImpectPlayerPizzaDrawer.tsx)
@@ -28,6 +28,20 @@ export const MIN_COHORT_SIZE = 15;
  */
 export const RELIABILITY_CONSTANT = 270;
 
+/**
+ * Same shrinkage formula, but for rate metrics (duel win %), using real
+ * attempt counts instead of minutes (found 2026-09-13: using minutes
+ * uniformly for a win % let a low-engagement player's rarely-contested
+ * duels look just as reliable as a duel-heavy defender's, purely
+ * because they played similar minutes). 20 real attempts is a real
+ * modelling choice, not derived from a fitted curve on this project's
+ * own data (no historical duel-outcome dataset exists yet to fit one) —
+ * it's the commonly-cited rough order of magnitude at which a binary
+ * success-rate stat starts to stabilize in sports-analytics literature,
+ * used here as a disclosed, provisional prior, not a proven constant.
+ */
+export const RATE_RELIABILITY_CONSTANT = 20;
+
 /** Winsorization bounds — values outside this percentile range are clipped before percentile-ranking, so one extreme outlier match/season can't dominate a cohort. */
 export const WINSORIZE_LOW_PERCENTILE = 2;
 export const WINSORIZE_HIGH_PERCENTILE = 98;
@@ -39,15 +53,27 @@ export const WINSORIZE_HIGH_PERCENTILE = 98;
  * automatically get a 90 Current Level — see competitionStrength.mjs's
  * calibration step).
  */
+/**
+ * These used to carry real-world league labels ("Champions League
+ * level", "Strong top-five-league level") — removed 2026-09-13. This
+ * project has never validated the score-to-real-level mapping against
+ * actual reference players (no held-out set of "known Champions-League-
+ * quality players" was checked against the calibrated score), so a
+ * label implying that mapping is a claim this project can't back up.
+ * These are model-index bands only — a neutral ordinal read of where a
+ * score sits on the 0-100 scale, not a verified real-world equivalence.
+ * If/when real reference-player validation exists (see the "Validation"
+ * section of docs/SCORING_MODEL.md), real-world labels can be
+ * reintroduced with that evidence cited.
+ */
 export const CURRENT_LEVEL_BANDS = [
-  { min: 90, label: "Elite / Champions League star level" },
-  { min: 85, label: "Champions League level" },
-  { min: 80, label: "Strong top-five-league level" },
-  { min: 75, label: "Strong European first-division level" },
-  { min: 70, label: "Good Belgian Pro League level" },
-  { min: 65, label: "Belgian Pro League squad level" },
-  { min: 60, label: "Strong second division or development level" },
-  { min: 0, label: "Lower current level or insufficient development" },
+  { min: 90, label: "Model index: top band (90-100, provisional)" },
+  { min: 80, label: "Model index: very high (80-89, provisional)" },
+  { min: 70, label: "Model index: high (70-79, provisional)" },
+  { min: 60, label: "Model index: above average (60-69, provisional)" },
+  { min: 50, label: "Model index: average (50-59, provisional)" },
+  { min: 40, label: "Model index: below average (40-49, provisional)" },
+  { min: 0, label: "Model index: low (0-39, provisional)" },
 ];
 
 /**

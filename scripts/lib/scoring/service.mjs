@@ -7,6 +7,8 @@ import { scorePotential } from "./potential.mjs";
 import { scoreConfidence } from "./confidence.mjs";
 import { buildStrengthsAndWeaknesses, buildDevelopmentPriorities, buildExplanation } from "./explanations.mjs";
 import { COMPETITION_STRENGTH } from "./config/scoringConfig.mjs";
+import { getTransferEvidence } from "./transferEvidence.mjs";
+import { scoreKvMechelenFit } from "./kvMechelenFit.mjs";
 
 function ageFromBirthdate(birthdate, asOf = new Date()) {
   if (!birthdate) return null;
@@ -94,6 +96,24 @@ export function scorePlayer({ player, pool, competitionTierByIterationId, hasMul
     cohortLevel,
   });
 
+  // Real, disclosed cross-check only — never used to adjust the score
+  // itself (see transferEvidence.mjs's header for why: the real fit
+  // against today's transfer sample sizes was worse than predicting the
+  // mean, so blending it in would be overfitting noise, not an
+  // improvement).
+  const transferEvidence = getTransferEvidence(player.competitionName);
+
+  // Separate from Current Level / Potential entirely — a genuinely good
+  // player is not automatically a good match for KV Mechelen (see
+  // kvMechelenFit.mjs and config/kvMechelenProfile.mjs's own headers).
+  const kvMechelenFit = scoreKvMechelenFit({
+    positionGroup: group,
+    currentLevel: currentLevelResult.currentLevel,
+    potential: potentialResult.potential,
+    pillars: currentLevelResult.pillars,
+    dataCompleteness: currentLevelResult.dataCompleteness,
+  });
+
   const warnings = [];
   if (fallbackUsed) warnings.push(`Cohort fallback used: ${cohortLevel} (fewer than the configured minimum comparable peers in the narrower cohort).`);
   if (!competitionKnown) warnings.push(`Competition strength for "${player.competitionName}" uses the provisional default, not a specifically configured value.`);
@@ -112,6 +132,7 @@ export function scorePlayer({ player, pool, competitionTierByIterationId, hasMul
     potentialRange: potentialResult.range,
     overallPercentile: currentLevelResult.overallPercentile,
     confidence: confidenceResult,
+    kvMechelenFit,
     context: {
       position: player.position,
       positionGroup: group,
@@ -122,6 +143,13 @@ export function scorePlayer({ player, pool, competitionTierByIterationId, hasMul
       cohortSize: cohort.length,
       cohortLevel,
       age,
+      competitionCalibration: {
+        rawScore: currentLevelResult.rawScore,
+        calibratedScore: currentLevelResult.currentLevel,
+        competitionAdjustment: currentLevelResult.competitionAdjustment,
+        // Real diagnostic only (see transferEvidence.mjs) — not used to compute calibratedScore.
+        realTransferEvidence: transferEvidence,
+      },
     },
     pillars: currentLevelResult.pillars,
     strengths,
@@ -146,6 +174,7 @@ function unratableResult(player, group, reason) {
     potentialRange: null,
     overallPercentile: null,
     confidence: { score: 0, label: "Low", reasons: [reason] },
+    kvMechelenFit: { supported: false, reason: "Not ratable — see `reason` above.", immediateFit: null, developmentFit: null, totalFit: null },
     context: { position: player.position, positionGroup: group, role: null, season: player.season, competition: player.competitionName, minutes: player.minutes ?? 0, cohortSize: 0, cohortLevel: null, age: ageFromBirthdate(player.birthdate) },
     pillars: [],
     strengths: [],

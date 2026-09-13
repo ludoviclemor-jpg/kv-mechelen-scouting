@@ -54,6 +54,19 @@ describe("computePlayerMetrics", () => {
     expect(metrics.groundDuelWinPct).toBeNull();
     expect(metrics.aerialDuelWinPct).toBeNull();
   });
+
+  it("computes a real season attempt count from the per-match average and matchShare", () => {
+    // 3 duels/match average * 32 real match-equivalents = ~96 real attempts this season.
+    const row = { kpis: { WON_GROUND_DUELS: 2, LOST_GROUND_DUELS: 1 }, minutes: 2880, matchShare: 32 };
+    const metrics = computePlayerMetrics(row);
+    expect(metrics.groundDuelAttempts).toBeCloseTo(96, 5);
+  });
+
+  it("leaves attempt counts null without a real matchShare, rather than guessing from minutes", () => {
+    const row = { kpis: { WON_GROUND_DUELS: 2, LOST_GROUND_DUELS: 1 }, minutes: 900 };
+    const metrics = computePlayerMetrics(row);
+    expect(metrics.groundDuelAttempts).toBeNull();
+  });
 });
 
 describe("computeDataCompleteness", () => {

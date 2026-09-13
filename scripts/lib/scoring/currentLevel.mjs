@@ -2,7 +2,7 @@ import { computePlayerMetrics, computeDataCompleteness } from "./preprocessing.m
 import { winsorize, percentileRank, shrinkTowardAverage } from "./normalization.mjs";
 import { calibrateToCompetition } from "./competitionStrength.mjs";
 import { METRIC_REGISTRY } from "./config/metricRegistry.mjs";
-import { RELIABILITY_CONSTANT, WINSORIZE_LOW_PERCENTILE, WINSORIZE_HIGH_PERCENTILE, CURRENT_LEVEL_BANDS } from "./config/scoringConfig.mjs";
+import { RELIABILITY_CONSTANT, RATE_RELIABILITY_CONSTANT, WINSORIZE_LOW_PERCENTILE, WINSORIZE_HIGH_PERCENTILE, CURRENT_LEVEL_BANDS } from "./config/scoringConfig.mjs";
 
 export function currentLevelBand(score) {
   return CURRENT_LEVEL_BANDS.find((b) => score >= b.min)?.label ?? CURRENT_LEVEL_BANDS[CURRENT_LEVEL_BANDS.length - 1].label;
@@ -49,7 +49,17 @@ export function scoreCurrentLevel({ player, positionGroupConfig, cohort, competi
       const registryEntry = METRIC_REGISTRY[metric];
       const clipped = winsorize(playerValue, cohortValues, WINSORIZE_LOW_PERCENTILE, WINSORIZE_HIGH_PERCENTILE);
       const rawPercentile = percentileRank(clipped, cohortValues, !registryEntry.higherIsBetter);
-      const { adjusted, reliability } = shrinkTowardAverage(rawPercentile, player.minutes, RELIABILITY_CONSTANT);
+      // A rate metric (duel win %) is shrunk by its own real attempt
+      // count, not minutes played — see metricRegistry.mjs's
+      // `attemptsKey` and RATE_RELIABILITY_CONSTANT's header for why.
+      // Falls back to the minutes-based sample size if attempts
+      // genuinely aren't available (e.g. matchShare missing) rather
+      // than skipping the metric outright.
+      const attempts = registryEntry.attemptsKey ? playerMetrics[registryEntry.attemptsKey] : null;
+      const { adjusted, reliability } =
+        attempts !== null && attempts !== undefined
+          ? shrinkTowardAverage(rawPercentile, attempts, RATE_RELIABILITY_CONSTANT)
+          : shrinkTowardAverage(rawPercentile, player.minutes, RELIABILITY_CONSTANT);
 
       metricResults.push({ metric, weight, rawPercentile, adjustedScore: adjusted, reliability });
     }

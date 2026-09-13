@@ -71,12 +71,20 @@ export const METRIC_REGISTRY = {
     label: "Ground Duel Win %",
     kind: "rate",
     higherIsBetter: true,
+    // A win % is only as trustworthy as the number of real attempts it's
+    // built from, not the minutes played around it (a player who rarely
+    // contests duels but plays every minute isn't more "reliable" on
+    // this metric than a duel-heavy one with the same minutes) — see
+    // preprocessing.mjs's groundDuelAttempts and currentLevel.mjs's use
+    // of it, fixed 2026-09-13.
+    attemptsKey: "groundDuelAttempts",
   },
   aerialDuelWinPct: {
     impectField: "WON_AERIAL_DUELS / LOST_AERIAL_DUELS",
     label: "Aerial Duel Win %",
     kind: "rate",
     higherIsBetter: true,
+    attemptsKey: "aerialDuelAttempts",
   },
   ballWin: {
     impectField: "BALL_WIN_REMOVED_OPPONENTS",
